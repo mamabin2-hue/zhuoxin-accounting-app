@@ -596,7 +596,7 @@ const COA={
   "資本":"權益","業主資本":"權益","業主往來":"權益","股東往來":"權益","保留盈餘":"權益",
   "銷貨收入":"收入","勞務收入":"收入","服務收入":"收入","利息收入":"收入","其他收入":"收入",
   "進貨":"成本","銷貨成本":"成本",
-  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用"};
+  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用"};
 function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_cu)return _cu.cat;if(COA[a])return COA[a];
   if(/累計折舊/.test(a))return "資產減";
   if(/收入|銷貨收/.test(a))return "收入";
@@ -630,7 +630,12 @@ const PRESETS=[
   {name:"業主／股東投入",memo:"股東投入",lines:[{acct:"銀行存款"},{acct:"業主往來"}]},
   {name:"業主／股東提取",memo:"股東提取",lines:[{acct:"業主往來"},{acct:"銀行存款"}]},
   {name:"房租支出",memo:"租金",lines:[{acct:"租金支出"},{acct:"銀行存款"}]},
-  {name:"折舊提列",memo:"折舊",lines:[{acct:"折舊費用"},{acct:"累計折舊"}]}];
+  {name:"折舊提列",memo:"折舊",lines:[{acct:"折舊費用"},{acct:"累計折舊"}]},
+  {name:"收到客戶貨款（應收→銀行）",memo:"收款",lines:[{acct:"銀行存款"},{acct:"應收帳款"}]},
+  {name:"銀行利息收入",memo:"利息",lines:[{acct:"銀行存款"},{acct:"利息收入"}]},
+  {name:"支付勞健保",memo:"勞健保",lines:[{acct:"勞健保費"},{acct:"銀行存款"}]},
+  {name:"繳納稅捐／規費",memo:"稅捐",lines:[{acct:"稅捐"},{acct:"銀行存款"}]},
+  {name:"開辦費／設立規費",memo:"開辦費",lines:[{acct:"開辦費"},{acct:"銀行存款"}]}];
 function jLineRow(){const row=document.createElement("div");row.className="jline";
   row.style.cssText="display:grid;grid-template-columns:1fr 1.3fr .9fr .9fr 30px;gap:8px;align-items:center";
   row.innerHTML=`<div class="fld"><select class="jl-cat"></select></div>
