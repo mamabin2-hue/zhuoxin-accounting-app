@@ -202,7 +202,7 @@
         <form class="form" id="pForm">
           <div class="frow">
             <div class="fld"><label>日期</label><input type="date" id="p_date" required></div>
-            <div class="fld"><label>憑證類別</label><select id="p_type"><option>三聯式/電子計算機</option><option>電子發票</option><option>二聯式收銀機</option><option>載具</option><option>海關代徵</option><option>其他</option></select></div>
+            <div class="fld"><label>憑證類別</label><select id="p_type"><option>三聯式/電子計算機</option><option>電子發票</option><option>二聯式收銀機</option><option>載具</option><option>海關代徵</option><option>國外invoice(未在台登記)</option><option>其他</option></select></div>
             <div class="fld"><label>從廠商帶入</label><select id="p_vendor"></select></div>
             <div class="fld"><label>賣方統編</label><input id="p_uni" inputmode="numeric" placeholder="8 碼"></div>
             <div class="fld"><label>賣方名稱</label><input id="p_name" placeholder="例：GoDaddy"></div>
@@ -218,6 +218,12 @@
             <div class="fld"><label>付款方式</label><select id="p_pay"><option>現金</option><option>銀行存款</option><option>應付帳款</option><option>信用卡</option></select></div>
             <div class="fld"><label>總計（含稅）</label><input id="p_total" readonly></div>
           </div>
+          <div class="frow" style="margin-top:10px;align-items:center">
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_ent">交際應酬</label>
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_emp">員工福利</label>
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">自用小客車/油料修理</label>
+          </div>
+          <div id="p_dedHint" class="note" style="margin-top:10px;display:none"></div>
           <div class="actions"><button class="btn" type="submit">＋ 新增並切傳票</button>
             <button class="btn ghost sm" type="button" id="pSample">載入 GoDaddy 範例</button>
             <span class="muted" style="color:var(--ink-3);font-size:12.5px">稅額留空自動 = 未稅 × 5%</span></div>
@@ -476,7 +482,7 @@ function totals(){const salesTax=db.sale.reduce((a,s)=>a+s.tax,0),salesNet=db.sa
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value});
+  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0});
   {const nm=$("#p_name").value.trim(),u=$("#p_uni").value.trim();if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
   e.target.reset();$("#p_total").value="";save();});
 $("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-08-01";$("#p_type").value="電子發票";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域續約 (YC22758274)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value="";syncPTotal();});
@@ -984,6 +990,28 @@ function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受
   if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,note:""});$("#vd_name").value="";$("#vd_uni").value="";save();});
   const cf=$("#cuForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();const name=$("#cu_name").value.trim(),uni=$("#cu_uni").value.trim(),addr=$("#cu_addr").value.trim();if(!name){alert("請輸入客戶名稱。");return;}
   if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,note:""});$("#cu_name").value="";$("#cu_uni").value="";$("#cu_addr").value="";save();});})();
+
+/* ===== 進項扣抵防呆（依營業稅法§19/§33/§36）===== */
+function judgeDeductible(){
+  const type=$("#p_type").value, uni=$("#p_uni").value.trim();
+  const ent=$("#p_ent")&&$("#p_ent").checked, emp=$("#p_emp")&&$("#p_emp").checked, car=$("#p_car")&&$("#p_car").checked;
+  if(ent)return{r:"不可扣抵",c:"bad",m:"交際應酬用（營業稅法§19 I③）：即使有三聯式發票也不得扣抵，僅能列費用。"};
+  if(emp)return{r:"不可扣抵",c:"bad",m:"酬勞員工個人（§19 I④）：不得扣抵。"};
+  if(car)return{r:"不可扣抵",c:"bad",m:"自用乘人小客車及其油料修理（§19 I⑤）：不得扣抵。"};
+  if(type.indexOf("國外invoice")>=0)return{r:"需自行報繳(§36)",c:"warn",m:"未在台登記國外勞務，依§36逆向課稅。卓信專供應稅→免實際繳納，但務必於401「第74欄」填列給付額（漏填屬短漏報）。"};
+  if(type==="二聯式收銀機")return uni?{r:"可扣抵",c:"ok",m:"收銀機二聯式且收執聯載有統編，可彙總扣抵。"}:{r:"不可扣抵",c:"bad",m:"二聯式無統編、無扣抵聯，不得扣抵。"};
+  if(type==="海關代徵")return{r:"可扣抵",c:"ok",m:"海關代徵營業稅繳納證扣抵聯可扣抵（供本業用）。"};
+  if(type==="載具")return{r:"不可扣抵",c:"bad",m:"個人載具未載公司統編不得扣抵；請改開卓信統編發票。"};
+  if(type==="三聯式/電子計算機"||type==="電子發票")return uni?{r:"可扣抵",c:"ok",m:"合法扣抵憑證（§33）。請確認發票載明卓信統編 62098963 且含 5% 營業稅。"}:{r:"不可扣抵",c:"bad",m:"無賣方統編，非合法扣抵憑證（§19 I①）。"};
+  return{r:"不可扣抵",c:"bad",m:"未取得§33合法扣抵憑證或無統編，不得扣抵。"};
+}
+function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDeductible();
+  const col=j.c==="ok"?"var(--good)":(j.c==="warn"?"var(--warn)":"var(--danger)");
+  el.style.display="block";el.style.borderLeftColor=col;
+  el.innerHTML=`<b style="color:${col}">稅務判斷：${j.r}</b>　${esc(j.m)}`;
+  const ded=$("#p_ded");if(ded)ded.value=(j.r==="可扣抵")?"1":"0";}
+(function(){["p_type","p_ent","p_emp","p_car"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
+  const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
