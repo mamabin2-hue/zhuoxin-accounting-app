@@ -210,6 +210,7 @@
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>品名/摘要</label><input id="p_item" placeholder="例：網域續約"></div>
             <div class="fld"><label>科目別</label><select id="p_cat"><option>費用</option><option>進貨</option><option>資產(設備)</option></select></div>
+            <div class="fld"><label>費用科目（建議·可改）</label><select id="p_acct"></select></div>
             <div class="fld"><label>未稅金額</label><input type="number" id="p_net" inputmode="decimal" step="1" placeholder="0" required></div>
             <div class="fld"><label>稅額 (5%)</label><input type="number" id="p_tax" inputmode="decimal" step="1" placeholder="自動"></div>
           </div>
@@ -257,8 +258,9 @@
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>品名/摘要</label><input id="s_item" placeholder="例：顧問服務費"></div>
-            <div class="fld"><label>銷售額（未稅）</label><input type="number" id="s_net" inputmode="decimal" step="1" placeholder="0" required></div>
-            <div class="fld"><label>稅額 (5%)</label><input type="number" id="s_tax" inputmode="decimal" step="1" placeholder="自動"></div>
+            <div class="fld"><label>金額類型</label><select id="s_taxmode"><option>未稅</option><option>含稅</option></select></div>
+            <div class="fld"><label>金額</label><input type="number" id="s_net" inputmode="decimal" step="1" placeholder="0" required></div>
+            <div class="fld"><label>稅額 (5%)</label><input id="s_tax" readonly><span id="s_amtHint" style="font-size:11px;color:var(--ink-3)"></span></div>
             <div class="fld"><label>收款方式</label><select id="s_pay"><option>現金</option><option>銀行存款</option><option>應收帳款</option></select></div>
           </div>
           <div class="actions"><button class="btn" type="submit">＋ 開立並切傳票</button></div>
@@ -482,19 +484,19 @@ function totals(){const salesTax=db.sale.reduce((a,s)=>a+s.tax,0),salesNet=db.sa
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0});
+  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):"")});
   {const nm=$("#p_name").value.trim(),u=$("#p_uni").value.trim();if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
   e.target.reset();$("#p_total").value="";save();});
 $("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
 
 /* sale */
-$("#s_date").addEventListener("input",syncSale);$("#s_net").addEventListener("input",()=>{if($("#s_tax").value==="")$("#s_tax").placeholder=fmt(autoTax(+$("#s_net").value||0));});
+$("#s_date").addEventListener("input",syncSale);$("#s_net").addEventListener("input",updateSaleAmt);
 function syncSale(){const t=trackForDate($("#s_date").value);if(!t){$("#s_no").value="—";$("#s_trkHint").textContent="尚無字軌，請先於上方加入配號。";return;}
   const seq=nextSeq(t);$("#s_no").value=seq>t.end?"（本期字軌已用完）":invStr(t.code,seq);
   $("#s_trkHint").textContent=`期別 ${t.period}｜字軌 ${t.code}｜下一張 ${seq<=t.end?invStr(t.code,seq):"—"}（剩 ${Math.max(0,t.end-seq+1)} 號）`;}
 $("#sForm").addEventListener("submit",e=>{e.preventDefault();const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
-  const net=+$("#s_net").value||0;const tax=$("#s_tax").value===""?autoTax(net):+$("#s_tax").value;
+  const _r=saleNetTax();const net=_r.net,tax=_r.tax;
   const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
   db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value});
   {const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",note:""});}
@@ -520,7 +522,7 @@ const ACCT_ORDER={"現金":1,"銀行存款":2,"信用卡":3,"應收帳款":4,"�
 function vouchersFor(){const out=[];let seq=1;
   const rows=[...db.purchase.map(p=>({k:"p",d:p})),...db.sale.map(s=>({k:"s",d:s}))].sort((a,b)=>(a.d.date||"").localeCompare(b.d.date||""));
   rows.forEach(r=>{const no="V"+String(seq++).padStart(3,"0");
-    if(r.k==="p"){const p=r.d;const acc=p.cat==="進貨"?"進貨":p.cat==="資產(設備)"?"生財設備":"營業費用";const L=[];
+    if(r.k==="p"){const p=r.d;const acc=p.cat==="進貨"?"進貨":p.cat==="資產(設備)"?"生財設備":(p.acct||"營業費用");const L=[];
       if(p.ded){L.push({acct:acc,debit:p.net,credit:0});L.push({acct:"進項稅額",debit:p.tax,credit:0});}
       else L.push({acct:acc,debit:p.net+p.tax,credit:0});
       const pay=p.pay==="信用卡"?"應付帳款":p.pay;L.push({acct:pay,debit:0,credit:p.net+p.tax});
@@ -532,7 +534,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -648,7 +650,7 @@ const COA={
   "資本":"權益","業主資本":"權益","業主往來":"權益","股東往來":"權益","保留盈餘":"權益",
   "銷貨收入":"收入","勞務收入":"收入","服務收入":"收入","利息收入":"收入","其他收入":"收入",
   "進貨":"成本","銷貨成本":"成本",
-  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用"};
+  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用","網路費":"費用","廣告費":"費用"};
 function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_cu)return _cu.cat;if(COA[a])return COA[a];
   if(/累計折舊/.test(a))return "資產減";
   if(/收入|銷貨收/.test(a))return "收入";
@@ -1012,6 +1014,20 @@ function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDed
   const ded=$("#p_ded");if(ded)ded.value=(j.r==="可扣抵")?"1":"0";}
 (function(){["p_type","p_ent","p_emp","p_car"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
+
+/* ===== 銷項含稅/未稅四捨五入 + 建議費用科目 ===== */
+function saleNetTax(){const raw=Math.round(+$("#s_net").value||0);const mode=$("#s_taxmode")?$("#s_taxmode").value:"未稅";
+  if(mode==="含稅"){const total=raw;const net=Math.round(total/1.05);return {net,tax:total-net,total};}
+  const net=raw,tax=Math.round(net*0.05);return {net,tax,total:net+tax};}
+function updateSaleAmt(){const r=saleNetTax();const t=$("#s_tax");if(t)t.value=r.tax?fmt(r.tax):"";const h=$("#s_amtHint");if(h)h.textContent=(+$("#s_net").value)?("未稅 "+fmt(r.net)+"・含稅 "+fmt(r.total)):"";}
+function fillPAcctSel(){const s=$("#p_acct");if(!s)return;const cur=s.value;const list=accountsByCat("費用");
+  s.innerHTML='<option value="">— 自動：營業費用 —</option>'+list.map(a=>`<option${a===cur?" selected":""}>${esc(a)}</option>`).join("");if(cur&&list.includes(cur))s.value=cur;}
+const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"]];
+function suggestAcct(it){for(const p of ACCT_SUGGEST)if(p[0].test(it||""))return p[1];return "";}
+(function(){const pi=$("#p_item"),pc=$("#p_cat"),pa=$("#p_acct");
+  function sug(){if(!pa||!pc||pc.value!=="費用")return;const a=suggestAcct(pi.value);if(a&&accountsByCat("費用").includes(a))pa.value=a;}
+  if(pi)pi.addEventListener("input",sug);if(pc)pc.addEventListener("change",()=>{fillPAcctSel();sug();});
+  const sm=$("#s_taxmode");if(sm)sm.addEventListener("change",updateSaleAmt);})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
