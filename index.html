@@ -392,7 +392,8 @@
           <div class="card"><h3 style="font-size:15px">傳票 CSV</h3><p style="font-size:13px;color:var(--ink-2)">全部借貸分錄。</p><button class="btn sm" onclick="exportVoucherCSV()">下載傳票.csv</button></div>
           <div class="card"><h3 style="font-size:15px">餘額表 CSV</h3><p style="font-size:13px;color:var(--ink-2)">科目餘額試算表。</p><button class="btn sm" onclick="exportBalanceCSV()">下載餘額表.csv</button></div>
           <div class="card"><h3 style="font-size:15px">完整備份 JSON</h3><p style="font-size:13px;color:var(--ink-2)">全部資料備份，換裝置可還原。</p><button class="btn sm" onclick="backupJSON()">下載備份</button>
-            <label class="btn ghost sm" style="display:inline-block;margin-left:8px">還原<input type="file" accept=".json" style="display:none" onchange="restoreJSON(this)"></label></div>
+            <label class="btn ghost sm" style="display:inline-block;margin-left:8px">還原檔案<input type="file" accept=".json" style="display:none" onchange="restoreJSON(this)"></label></div>
+          <div class="card"><h3 style="font-size:15px">⟲ 還原上次同步前</h3><p style="font-size:13px;color:var(--ink-2)">若資料被雲端同步蓋掉，一鍵救回覆蓋前的版本。</p><button class="btn sm" onclick="restorePresync()">還原上次同步前資料</button></div>
         </div>
         <div class="sec-h"><h2>危險操作</h2></div>
         <button class="btn ghost sm" style="color:var(--danger)" onclick="clearAll()">清空本期所有資料</button>
@@ -586,6 +587,12 @@ function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
 function backupJSON(){dl("卓信_115-4_備份.json",JSON.stringify(db,null,2),"json");}
 function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
+function restorePresync(){const r=localStorage.getItem(LS+"_presync");if(!r){alert("沒有可還原的『同步前』備份。");return;}
+  var o;try{o=JSON.parse(r);}catch(e){alert("備份損毀，無法還原。");return;}
+  if(!confirm("將把資料還原成『上次被雲端覆蓋之前』的版本，並上傳雲端覆蓋現況。確定？"))return;
+  db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},o);
+  if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
+  localStorage.setItem(LS,JSON.stringify(db));renderAll();cloudSaveDebounced();alert("已還原到同步前版本。");}
 function clearAll(){if(confirm("將清空進項、銷項、留抵（字軌保留）。確定？")){db.purchase=[];db.sale=[];db.prevCredit=0;save();}}
 
 /* ===== 手動分錄 · 期初餘額 · 報表引擎 ===== */
@@ -789,7 +796,8 @@ const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
 const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]});
-function adopt(obj){db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
+function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0);}
+function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
   if(state==="in"){cloudDot("on","已同步");}
@@ -809,7 +817,9 @@ async function onSignedIn(user){
   try{
     const {data,error}=await sb.from("books").select("data,updated_at").eq("user_id",user.id).maybeSingle();
     if(error){setCloud("err",error.message);return;}
-    if(data&&data.data&&Object.keys(data.data).length){adopt(data.data);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
+    const remote=data&&data.data?data.data:null;const rScore=dataScore(remote),lScore=dataScore(db);
+    // 只有雲端「較完整或相等」才採用雲端；本機較完整(或雲端空)一律上傳本機——空資料永不覆蓋有資料
+    if(rScore>0&&rScore>=lScore){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
     subscribeRealtime();
   }catch(e){setCloud("err",e.message);}
