@@ -327,13 +327,13 @@
 
       <!-- PL -->
       <section class="view" id="v-pl">
-        <div class="sec-h"><h2>損益表</h2><span class="muted">本期 · 營業收入 − 營業成本 − 營業費用 ＝ 本期損益</span></div>
+        <div class="sec-h"><h2>損益表</h2><span class="muted">營業收入 − 成本 − 費用 ＝ 損益</span><span class="sp"></span><label style="font-size:12px;color:var(--ink-2)">起 <input type="date" id="pl_from" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><label style="font-size:12px;color:var(--ink-2)">迄 <input type="date" id="pl_to" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><button class="btn ghost sm" onclick="exportPL()">⤓Excel</button><button class="btn ghost sm" onclick="window.print()">🖨PDF</button></div>
         <div class="grid" style="grid-template-columns:1.4fr .8fr;gap:16px" id="plWrap"></div>
       </section>
 
       <!-- BS -->
       <section class="view" id="v-bs">
-        <div class="sec-h"><h2>資產負債表</h2><span class="muted">期末 · 資產 ＝ 負債 ＋ 權益（含本期損益）</span></div>
+        <div class="sec-h"><h2>資產負債表</h2><span class="muted">資產 ＝ 負債 ＋ 權益</span><span class="sp"></span><label style="font-size:12px;color:var(--ink-2)">截止日 <input type="date" id="bs_asof" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><button class="btn ghost sm" onclick="exportBS()">⤓Excel</button><button class="btn ghost sm" onclick="window.print()">🖨PDF</button></div>
         <div id="bsWrap"></div>
         <div class="sec-h"><h2>期初餘額設定</h2><span class="muted">開帳日各科目餘額，供資產負債表與銀行簿起算</span></div>
         <form class="form" id="obForm">
@@ -754,7 +754,7 @@ function renderFund(){const wrap=$("#fundWrap");if(!wrap)return;const E=allEntri
       <tfoot><tr><td colspan="3">合計</td><td class="r num">${fmt(ins)}</td><td class="r num">${fmt(outs)}</td><td class="r num ${bal<0?'bad':''}">${fmt(bal)}</td></tr></tfoot></table></div></div></div>`;}).join("");}
 
 /* ---- 損益表 ---- */
-function renderPL(){const wrap=$("#plWrap");if(!wrap)return;const m=balancesOf(flowEntries());
+function renderPL(){const wrap=$("#plWrap");if(!wrap)return;const _from=($("#pl_from")||{}).value||"",_to=($("#pl_to")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(_from,_to)));
   const inc=[],cost=[],exp=[];
   Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc.push([a,-m[a]]);else if(c==="成本")cost.push([a,m[a]]);else if(c==="費用")exp.push([a,m[a]]);});
   if(!inc.length&&!cost.length&&!exp.length){wrap.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;grid-column:1/-1">尚無收入或費用分錄。開立銷項、登錄進項費用或手動分錄後即可產生損益表。</div>`;return;}
@@ -775,7 +775,7 @@ function renderPL(){const wrap=$("#plWrap");if(!wrap)return;const m=balancesOf(f
       <div class="sub">收入 ${fmt(si)} − 成本 ${fmt(sc)} − 費用 ${fmt(se)}</div></div>`;}
 
 /* ---- 資產負債表 ---- */
-function renderBS(){const wrap=$("#bsWrap");if(!wrap)return;const m=balancesOf(allEntries());const {ni}=netIncome();
+function renderBS(){const wrap=$("#bsWrap");if(!wrap)return;const _asof=($("#bs_asof")||{}).value||"";const m=balancesOf(allEntries().filter(asOfFilter(_asof)));const _fm=balancesOf(flowEntries().filter(inRangeFlow("",_asof)));let _inc=0,_exp=0;Object.keys(_fm).forEach(a=>{const c=classify(a);if(c==="收入")_inc+=-_fm[a];else if(c==="成本"||c==="費用")_exp+=_fm[a];});const ni=_inc-_exp;
   const A=[],L=[],Eq=[],U=[];
   Object.keys(m).forEach(a=>{const c=classify(a);const bal=m[a];if(Math.round(bal)===0&&c!=="未分類")return;
     if(c==="資產"||c==="資產減")A.push([a,bal]);
@@ -1028,6 +1028,25 @@ function suggestAcct(it){for(const p of ACCT_SUGGEST)if(p[0].test(it||""))return
   function sug(){if(!pa||!pc||pc.value!=="費用")return;const a=suggestAcct(pi.value);if(a&&accountsByCat("費用").includes(a))pa.value=a;}
   if(pi)pi.addEventListener("input",sug);if(pc)pc.addEventListener("change",()=>{fillPAcctSel();sug();});
   const sm=$("#s_taxmode");if(sm)sm.addEventListener("change",updateSaleAmt);})();
+
+/* ===== 報表日期區間 + 匯出 ===== */
+function inRangeFlow(from,to){return v=>{if(v.no==="OB")return false;const d=v.date||"";if(!d)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true;};}
+function asOfFilter(asof){return v=>{if(v.no==="OB")return true;const d=v.date||"";if(!d)return true;if(asof&&d>asof)return false;return true;};}
+function plData(){const from=($("#pl_from")||{}).value||"",to=($("#pl_to")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(from,to)));
+  const inc=[],cost=[],exp=[];Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc.push([a,-m[a]]);else if(c==="成本")cost.push([a,m[a]]);else if(c==="費用")exp.push([a,m[a]]);});
+  const S=x=>x.reduce((a,r)=>a+r[1],0);return {from,to,inc,cost,exp,si:S(inc),sc:S(cost),se:S(exp)};}
+function exportPL(){const d=plData();const rows=[["卓信 損益表","期間",(d.from||"起始")+" ~ "+(d.to||"至今")],[],["項目","金額"]];
+  rows.push(["營業收入",""]);d.inc.forEach(r=>rows.push([r[0],r[1]]));rows.push(["收入合計",d.si]);
+  if(d.cost.length){rows.push(["營業成本",""]);d.cost.forEach(r=>rows.push([r[0],r[1]]));rows.push(["成本合計",d.sc]);}
+  rows.push(["營業毛利",d.si-d.sc]);rows.push(["營業費用",""]);d.exp.forEach(r=>rows.push([r[0],r[1]]));rows.push(["費用合計",d.se]);
+  rows.push(["本期損益",d.si-d.sc-d.se]);dl("卓信_損益表.csv",toCSV(rows),"csv");}
+function exportBS(){const asof=($("#bs_asof")||{}).value||"";const m=balancesOf(allEntries().filter(asOfFilter(asof)));
+  const _fm=balancesOf(flowEntries().filter(inRangeFlow("",asof)));let inc=0,exp=0;Object.keys(_fm).forEach(a=>{const c=classify(a);if(c==="收入")inc+=-_fm[a];else if(c==="成本"||c==="費用")exp+=_fm[a];});const ni=inc-exp;
+  const A=[],L=[],E=[];Object.keys(m).forEach(a=>{const c=classify(a);const b=m[a];if(Math.round(b)===0)return;if(c==="資產"||c==="資產減")A.push([a,b]);else if(c==="負債")L.push([a,-b]);else if(c==="權益")E.push([a,-b]);});E.push(["本期損益",ni]);
+  const S=x=>x.reduce((a,r)=>a+r[1],0);const rows=[["卓信 資產負債表","截止日",asof||"至今"],[],["資產",""]];
+  A.forEach(r=>rows.push([r[0],r[1]]));rows.push(["資產總計",S(A)],[],["負債",""]);L.forEach(r=>rows.push([r[0],r[1]]));rows.push(["負債合計",S(L)],["權益",""]);E.forEach(r=>rows.push([r[0],r[1]]));rows.push(["權益合計",S(E)],["負債與權益總計",S(L)+S(E)]);
+  dl("卓信_資產負債表.csv",toCSV(rows),"csv");}
+(function(){["pl_from","pl_to"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",renderPL);});const b=$("#bs_asof");if(b)b.addEventListener("change",renderBS);})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
