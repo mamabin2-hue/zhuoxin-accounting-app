@@ -203,6 +203,7 @@
           <div class="frow">
             <div class="fld"><label>日期</label><input type="date" id="p_date" required></div>
             <div class="fld"><label>憑證類別</label><select id="p_type"><option>三聯式/電子計算機</option><option>電子發票</option><option>二聯式收銀機</option><option>載具</option><option>海關代徵</option><option>其他</option></select></div>
+            <div class="fld"><label>從廠商帶入</label><select id="p_vendor"></select></div>
             <div class="fld"><label>賣方統編</label><input id="p_uni" inputmode="numeric" placeholder="8 碼"></div>
             <div class="fld"><label>賣方名稱</label><input id="p_name" placeholder="例：GoDaddy"></div>
           </div>
@@ -244,6 +245,7 @@
           <div class="frow">
             <div class="fld"><label>發票號碼</label><input id="s_no" readonly></div>
             <div class="fld"><label>日期</label><input type="date" id="s_date" required></div>
+            <div class="fld"><label>從客戶帶入</label><select id="s_customer"></select></div>
             <div class="fld"><label>買受人統編</label><input id="s_uni" inputmode="numeric" placeholder="營業人 8 碼；個人留空"></div>
             <div class="fld"><label>買受人名稱</label><input id="s_name" placeholder="客戶名稱"></div>
           </div>
@@ -369,6 +371,25 @@
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">會建立「銀行存款-新光銀行(台南分行)」等子科目，出現在科目下拉、付款/收款方式與銀行簿，各家分開記餘額。</p>
         </form>
         <div id="bkList" style="margin-top:12px;margin-bottom:8px"></div>
+        <div class="sec-h"><h2>廠商主檔</h2><span class="muted">進項的賣方，可不完整；登錄進項時會自動記住</span></div>
+        <form class="form" id="vdForm">
+          <div class="frow">
+            <div class="fld"><label>統編（可略）</label><input id="vd_uni" inputmode="numeric" placeholder="8 碼"></div>
+            <div class="fld" style="grid-column:span 2"><label>廠商名稱</label><input id="vd_name" placeholder="例：GoDaddy"></div>
+            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增廠商</button></div>
+          </div>
+        </form>
+        <div id="vdList" style="margin-top:12px;margin-bottom:6px"></div>
+        <div class="sec-h"><h2>客戶主檔</h2><span class="muted">銷項的買受人，開發票給營業人須完整（統編＋名稱）；開票時自動建檔</span></div>
+        <form class="form" id="cuForm">
+          <div class="frow">
+            <div class="fld"><label>統編（營業人必填）</label><input id="cu_uni" inputmode="numeric" placeholder="8 碼；個人可略"></div>
+            <div class="fld" style="grid-column:span 2"><label>客戶名稱（抬頭）</label><input id="cu_name" placeholder="客戶抬頭"></div>
+            <div class="fld"><label>地址（可略）</label><input id="cu_addr" placeholder="地址"></div>
+          </div>
+          <div class="actions"><button class="btn sm" type="submit">＋ 新增客戶</button></div>
+        </form>
+        <div id="cuList" style="margin-top:12px;margin-bottom:6px"></div>
         <div class="sec-h"><h2>會計科目設定</h2><span class="muted">先選大類，再新增／管理該類科目（自訂科目可刪）</span></div>
         <form class="form" id="acForm">
           <div class="frow">
@@ -421,7 +442,7 @@ const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]};
+let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));}
@@ -456,6 +477,7 @@ $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("i
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
   db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value});
+  {const nm=$("#p_name").value.trim(),u=$("#p_uni").value.trim();if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
   e.target.reset();$("#p_total").value="";save();});
 $("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-08-01";$("#p_type").value="電子發票";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域續約 (YC22758274)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value="";syncPTotal();});
 
@@ -467,7 +489,9 @@ function syncSale(){const t=trackForDate($("#s_date").value);if(!t){$("#s_no").v
 $("#sForm").addEventListener("submit",e=>{e.preventDefault();const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
   const net=+$("#s_net").value||0;const tax=$("#s_tax").value===""?autoTax(net):+$("#s_tax").value;
-  db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:$("#s_name").value.trim(),item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value});
+  const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
+  db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value});
+  {const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",note:""});}
   e.target.reset();save();});
 
 /* track paste parse */
@@ -502,7 +526,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -596,11 +620,11 @@ function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目
   allEntries().forEach(v=>v.lines.forEach(l=>rows.push([v.no,v.date,v.memo,l.acct,l.debit||"",l.credit||""])));dl("卓信_115-4_傳票.csv",toCSV([h,...rows]),"csv");}
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
 function backupJSON(){dl("卓信_115-4_備份.json",JSON.stringify(db,null,2),"json");}
-function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
+function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
 function restorePresync(){const r=localStorage.getItem(LS+"_presync");if(!r){alert("沒有可還原的『同步前』備份。");return;}
   var o;try{o=JSON.parse(r);}catch(e){alert("備份損毀，無法還原。");return;}
   if(!confirm("將把資料還原成『上次被雲端覆蓋之前』的版本，並上傳雲端覆蓋現況。確定？"))return;
-  db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},o);
+  db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]},o);
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
   localStorage.setItem(LS,JSON.stringify(db));renderAll();cloudSaveDebounced();alert("已還原到同步前版本。");}
 function clearAll(){
@@ -810,7 +834,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]});
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0);}
 function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
@@ -937,6 +961,29 @@ function fillPaySelects(){const banks=bankNames();const uniq=a=>a.filter((v,i,x)
   try{const {error}=await sb.auth.updateUser({password:p1});
     if(error){set("更新失敗："+error.message);}else{$("#pw_new").value="";$("#pw_new2").value="";set("✓ 密碼已更新，下次登入請用新密碼。",true);}
   }catch(err){set("更新失敗："+err.message);}});})();
+
+/* ===== 廠商/客戶主檔 ===== */
+if(!Array.isArray(db.vendors))db.vendors=[];if(!Array.isArray(db.customers))db.customers=[];
+function fillVendorSel(){const s=$("#p_vendor");if(!s)return;const cur=s.value;
+  s.innerHTML='<option value="">— 選擇廠商（可略）—</option>'+(db.vendors||[]).map(v=>`<option value="${v.id}">${esc(v.name)}${v.uni?(" ("+esc(v.uni)+")"):""}</option>`).join("");if(cur)s.value=cur;}
+function fillCustomerSel(){const s=$("#s_customer");if(!s)return;const cur=s.value;
+  s.innerHTML='<option value="">— 選擇客戶（可略）—</option>'+(db.customers||[]).map(c=>`<option value="${c.id}">${esc(c.name)}${c.uni?(" ("+esc(c.uni)+")"):""}</option>`).join("");if(cur)s.value=cur;}
+(function(){const pv=$("#p_vendor");if(pv)pv.addEventListener("change",()=>{const v=(db.vendors||[]).find(x=>x.id===pv.value);if(v){$("#p_uni").value=v.uni||"";$("#p_name").value=v.name||"";}});
+  const sc=$("#s_customer");if(sc)sc.addEventListener("change",()=>{const c=(db.customers||[]).find(x=>x.id===sc.value);if(c){$("#s_uni").value=c.uni||"";$("#s_name").value=c.name||"";}});})();
+function vendorStat(v){const rows=db.purchase.filter(p=>(v.uni&&p.uni===v.uni)||p.name===v.name);return {n:rows.length,amt:rows.reduce((a,p)=>a+p.net+p.tax,0)};}
+function customerStat(c){const rows=db.sale.filter(x=>(c.uni&&x.uni===c.uni)||x.name===c.name);return {n:rows.length,amt:rows.reduce((a,x)=>a+x.net+x.tax,0)};}
+function renderVendorList(){const el=$("#vdList");if(!el)return;if(!(db.vendors||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無廠商。登錄進項會自動記住，或在此新增。</div>';return;}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>廠商</th><th>統編</th><th class="r">進項筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
+    db.vendors.map(v=>{const st=vendorStat(v);return `<tr><td>${esc(v.name)}</td><td class="num">${esc(v.uni||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delVendor('${v.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+function renderCustomerList(){const el=$("#cuList");if(!el)return;if(!(db.customers||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無客戶。開銷項發票會自動建立，或在此新增。</div>';return;}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>客戶</th><th>統編</th><th class="r">銷項筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
+    db.customers.map(c=>{const st=customerStat(c);return `<tr><td>${esc(c.name)}${c.addr?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(c.addr)+'</span>'):""}</td><td class="num">${esc(c.uni||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delCustomer('${c.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+function delVendor(id){if(!confirm("刪除此廠商？（已登錄的進項不受影響）"))return;db.vendors=(db.vendors||[]).filter(v=>v.id!==id);save();}
+function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受影響）"))return;db.customers=(db.customers||[]).filter(c=>c.id!==id);save();}
+(function(){const vf=$("#vdForm");if(vf)vf.addEventListener("submit",e=>{e.preventDefault();const name=$("#vd_name").value.trim(),uni=$("#vd_uni").value.trim();if(!name){alert("請輸入廠商名稱。");return;}
+  if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,note:""});$("#vd_name").value="";$("#vd_uni").value="";save();});
+  const cf=$("#cuForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();const name=$("#cu_name").value.trim(),uni=$("#cu_uni").value.trim(),addr=$("#cu_addr").value.trim();if(!name){alert("請輸入客戶名稱。");return;}
+  if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,note:""});$("#cu_name").value="";$("#cu_uni").value="";$("#cu_addr").value="";save();});})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
