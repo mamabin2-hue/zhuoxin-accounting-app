@@ -217,6 +217,7 @@
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>可否扣抵</label><select id="p_ded"><option value="1">可扣抵</option><option value="0">不可扣抵</option></select></div>
             <div class="fld"><label>付款方式</label><select id="p_pay"><option>現金</option><option>銀行存款</option><option>應付帳款</option><option>信用卡</option></select></div>
+            <div class="fld"><label>專案（可略）</label><select id="p_proj"></select></div>
             <div class="fld"><label>總計（含稅）</label><input id="p_total" readonly></div>
           </div>
           <div class="frow" style="margin-top:10px;align-items:center">
@@ -262,6 +263,7 @@
             <div class="fld"><label>金額</label><input type="number" id="s_net" inputmode="decimal" step="1" placeholder="0" required></div>
             <div class="fld"><label>稅額 (5%)</label><input id="s_tax" readonly><span id="s_amtHint" style="font-size:11px;color:var(--ink-3)"></span></div>
             <div class="fld"><label>收款方式</label><select id="s_pay"><option>現金</option><option>銀行存款</option><option>應收帳款</option></select></div>
+            <div class="fld"><label>專案（可略）</label><select id="s_proj"></select></div>
           </div>
           <div class="actions"><button class="btn" type="submit">＋ 開立並切傳票</button></div>
         </form>
@@ -302,6 +304,7 @@
           <div class="frow">
             <div class="fld"><label>日期</label><input type="date" id="j_date" required></div>
             <div class="fld" style="grid-column:span 2"><label>摘要</label><input id="j_memo" placeholder="例：8月薪資"></div>
+            <div class="fld"><label>專案（可略）</label><select id="j_proj"></select></div>
             <div class="fld"><label>常用範本</label><select id="j_preset"><option value="">— 選填 —</option></select></div>
           </div>
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
@@ -327,7 +330,7 @@
 
       <!-- PL -->
       <section class="view" id="v-pl">
-        <div class="sec-h"><h2>損益表</h2><span class="muted">營業收入 − 成本 − 費用 ＝ 損益</span><span class="sp"></span><label style="font-size:12px;color:var(--ink-2)">起 <input type="date" id="pl_from" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><label style="font-size:12px;color:var(--ink-2)">迄 <input type="date" id="pl_to" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><button class="btn ghost sm" onclick="exportPL()">⤓Excel</button><button class="btn ghost sm" onclick="window.print()">🖨PDF</button></div>
+        <div class="sec-h"><h2>損益表</h2><span class="muted">營業收入 − 成本 − 費用 ＝ 損益</span><span class="sp"></span><label style="font-size:12px;color:var(--ink-2)">起 <input type="date" id="pl_from" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><label style="font-size:12px;color:var(--ink-2)">迄 <input type="date" id="pl_to" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></label><select id="pl_proj" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px"></select><button class="btn ghost sm" onclick="exportPL()">⤓Excel</button><button class="btn ghost sm" onclick="window.print()">🖨PDF</button></div>
         <div class="grid" style="grid-template-columns:1.4fr .8fr;gap:16px" id="plWrap"></div>
       </section>
 
@@ -379,6 +382,9 @@
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">會建立「銀行存款-新光銀行(台南分行)」等子科目，出現在科目下拉、付款/收款方式與銀行簿，各家分開記餘額。</p>
         </form>
         <div id="bkList" style="margin-top:12px;margin-bottom:8px"></div>
+        <div class="sec-h"><h2>專案／成本中心</h2><span class="muted">部門、客戶類別或專案；交易可歸屬，損益可分別看</span></div>
+        <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：源穩專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增</button></div></div></form>
+        <div id="pjList" style="margin-top:12px;margin-bottom:6px"></div>
         <div class="sec-h"><h2>廠商主檔</h2><span class="muted">進項的賣方，可不完整；登錄進項時會自動記住</span></div>
         <form class="form" id="vdForm">
           <div class="frow">
@@ -450,7 +456,7 @@ const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]};
+let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));}
@@ -484,7 +490,7 @@ function totals(){const salesTax=db.sale.reduce((a,s)=>a+s.tax,0),salesNet=db.sa
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):"")});
+  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||""});
   {const nm=$("#p_name").value.trim(),u=$("#p_uni").value.trim();if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
   e.target.reset();$("#p_total").value="";save();});
 $("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
@@ -498,7 +504,7 @@ $("#sForm").addEventListener("submit",e=>{e.preventDefault();const t=trackForDat
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
   const _r=saleNetTax();const net=_r.net,tax=_r.tax;
   const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
-  db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value});
+  db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||""});
   {const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",note:""});}
   e.target.reset();save();});
 
@@ -526,15 +532,15 @@ function vouchersFor(){const out=[];let seq=1;
       if(p.ded){L.push({acct:acc,debit:p.net,credit:0});L.push({acct:"進項稅額",debit:p.tax,credit:0});}
       else L.push({acct:acc,debit:p.net+p.tax,credit:0});
       const pay=p.pay==="信用卡"?"應付帳款":p.pay;L.push({acct:pay,debit:0,credit:p.net+p.tax});
-      out.push({no,date:p.date,memo:`進項 · ${p.name||"—"} ${p.item||""}`.trim(),lines:L});
-    }else{const s=r.d;out.push({no,date:s.date,memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
+      out.push({no,date:p.date,proj:p.proj||"",memo:`進項 · ${p.name||"—"} ${p.item||""}`.trim(),lines:L});
+    }else{const s=r.d;out.push({no,date:s.date,proj:s.proj||"",memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
       lines:[{acct:s.pay,debit:s.net+s.tax,credit:0},{acct:"銷貨收入",debit:0,credit:s.net},{acct:"銷項稅額",debit:0,credit:s.tax}]});}});
   return out;}
 function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[l.acct]=1));
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -628,11 +634,11 @@ function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目
   allEntries().forEach(v=>v.lines.forEach(l=>rows.push([v.no,v.date,v.memo,l.acct,l.debit||"",l.credit||""])));dl("卓信_115-4_傳票.csv",toCSV([h,...rows]),"csv");}
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
 function backupJSON(){dl("卓信_115-4_備份.json",JSON.stringify(db,null,2),"json");}
-function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
+function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
 function restorePresync(){const r=localStorage.getItem(LS+"_presync");if(!r){alert("沒有可還原的『同步前』備份。");return;}
   var o;try{o=JSON.parse(r);}catch(e){alert("備份損毀，無法還原。");return;}
   if(!confirm("將把資料還原成『上次被雲端覆蓋之前』的版本，並上傳雲端覆蓋現況。確定？"))return;
-  db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]},o);
+  db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]},o);
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
   localStorage.setItem(LS,JSON.stringify(db));renderAll();cloudSaveDebounced();alert("已還原到同步前版本。");}
 function clearAll(){
@@ -663,7 +669,7 @@ function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_c
 
 function openingEntries(){const ops=db.opening||[];if(!ops.length)return [];
   return [{no:"OB",date:"期初",memo:"期初餘額",lines:ops.map(o=>({acct:o.acct,debit:o.side==="借"?+o.amount||0:0,credit:o.side==="貸"?+o.amount||0:0}))}];}
-function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
+function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,proj:j.proj||"",memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
 function flowEntries(){return [...vouchersFor(),...manualEntries()];}
 function allEntries(){const mid=[...vouchersFor(),...manualEntries()].sort((a,b)=>(a.date||"").localeCompare(b.date||""));return [...openingEntries(),...mid];}
 function balancesOf(entries){const m={};entries.forEach(v=>v.lines.forEach(l=>{m[l.acct]=(m[l.acct]||0)+l.debit-l.credit;}));return m;}
@@ -717,7 +723,7 @@ $("#jForm").addEventListener("submit",e=>{e.preventDefault();const lines=[];
   const d=lines.reduce((a,l)=>a+l.debit,0),c=lines.reduce((a,l)=>a+l.credit,0);
   if(Math.round(d)!==Math.round(c)){alert(`借貸不平衡：借 ${fmt(d)} / 貸 ${fmt(c)}。`);return;}
   if(d===0){alert("金額不可為 0。");return;}
-  db.journal.push({id:uid(),date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines});
+  db.journal.push({id:uid(),date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""});
   $("#j_memo").value="";resetJLines();save();});
 function delJournal(id){if(!confirm("刪除這筆手動分錄？"))return;db.journal=db.journal.filter(j=>j.id!==id);save();}
 function renderJournalList(){const el=$("#jList");if(!el)return;
@@ -754,7 +760,7 @@ function renderFund(){const wrap=$("#fundWrap");if(!wrap)return;const E=allEntri
       <tfoot><tr><td colspan="3">合計</td><td class="r num">${fmt(ins)}</td><td class="r num">${fmt(outs)}</td><td class="r num ${bal<0?'bad':''}">${fmt(bal)}</td></tr></tfoot></table></div></div></div>`;}).join("");}
 
 /* ---- 損益表 ---- */
-function renderPL(){const wrap=$("#plWrap");if(!wrap)return;const _from=($("#pl_from")||{}).value||"",_to=($("#pl_to")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(_from,_to)));
+function renderPL(){const wrap=$("#plWrap");if(!wrap)return;const _from=($("#pl_from")||{}).value||"",_to=($("#pl_to")||{}).value||"",_pj=($("#pl_proj")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(_from,_to)).filter(v=>!_pj||v.proj===_pj));
   const inc=[],cost=[],exp=[];
   Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc.push([a,-m[a]]);else if(c==="成本")cost.push([a,m[a]]);else if(c==="費用")exp.push([a,m[a]]);});
   if(!inc.length&&!cost.length&&!exp.length){wrap.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;grid-column:1/-1">尚無收入或費用分錄。開立銷項、登錄進項費用或手動分錄後即可產生損益表。</div>`;return;}
@@ -842,7 +848,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]});
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0);}
 function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
@@ -1032,7 +1038,7 @@ function suggestAcct(it){for(const p of ACCT_SUGGEST)if(p[0].test(it||""))return
 /* ===== 報表日期區間 + 匯出 ===== */
 function inRangeFlow(from,to){return v=>{if(v.no==="OB")return false;const d=v.date||"";if(!d)return true;if(from&&d<from)return false;if(to&&d>to)return false;return true;};}
 function asOfFilter(asof){return v=>{if(v.no==="OB")return true;const d=v.date||"";if(!d)return true;if(asof&&d>asof)return false;return true;};}
-function plData(){const from=($("#pl_from")||{}).value||"",to=($("#pl_to")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(from,to)));
+function plData(){const from=($("#pl_from")||{}).value||"",to=($("#pl_to")||{}).value||"",pj=($("#pl_proj")||{}).value||"";const m=balancesOf(flowEntries().filter(inRangeFlow(from,to)).filter(v=>!pj||v.proj===pj));
   const inc=[],cost=[],exp=[];Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc.push([a,-m[a]]);else if(c==="成本")cost.push([a,m[a]]);else if(c==="費用")exp.push([a,m[a]]);});
   const S=x=>x.reduce((a,r)=>a+r[1],0);return {from,to,inc,cost,exp,si:S(inc),sc:S(cost),se:S(exp)};}
 function exportPL(){const d=plData();const rows=[["卓信 損益表","期間",(d.from||"起始")+" ~ "+(d.to||"至今")],[],["項目","金額"]];
@@ -1047,6 +1053,18 @@ function exportBS(){const asof=($("#bs_asof")||{}).value||"";const m=balancesOf(
   A.forEach(r=>rows.push([r[0],r[1]]));rows.push(["資產總計",S(A)],[],["負債",""]);L.forEach(r=>rows.push([r[0],r[1]]));rows.push(["負債合計",S(L)],["權益",""]);E.forEach(r=>rows.push([r[0],r[1]]));rows.push(["權益合計",S(E)],["負債與權益總計",S(L)+S(E)]);
   dl("卓信_資產負債表.csv",toCSV(rows),"csv");}
 (function(){["pl_from","pl_to"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",renderPL);});const b=$("#bs_asof");if(b)b.addEventListener("change",renderBS);})();
+
+/* ===== 專案/成本中心 ===== */
+if(!Array.isArray(db.projects))db.projects=[];
+function fillProjSel(sel,all){if(!sel)return;const cur=sel.value;
+  sel.innerHTML=(all?'<option value="">— 全部專案 —</option>':'<option value="">— 無 —</option>')+(db.projects||[]).map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");if(cur)sel.value=cur;}
+function projStat(id){const fe=flowEntries().filter(v=>v.proj===id);const m=balancesOf(fe);let inc=0,exp=0;Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc+=-m[a];else if(c==="成本"||c==="費用")exp+=m[a];});return {inc,exp};}
+function renderProjList(){const el=$("#pjList");if(!el)return;if(!(db.projects||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無專案/成本中心。新增後，交易可歸屬、損益表可分開看。</div>';return;}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>專案/成本中心</th><th class="r">收入</th><th class="r">成本+費用</th><th class="r">損益</th><th></th></tr></thead><tbody>'+
+    db.projects.map(p=>{const st=projStat(p.id);const ni=st.inc-st.exp;return `<tr><td>${esc(p.name)}</td><td class="r num">${fmt(st.inc)}</td><td class="r num">${fmt(st.exp)}</td><td class="r num ${ni<0?'bad':''}">${fmt(ni)}</td><td class="r"><button class="del" onclick="delProject('${p.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+function delProject(id){if(!confirm("刪除此專案？（已標記的交易會變回未歸屬）"))return;db.projects=(db.projects||[]).filter(p=>p.id!==id);save();}
+(function(){const pf=$("#pjForm");if(pf)pf.addEventListener("submit",e=>{e.preventDefault();const name=$("#pj_name").value.trim();if(!name){alert("請輸入名稱。");return;}if((db.projects||[]).some(p=>p.name===name)){alert("已存在。");return;}db.projects.push({id:uid(),name});$("#pj_name").value="";save();});
+  const pp=$("#pl_proj");if(pp)pp.addEventListener("change",renderPL);})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
