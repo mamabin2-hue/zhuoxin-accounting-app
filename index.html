@@ -603,7 +603,12 @@ function restorePresync(){const r=localStorage.getItem(LS+"_presync");if(!r){ale
   db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},o);
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
   localStorage.setItem(LS,JSON.stringify(db));renderAll();cloudSaveDebounced();alert("已還原到同步前版本。");}
-function clearAll(){if(confirm("將清空進項、銷項、留抵（字軌保留）。確定？")){db.purchase=[];db.sale=[];db.prevCredit=0;save();}}
+function clearAll(){
+  try{backupJSON();}catch(e){}
+  const ans=prompt("⚠️ 這會清空本期「進項、銷項、留抵」。\n已自動下載一份備份檔到你的下載資料夾。\n\n確定要刪除，請輸入「刪除」二字：");
+  if(ans!=="刪除"){alert("已取消，未刪除任何資料。");return;}
+  db.purchase=[];db.sale=[];db.prevCredit=0;save();
+  alert("已清空。若要復原：匯出／備份 → 還原檔案 → 選剛下載的備份檔。");}
 
 /* ===== 手動分錄 · 期初餘額 · 報表引擎 ===== */
 if(!Array.isArray(db.journal))db.journal=[]; if(!Array.isArray(db.opening))db.opening=[];
