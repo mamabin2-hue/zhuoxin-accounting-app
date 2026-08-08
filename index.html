@@ -348,6 +348,17 @@
 
       <!-- SETTINGS -->
       <section class="view" id="v-settings">
+        <div class="sec-h"><h2>銀行帳戶</h2><span class="muted">分銀行別管理，未來開新銀行可再新增</span></div>
+        <form class="form" id="bkForm">
+          <div class="frow">
+            <div class="fld"><label>銀行別</label><input id="bk_bank" placeholder="例：新光銀行"></div>
+            <div class="fld"><label>分行</label><input id="bk_branch" placeholder="例：台南分行"></div>
+            <div class="fld"><label>帳號</label><input id="bk_acct" inputmode="numeric" placeholder="銀行帳號"></div>
+            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增銀行</button></div>
+          </div>
+          <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">會建立「銀行存款-新光銀行(台南分行)」等子科目，出現在科目下拉、付款/收款方式與銀行簿，各家分開記餘額。</p>
+        </form>
+        <div id="bkList" style="margin-top:12px;margin-bottom:8px"></div>
         <div class="sec-h"><h2>會計科目設定</h2><span class="muted">先選大類，再新增／管理該類科目（自訂科目可刪）</span></div>
         <form class="form" id="acForm">
           <div class="frow">
@@ -399,7 +410,7 @@ const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[]};
+let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));}
@@ -481,7 +492,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
 
 /* render */
 function renderAll(){refreshAcctList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
-  renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderTax();
+  renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
 function renderKpis(){const t=totals();const owe=t.payable>=0;
@@ -574,7 +585,7 @@ function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目
   allEntries().forEach(v=>v.lines.forEach(l=>rows.push([v.no,v.date,v.memo,l.acct,l.debit||"",l.credit||""])));dl("卓信_115-4_傳票.csv",toCSV([h,...rows]),"csv");}
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
 function backupJSON(){dl("卓信_115-4_備份.json",JSON.stringify(db,null,2),"json");}
-function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
+function restoreJSON(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]},JSON.parse(r.result));if(!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!db.journal)db.journal=[];if(!db.opening)db.opening=[];save();alert("已還原。");}catch(e){alert("檔案格式錯誤。");}};r.readAsText(f);}
 function clearAll(){if(confirm("將清空進項、銷項、留抵（字軌保留）。確定？")){db.purchase=[];db.sale=[];db.prevCredit=0;save();}}
 
 /* ===== 手動分錄 · 期初餘額 · 報表引擎 ===== */
@@ -672,7 +683,7 @@ function renderOpeningList(){const wrap=$("#obListWrap");if(!wrap)return;const o
     <div class="note" style="margin-top:12px">${ok?'<span class="ok">✓ 期初借貸平衡</span>':'<span class="bad">⚠ 期初借貸不平衡</span>'}　借方合計 <b class="num">${fmt(d)}</b>／貸方合計 <b class="num">${fmt(c)}</b>。</div>`;}
 
 /* ---- 資金（銀行/現金簿）---- */
-function renderFund(){const wrap=$("#fundWrap");if(!wrap)return;const E=allEntries();const cash=["銀行存款","現金"];
+function renderFund(){const wrap=$("#fundWrap");if(!wrap)return;const E=allEntries();const cash=[...new Set(["現金","零用金",...bankNames(),"銀行存款",...accounts().filter(a=>/銀行|存款/.test(a))])];
   const present=cash.filter(a=>E.some(v=>v.lines.some(l=>l.acct===a)));
   if(!present.length){wrap.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無銀行／現金分錄。先設定期初餘額，或新增進項付款、手動分錄。</div>`;return;}
   wrap.innerHTML=present.map(acc=>{let bal=0;const rows=[];
@@ -772,7 +783,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[]});
 function adopt(obj){db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
@@ -838,6 +849,7 @@ function accountsByCat(cat){const set=new Set();
   Object.keys(COA).forEach(a=>{if(classify(a)===cat)set.add(a);});
   accounts().forEach(a=>{if(classify(a)===cat)set.add(a);});
   (db.accountsCustom||[]).forEach(o=>{if(o.cat===cat)set.add(o.name);});
+  if(cat==="資產")(db.banks||[]).forEach(b=>set.add(bankAcctName(b)));
   return [...set].sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 function fillCatSel(sel,cur){if(!sel)return;sel.innerHTML='<option value="">— 大類 —</option>'+CATS.map(c=>`<option${c===cur?" selected":""}>${c}</option>`).join("");}
 function fillNameSel(sel,cat,cur){if(!sel)return;
@@ -866,6 +878,24 @@ function delCustomAcct(name){if(!confirm("刪除自訂科目「"+name+"」？（
   if(!cat){alert("請先選大類。");return;}if(!name){alert("請輸入科目名稱。");return;}
   if(accountsByCat(cat).includes(name)||(db.accountsCustom||[]).some(o=>o.name===name)){alert("此科目已存在。");return;}
   db.accountsCustom.push({name,cat});$("#ac_name").value="";save();});})();
+
+/* ===== 銀行帳戶（分銀行別）===== */
+if(!Array.isArray(db.banks))db.banks=[];
+function bankAcctName(b){return "銀行存款-"+b.bank+(b.branch?("("+b.branch+")"):"");}
+function bankNames(){return (db.banks||[]).map(bankAcctName);}
+function renderBankList(){const el=$("#bkList");if(!el)return;
+  if(!(db.banks||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚未新增銀行帳戶。</div>';return;}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>科目</th><th>銀行</th><th>分行</th><th>帳號</th><th></th></tr></thead><tbody>'+
+    db.banks.map(b=>`<tr><td>${esc(bankAcctName(b))}</td><td>${esc(b.bank)}</td><td>${esc(b.branch||"")}</td><td class="num">${esc(b.acctNo||"")}</td><td class="r"><button class="del" onclick="delBank('${b.id}')">✕</button></td></tr>`).join("")+
+    '</tbody></table></div></div>';}
+function delBank(id){if(!confirm("刪除這個銀行帳戶？（已入帳分錄不受影響）"))return;db.banks=(db.banks||[]).filter(b=>b.id!==id);save();}
+(function(){const bf=$("#bkForm");if(!bf)return;bf.addEventListener("submit",e=>{e.preventDefault();
+  const bank=$("#bk_bank").value.trim(),branch=$("#bk_branch").value.trim(),acctNo=$("#bk_acct").value.trim();
+  if(!bank){alert("請輸入銀行別。");return;}
+  db.banks.push({id:uid(),bank,branch,acctNo});$("#bk_bank").value="";$("#bk_branch").value="";$("#bk_acct").value="";save();});})();
+function fillPaySelects(){const banks=bankNames();const uniq=a=>a.filter((v,i,x)=>x.indexOf(v)===i);
+  const P=uniq(["現金","零用金",...banks,"銀行存款","應付帳款","信用卡"]);const p=$("#p_pay");if(p){const c=p.value;p.innerHTML=P.map(o=>`<option>${esc(o)}</option>`).join("");if(c&&P.includes(c))p.value=c;}
+  const S=uniq(["現金","零用金",...banks,"銀行存款","應收帳款"]);const s2=$("#s_pay");if(s2){const c=s2.value;s2.innerHTML=S.map(o=>`<option>${esc(o)}</option>`).join("");if(c&&S.includes(c))s2.value=c;}}
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
