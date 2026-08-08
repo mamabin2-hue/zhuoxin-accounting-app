@@ -348,6 +348,16 @@
 
       <!-- SETTINGS -->
       <section class="view" id="v-settings">
+        <div class="sec-h"><h2>帳號安全</h2><span class="muted">設定只有你知道的登入密碼（我看不到）</span></div>
+        <form class="form" id="pwForm">
+          <div class="frow">
+            <div class="fld" style="grid-column:span 2"><label>新密碼（至少 6 碼，建議英數混合）</label><input type="password" id="pw_new" autocomplete="new-password" placeholder="輸入新密碼"></div>
+            <div class="fld"><label>再輸入一次</label><input type="password" id="pw_new2" autocomplete="new-password" placeholder="再次輸入"></div>
+            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">更新密碼</button></div>
+          </div>
+          <div id="pw_msg" style="font-size:13px;min-height:18px;margin-top:6px"></div>
+          <p class="muted" style="color:var(--ink-3);font-size:12px;margin:2px 0 0">需先登入雲端。更新後下次登入請用新密碼；統編就不再是密碼了。</p>
+        </form>
         <div class="sec-h"><h2>銀行帳戶</h2><span class="muted">分銀行別管理，未來開新銀行可再新增</span></div>
         <form class="form" id="bkForm">
           <div class="frow">
@@ -911,6 +921,17 @@ function delBank(id){if(!confirm("刪除這個銀行帳戶？（已入帳分錄�
 function fillPaySelects(){const banks=bankNames();const uniq=a=>a.filter((v,i,x)=>x.indexOf(v)===i);
   const P=uniq(["現金","零用金",...banks,"銀行存款","應付帳款","信用卡"]);const p=$("#p_pay");if(p){const c=p.value;p.innerHTML=P.map(o=>`<option>${esc(o)}</option>`).join("");if(c&&P.includes(c))p.value=c;}
   const S=uniq(["現金","零用金",...banks,"銀行存款","應收帳款"]);const s2=$("#s_pay");if(s2){const c=s2.value;s2.innerHTML=S.map(o=>`<option>${esc(o)}</option>`).join("");if(c&&S.includes(c))s2.value=c;}}
+
+(function(){const pf=$("#pwForm");if(!pf)return;pf.addEventListener("submit",async e=>{e.preventDefault();
+  const m=$("#pw_msg");const set=(t,ok)=>{m.textContent=t;m.style.color=ok?"var(--good)":"var(--danger)";};
+  if(!sb||!sbUser){set("請先登入雲端（右上『登入雲端』）再改密碼。");return;}
+  const p1=$("#pw_new").value,p2=$("#pw_new2").value;
+  if(p1.length<6){set("密碼至少 6 碼。");return;}
+  if(p1!==p2){set("兩次輸入不一致。");return;}
+  set("更新中…",true);
+  try{const {error}=await sb.auth.updateUser({password:p1});
+    if(error){set("更新失敗："+error.message);}else{$("#pw_new").value="";$("#pw_new2").value="";set("✓ 密碼已更新，下次登入請用新密碼。",true);}
+  }catch(err){set("更新失敗："+err.message);}});})();
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
