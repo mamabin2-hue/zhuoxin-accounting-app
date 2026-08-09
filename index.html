@@ -234,6 +234,7 @@
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_ent">交際應酬</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_emp">員工福利</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">自用小客車/油料修理</label>
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_personal">個人名義/公司成立前</label>
           </div>
           <div id="p_dedHint" class="note" style="margin-top:10px;display:none"></div>
           <div class="actions"><button class="btn" type="submit" id="pSubmitBtn">＋ 新增並切傳票</button>
@@ -1050,12 +1051,16 @@ function judgeDeductible(){
   if(type==="三聯式/電子計算機"||type==="電子發票")return uni?{r:"可扣抵",c:"ok",m:"合法扣抵憑證（§33）。請確認發票載明卓信統編 62098963 且含 5% 營業稅。"}:{r:"不可扣抵",c:"bad",m:"無賣方統編，非合法扣抵憑證（§19 I①）。"};
   return{r:"不可扣抵",c:"bad",m:"未取得§33合法扣抵憑證或無統編，不得扣抵。"};
 }
-function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDeductible();
+function judgeExpense(){const personal=$("#p_personal")&&$("#p_personal").checked;
+  if(personal)return{r:"有剔除風險",c:"warn",m:"個人名義／公司成立前之憑證，列公司費用可能被國稅局剔除（如成立前的 GoDaddy）；建議改開公司抬頭並保留為公司所用之佐證。"};
+  return{r:"可列費用",c:"ok",m:"取得合法憑證且供本業使用，即使不可扣抵營業稅，仍可列營所稅費用（例：交際費、國外勞務、政府規費）。"};}
+function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDeductible(),je=judgeExpense();
   const col=j.c==="ok"?"var(--good)":(j.c==="warn"?"var(--warn)":"var(--danger)");
+  const ecol=je.c==="ok"?"var(--good)":(je.c==="warn"?"var(--warn)":"var(--danger)");
   el.style.display="block";el.style.borderLeftColor=col;
-  el.innerHTML=`<b style="color:${col}">稅務判斷：${j.r}</b>　${esc(j.m)}`;
+  el.innerHTML=`<b style="color:${col}">① 營業稅 401：${j.r}</b>　${esc(j.m)}<br><b style="color:${ecol}">② 營所稅費用：${je.r}</b>　${esc(je.m)}`;
   const ded=$("#p_ded");if(ded)ded.value=(j.r==="可扣抵")?"1":"0";}
-(function(){["p_type","p_ent","p_emp","p_car"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
+(function(){["p_type","p_ent","p_emp","p_car","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
 
 /* ===== 銷項含稅/未稅四捨五入 + 建議費用科目 ===== */
