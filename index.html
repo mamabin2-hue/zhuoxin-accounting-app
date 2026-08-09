@@ -59,7 +59,7 @@
   .top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:14px 28px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
   .top h1{font-size:18px}
   .top .period{display:flex;align-items:center;gap:8px;margin-left:auto}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}
+  .pill{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--border)}
   .content{padding:24px 28px 60px;max-width:1160px;width:100%}
   .theme-btn{background:var(--surface-2);border:1px solid var(--border);color:var(--ink-2);border-radius:8px;padding:6px 10px;font-size:13px}
 
@@ -120,6 +120,10 @@
   .ok{color:var(--good);font-weight:600} .bad{color:var(--danger);font-weight:600}
 
   @media (max-width:860px){
+    .top{flex-direction:column;align-items:stretch;gap:8px;padding:10px 16px}
+    .top .period{margin-left:0;flex-wrap:wrap;gap:6px}
+    .pill{white-space:nowrap;font-size:11px;padding:3px 8px}
+    .theme-btn{padding:5px 8px;font-size:12px}
     .app{grid-template-columns:1fr}
     .side{position:static;height:auto;flex-direction:row;flex-wrap:wrap;border-right:0;border-bottom:1px solid var(--border);padding:12px}
     .side .brand{padding:4px 8px;width:100%} .nav{flex-direction:row;flex-wrap:wrap} .nav button{width:auto} .side .foot{display:none}
@@ -226,7 +230,7 @@
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">自用小客車/油料修理</label>
           </div>
           <div id="p_dedHint" class="note" style="margin-top:10px;display:none"></div>
-          <div class="actions"><button class="btn" type="submit">＋ 新增並切傳票</button>
+          <div class="actions"><button class="btn" type="submit" id="pSubmitBtn">＋ 新增並切傳票</button>
             <button class="btn ghost sm" type="button" id="pSample">載入 GoDaddy 範例</button>
             <label class="btn ghost sm" style="display:inline-block">📥 匯入收據JSON<input type="file" accept=".json" style="display:none" onchange="importReceipts(this)"></label>
             <span class="muted" style="color:var(--ink-3);font-size:12.5px">稅額留空自動 = 未稅 × 5%</span></div>
@@ -491,9 +495,10 @@ function totals(){const salesTax=db.sale.reduce((a,s)=>a+s.tax,0),salesNet=db.sa
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  db.purchase.push({id:uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||""});
-  {const nm=$("#p_name").value.trim(),u=$("#p_uni").value.trim();if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
-  e.target.reset();$("#p_total").value="";save();});
+  const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:$("#p_ded").value==="1",pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||""};
+  if(editPid){const i=db.purchase.findIndex(x=>x.id===editPid);if(i>=0)db.purchase[i]=_obj;editPid=null;const b=$("#pSubmitBtn");if(b)b.textContent="＋ 新增並切傳票";}
+  else{db.purchase.push(_obj);const nm=_obj.name,u=_obj.uni;if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}
+  e.target.reset();$("#p_total").value="";if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
 $("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
 
 /* sale */
@@ -565,7 +570,7 @@ function renderPurchase(){const b=$("#pBody");
   b.innerHTML=db.purchase.length?db.purchase.map(p=>`<tr><td class="num">${p.date||"—"}</td><td><span class="tag">${p.type}</span></td>
     <td>${esc(p.name)||"—"}${p.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(p.uni)}</span>`:""}</td><td>${esc(p.item)||"—"}</td>
     <td class="r num">${fmt(p.net)}</td><td class="r num">${fmt(p.tax)}</td><td>${p.ded?'<span class="tag">可扣抵</span>':'<span class="tag no">不可</span>'}</td>
-    <td class="r"><button class="del" onclick="del('purchase','${p.id}')">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">尚無進項。把收據照片放「01_進項憑證/待辨識」，或用上方表單新增。</td></tr>`;
+    <td class="r"><button class="del" onclick="editPurchase('${p.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('purchase','${p.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">尚無進項。把收據照片放「01_進項憑證/待辨識」，或用上方表單新增。</td></tr>`;
   const t=totals();$("#pSum").textContent=`合計 未稅 ${fmt(t.inNet)} · 稅額 ${fmt(db.purchase.reduce((a,p)=>a+p.tax,0))}`;}
 function renderSale(){const b=$("#sBody");
   b.innerHTML=db.sale.length?db.sale.slice().sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>`<tr><td class="num">${invStr(s.code,s.seq)}</td><td class="num">${s.date||"—"}</td>
@@ -1074,6 +1079,17 @@ function importReceipts(inp){const fl=inp.files[0];if(!fl)return;const r=new Fil
   let n=0;arr.forEach(oo=>{if(!oo)return;const net=+oo.net||0,tax=+oo.tax||0;if(!net&&!tax&&!oo.item)return;
     db.purchase.push({id:uid(),date:oo.date||"",type:oo.type||"其他",uni:(oo.uni||"").toString().trim(),name:(oo.name||"").toString().trim(),item:(oo.item||"").toString().trim(),cat:oo.cat||"費用",acct:oo.acct||"",net,tax,ded:(oo.ded===true||oo.ded==="1"||oo.ded===1),pay:oo.pay||"銀行存款",s36:!!oo.s36,proj:oo.proj||""});n++;});
   inp.value="";if(n){save();alert("已匯入 "+n+" 筆進項（待入帳）。請到進項明細逐筆檢視科目與可否扣抵後確認。");}else alert("沒有可匯入的資料。");};r.readAsText(fl);}
+
+/* ===== 進項編輯 ===== */
+let editPid=null;
+function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)return;
+  document.querySelector('#nav button[data-v="purchase"]').click();
+  $("#p_date").value=p.date||"";$("#p_type").value=p.type||"三聯式/電子計算機";$("#p_uni").value=p.uni||"";$("#p_name").value=p.name||"";$("#p_item").value=p.item||"";$("#p_cat").value=p.cat||"費用";
+  if(typeof fillPAcctSel==="function")fillPAcctSel();if(p.acct)$("#p_acct").value=p.acct;
+  $("#p_net").value=p.net||0;$("#p_tax").value=p.tax||0;$("#p_ded").value=p.ded?"1":"0";$("#p_pay").value=p.pay||"現金";
+  if(typeof fillProjSel==="function")fillProjSel($("#p_proj"));if(p.proj)$("#p_proj").value=p.proj;
+  if($("#p_ent"))$("#p_ent").checked=false;if($("#p_emp"))$("#p_emp").checked=false;if($("#p_car"))$("#p_car").checked=false;
+  editPid=id;if(typeof syncPTotal==="function")syncPTotal();const b=$("#pSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
