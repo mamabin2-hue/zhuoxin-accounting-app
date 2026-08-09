@@ -130,6 +130,10 @@
     .content{padding:18px 16px 50px} .top{padding:12px 16px}
   }
   @media print{.side,.top,.actions,.del,.theme-btn,.form{display:none!important}.app{display:block}.content{max-width:none}}
+.settabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px;border-bottom:1px solid var(--border)}
+  .stab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--ink-2);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;margin-bottom:-1px}
+  .stab:hover{color:var(--ink)} .stab.on{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:600}
+  .setpane{display:none} .setpane.on{display:block}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -366,6 +370,8 @@
 
       <!-- SETTINGS -->
       <section class="view" id="v-settings">
+        <div class="settabs" id="settabs"><button class="stab on" data-p="account">帳號安全</button><button class="stab" data-p="bank">銀行帳戶</button><button class="stab" data-p="proj">專案</button><button class="stab" data-p="vendor">廠商</button><button class="stab" data-p="customer">客戶</button><button class="stab" data-p="acct">會計科目</button></div>
+        <div class="setpane on" id="set-account">
         <div class="sec-h"><h2>帳號安全</h2><span class="muted">設定只有你知道的登入密碼（我看不到）</span></div>
         <form class="form" id="pwForm">
           <div class="frow">
@@ -376,6 +382,8 @@
           <div id="pw_msg" style="font-size:13px;min-height:18px;margin-top:6px"></div>
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:2px 0 0">需先登入雲端。更新後下次登入請用新密碼；統編就不再是密碼了。</p>
         </form>
+        </div>
+        <div class="setpane" id="set-bank">
         <div class="sec-h"><h2>銀行帳戶</h2><span class="muted">分銀行別管理，未來開新銀行可再新增</span></div>
         <form class="form" id="bkForm">
           <div class="frow">
@@ -387,18 +395,29 @@
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">會建立「銀行存款-新光銀行(台南分行)」等子科目，出現在科目下拉、付款/收款方式與銀行簿，各家分開記餘額。</p>
         </form>
         <div id="bkList" style="margin-top:12px;margin-bottom:8px"></div>
+        </div>
+        <div class="setpane" id="set-proj">
         <div class="sec-h"><h2>專案／成本中心</h2><span class="muted">部門、客戶類別或專案；交易可歸屬，損益可分別看</span></div>
         <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：源穩專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增</button></div></div></form>
         <div id="pjList" style="margin-top:12px;margin-bottom:6px"></div>
+        </div>
+        <div class="setpane" id="set-vendor">
         <div class="sec-h"><h2>廠商主檔</h2><span class="muted">進項的賣方，可不完整；登錄進項時會自動記住</span></div>
         <form class="form" id="vdForm">
           <div class="frow">
             <div class="fld"><label>統編（可略）</label><input id="vd_uni" inputmode="numeric" placeholder="8 碼"></div>
             <div class="fld" style="grid-column:span 2"><label>廠商名稱</label><input id="vd_name" placeholder="例：GoDaddy"></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>聯絡人</label><input id="vd_contact" placeholder="姓名"></div>
+            <div class="fld"><label>電話</label><input id="vd_phone" inputmode="tel" placeholder="電話"></div>
+            <div class="fld"><label>Email（付款通知）</label><input id="vd_email" type="email" placeholder="email"></div>
             <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增廠商</button></div>
           </div>
         </form>
         <div id="vdList" style="margin-top:12px;margin-bottom:6px"></div>
+        </div>
+        <div class="setpane" id="set-customer">
         <div class="sec-h"><h2>客戶主檔</h2><span class="muted">銷項的買受人，開發票給營業人須完整（統編＋名稱）；開票時自動建檔</span></div>
         <form class="form" id="cuForm">
           <div class="frow">
@@ -406,9 +425,16 @@
             <div class="fld" style="grid-column:span 2"><label>客戶名稱（抬頭）</label><input id="cu_name" placeholder="客戶抬頭"></div>
             <div class="fld"><label>地址（可略）</label><input id="cu_addr" placeholder="地址"></div>
           </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>聯絡人</label><input id="cu_contact" placeholder="姓名"></div>
+            <div class="fld"><label>電話</label><input id="cu_phone" inputmode="tel" placeholder="電話"></div>
+            <div class="fld"><label>Email（催收/發票通知）</label><input id="cu_email" type="email" placeholder="email"></div>
+          </div>
           <div class="actions"><button class="btn sm" type="submit">＋ 新增客戶</button></div>
         </form>
         <div id="cuList" style="margin-top:12px;margin-bottom:6px"></div>
+        </div>
+        <div class="setpane" id="set-acct">
         <div class="sec-h"><h2>會計科目設定</h2><span class="muted">先選大類，再新增／管理該類科目（自訂科目可刪）</span></div>
         <form class="form" id="acForm">
           <div class="frow">
@@ -419,6 +445,7 @@
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">內建科目已分好大類；自訂的會歸到你選的大類，並出現在期初、手動分錄的下拉選單。</p>
         </form>
         <div id="acList" style="margin-top:14px"></div>
+        </div>
       </section>
 
       <!-- EXPORT -->
@@ -995,17 +1022,17 @@ function fillCustomerSel(){const s=$("#s_customer");if(!s)return;const cur=s.val
 function vendorStat(v){const rows=db.purchase.filter(p=>(v.uni&&p.uni===v.uni)||p.name===v.name);return {n:rows.length,amt:rows.reduce((a,p)=>a+p.net+p.tax,0)};}
 function customerStat(c){const rows=db.sale.filter(x=>(c.uni&&x.uni===c.uni)||x.name===c.name);return {n:rows.length,amt:rows.reduce((a,x)=>a+x.net+x.tax,0)};}
 function renderVendorList(){const el=$("#vdList");if(!el)return;if(!(db.vendors||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無廠商。登錄進項會自動記住，或在此新增。</div>';return;}
-  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>廠商</th><th>統編</th><th class="r">進項筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
-    db.vendors.map(v=>{const st=vendorStat(v);return `<tr><td>${esc(v.name)}</td><td class="num">${esc(v.uni||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delVendor('${v.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>廠商</th><th>統編</th><th>聯絡人</th><th>電話</th><th>Email</th><th class="r">筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
+    db.vendors.map(v=>{const st=vendorStat(v);return `<tr><td>${esc(v.name)}</td><td class="num">${esc(v.uni||"")}</td><td>${esc(v.contact||"")}</td><td class="num">${esc(v.phone||"")}</td><td>${esc(v.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delVendor('${v.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
 function renderCustomerList(){const el=$("#cuList");if(!el)return;if(!(db.customers||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無客戶。開銷項發票會自動建立，或在此新增。</div>';return;}
-  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>客戶</th><th>統編</th><th class="r">銷項筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
-    db.customers.map(c=>{const st=customerStat(c);return `<tr><td>${esc(c.name)}${c.addr?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(c.addr)+'</span>'):""}</td><td class="num">${esc(c.uni||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delCustomer('${c.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>客戶</th><th>統編</th><th>聯絡人</th><th>電話</th><th>Email</th><th class="r">筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
+    db.customers.map(c=>{const st=customerStat(c);return `<tr><td>${esc(c.name)}${c.addr?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(c.addr)+'</span>'):""}</td><td class="num">${esc(c.uni||"")}</td><td>${esc(c.contact||"")}</td><td class="num">${esc(c.phone||"")}</td><td>${esc(c.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delCustomer('${c.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
 function delVendor(id){if(!confirm("刪除此廠商？（已登錄的進項不受影響）"))return;db.vendors=(db.vendors||[]).filter(v=>v.id!==id);save();}
 function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受影響）"))return;db.customers=(db.customers||[]).filter(c=>c.id!==id);save();}
 (function(){const vf=$("#vdForm");if(vf)vf.addEventListener("submit",e=>{e.preventDefault();const name=$("#vd_name").value.trim(),uni=$("#vd_uni").value.trim();if(!name){alert("請輸入廠商名稱。");return;}
-  if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,note:""});$("#vd_name").value="";$("#vd_uni").value="";save();});
+  if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,contact:(($("#vd_contact")||{}).value||"").trim(),phone:(($("#vd_phone")||{}).value||"").trim(),email:(($("#vd_email")||{}).value||"").trim(),note:""});["vd_name","vd_uni","vd_contact","vd_phone","vd_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});
   const cf=$("#cuForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();const name=$("#cu_name").value.trim(),uni=$("#cu_uni").value.trim(),addr=$("#cu_addr").value.trim();if(!name){alert("請輸入客戶名稱。");return;}
-  if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,note:""});$("#cu_name").value="";$("#cu_uni").value="";$("#cu_addr").value="";save();});})();
+  if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,contact:(($("#cu_contact")||{}).value||"").trim(),phone:(($("#cu_phone")||{}).value||"").trim(),email:(($("#cu_email")||{}).value||"").trim(),note:""});["cu_name","cu_uni","cu_addr","cu_contact","cu_phone","cu_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});})();
 
 /* ===== 進項扣抵防呆（依營業稅法§19/§33/§36）===== */
 function judgeDeductible(){
@@ -1110,6 +1137,7 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
   $("#jLines").innerHTML="";(j.lines||[]).forEach(l=>addJLine(l.acct,l.debit||"",l.credit||""));if(typeof computeJBal==="function")computeJBal();
   editJid=id;const b=$("#jSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
+(function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
 </body>
