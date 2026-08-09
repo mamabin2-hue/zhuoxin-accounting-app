@@ -1070,7 +1070,7 @@ function saleNetTax(){const raw=Math.round(+$("#s_net").value||0);const mode=$("
 function updateSaleAmt(){const r=saleNetTax();const t=$("#s_tax");if(t)t.value=r.tax?fmt(r.tax):"";const h=$("#s_amtHint");if(h)h.textContent=(+$("#s_net").value)?("未稅 "+fmt(r.net)+"・含稅 "+fmt(r.total)):"";}
 function fillPAcctSel(){const s=$("#p_acct");if(!s)return;const cur=s.value;const list=accountsByCat("費用");
   s.innerHTML='<option value="">— 自動：營業費用 —</option>'+list.map(a=>`<option${a===cur?" selected":""}>${esc(a)}</option>`).join("");if(cur&&list.includes(cur))s.value=cur;}
-const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"]];
+const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"],[/(拜拜|祭祀|金紙|香燭|供品|牲禮|犒軍|尾牙)/,"雜項費用"]];
 function suggestAcct(it){for(const p of ACCT_SUGGEST)if(p[0].test(it||""))return p[1];return "";}
 (function(){const pi=$("#p_item"),pc=$("#p_cat"),pa=$("#p_acct");
   function sug(){if(!pa||!pc||pc.value!=="費用")return;const a=suggestAcct(pi.value);if(a&&accountsByCat("費用").includes(a))pa.value=a;}
