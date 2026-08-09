@@ -228,6 +228,7 @@
           <div id="p_dedHint" class="note" style="margin-top:10px;display:none"></div>
           <div class="actions"><button class="btn" type="submit">＋ 新增並切傳票</button>
             <button class="btn ghost sm" type="button" id="pSample">載入 GoDaddy 範例</button>
+            <label class="btn ghost sm" style="display:inline-block">📥 匯入收據JSON<input type="file" accept=".json" style="display:none" onchange="importReceipts(this)"></label>
             <span class="muted" style="color:var(--ink-3);font-size:12.5px">稅額留空自動 = 未稅 × 5%</span></div>
         </form>
         <div class="sec-h"><h2>進項明細</h2><span class="muted sp num" id="pSum"></span></div>
@@ -1065,6 +1066,14 @@ function renderProjList(){const el=$("#pjList");if(!el)return;if(!(db.projects||
 function delProject(id){if(!confirm("刪除此專案？（已標記的交易會變回未歸屬）"))return;db.projects=(db.projects||[]).filter(p=>p.id!==id);save();}
 (function(){const pf=$("#pjForm");if(pf)pf.addEventListener("submit",e=>{e.preventDefault();const name=$("#pj_name").value.trim();if(!name){alert("請輸入名稱。");return;}if((db.projects||[]).some(p=>p.name===name)){alert("已存在。");return;}db.projects.push({id:uid(),name});$("#pj_name").value="";save();});
   const pp=$("#pl_proj");if(pp)pp.addEventListener("change",renderPL);})();
+
+/* ===== 匯入收據(從Gmail解析的待匯入JSON) ===== */
+function importReceipts(inp){const fl=inp.files[0];if(!fl)return;const r=new FileReader();r.onload=()=>{
+  let arr;try{arr=JSON.parse(r.result);}catch(e){alert("檔案格式錯誤：需為 JSON 陣列。");return;}
+  if(!Array.isArray(arr))arr=(arr&&arr.items)||[arr];
+  let n=0;arr.forEach(oo=>{if(!oo)return;const net=+oo.net||0,tax=+oo.tax||0;if(!net&&!tax&&!oo.item)return;
+    db.purchase.push({id:uid(),date:oo.date||"",type:oo.type||"其他",uni:(oo.uni||"").toString().trim(),name:(oo.name||"").toString().trim(),item:(oo.item||"").toString().trim(),cat:oo.cat||"費用",acct:oo.acct||"",net,tax,ded:(oo.ded===true||oo.ded==="1"||oo.ded===1),pay:oo.pay||"銀行存款",s36:!!oo.s36,proj:oo.proj||""});n++;});
+  inp.value="";if(n){save();alert("已匯入 "+n+" 筆進項（待入帳）。請到進項明細逐筆檢視科目與可否扣抵後確認。");}else alert("沒有可匯入的資料。");};r.readAsText(fl);}
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
