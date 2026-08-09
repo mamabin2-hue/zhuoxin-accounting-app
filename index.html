@@ -400,7 +400,7 @@
         </div>
         <div class="setpane" id="set-proj">
         <div class="sec-h"><h2>專案／成本中心</h2><span class="muted">部門、客戶類別或專案；交易可歸屬，損益可分別看</span></div>
-        <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：源穩專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增</button></div></div></form>
+        <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：源穩專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit" id="pjSubmitBtn">＋ 新增</button></div></div></form>
         <div id="pjList" style="margin-top:12px;margin-bottom:6px"></div>
         </div>
         <div class="setpane" id="set-vendor">
@@ -414,7 +414,7 @@
             <div class="fld"><label>聯絡人</label><input id="vd_contact" placeholder="姓名"></div>
             <div class="fld"><label>電話</label><input id="vd_phone" inputmode="tel" placeholder="電話"></div>
             <div class="fld"><label>Email（付款通知）</label><input id="vd_email" type="email" placeholder="email"></div>
-            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增廠商</button></div>
+            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit" id="vdSubmitBtn">＋ 新增廠商</button></div>
           </div>
         </form>
         <div id="vdList" style="margin-top:12px;margin-bottom:6px"></div>
@@ -432,7 +432,7 @@
             <div class="fld"><label>電話</label><input id="cu_phone" inputmode="tel" placeholder="電話"></div>
             <div class="fld"><label>Email（催收/發票通知）</label><input id="cu_email" type="email" placeholder="email"></div>
           </div>
-          <div class="actions"><button class="btn sm" type="submit">＋ 新增客戶</button></div>
+          <div class="actions"><button class="btn sm" type="submit" id="cuSubmitBtn">＋ 新增客戶</button></div>
         </form>
         <div id="cuList" style="margin-top:12px;margin-bottom:6px"></div>
         </div>
@@ -1025,16 +1025,16 @@ function vendorStat(v){const rows=db.purchase.filter(p=>(v.uni&&p.uni===v.uni)||
 function customerStat(c){const rows=db.sale.filter(x=>(c.uni&&x.uni===c.uni)||x.name===c.name);return {n:rows.length,amt:rows.reduce((a,x)=>a+x.net+x.tax,0)};}
 function renderVendorList(){const el=$("#vdList");if(!el)return;if(!(db.vendors||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無廠商。登錄進項會自動記住，或在此新增。</div>';return;}
   el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>廠商</th><th>統編</th><th>聯絡人</th><th>電話</th><th>Email</th><th class="r">筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
-    db.vendors.map(v=>{const st=vendorStat(v);return `<tr><td>${esc(v.name)}</td><td class="num">${esc(v.uni||"")}</td><td>${esc(v.contact||"")}</td><td class="num">${esc(v.phone||"")}</td><td>${esc(v.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delVendor('${v.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+    db.vendors.map(v=>{const st=vendorStat(v);return `<tr><td>${esc(v.name)}</td><td class="num">${esc(v.uni||"")}</td><td>${esc(v.contact||"")}</td><td class="num">${esc(v.phone||"")}</td><td>${esc(v.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="editVendor('${v.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="delVendor('${v.id}')" title="刪除">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
 function renderCustomerList(){const el=$("#cuList");if(!el)return;if(!(db.customers||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無客戶。開銷項發票會自動建立，或在此新增。</div>';return;}
   el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>客戶</th><th>統編</th><th>聯絡人</th><th>電話</th><th>Email</th><th class="r">筆數</th><th class="r">累計含稅</th><th></th></tr></thead><tbody>'+
-    db.customers.map(c=>{const st=customerStat(c);return `<tr><td>${esc(c.name)}${c.addr?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(c.addr)+'</span>'):""}</td><td class="num">${esc(c.uni||"")}</td><td>${esc(c.contact||"")}</td><td class="num">${esc(c.phone||"")}</td><td>${esc(c.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="delCustomer('${c.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+    db.customers.map(c=>{const st=customerStat(c);return `<tr><td>${esc(c.name)}${c.addr?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(c.addr)+'</span>'):""}</td><td class="num">${esc(c.uni||"")}</td><td>${esc(c.contact||"")}</td><td class="num">${esc(c.phone||"")}</td><td>${esc(c.email||"")}</td><td class="r num">${st.n}</td><td class="r num">${fmt(st.amt)}</td><td class="r"><button class="del" onclick="editCustomer('${c.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="delCustomer('${c.id}')" title="刪除">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
 function delVendor(id){if(!confirm("刪除此廠商？（已登錄的進項不受影響）"))return;db.vendors=(db.vendors||[]).filter(v=>v.id!==id);save();}
 function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受影響）"))return;db.customers=(db.customers||[]).filter(c=>c.id!==id);save();}
 (function(){const vf=$("#vdForm");if(vf)vf.addEventListener("submit",e=>{e.preventDefault();const name=$("#vd_name").value.trim(),uni=$("#vd_uni").value.trim();if(!name){alert("請輸入廠商名稱。");return;}
-  if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,contact:(($("#vd_contact")||{}).value||"").trim(),phone:(($("#vd_phone")||{}).value||"").trim(),email:(($("#vd_email")||{}).value||"").trim(),note:""});["vd_name","vd_uni","vd_contact","vd_phone","vd_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});
+  const _c=(($("#vd_contact")||{}).value||"").trim(),_p=(($("#vd_phone")||{}).value||"").trim(),_e=(($("#vd_email")||{}).value||"").trim();if(editVid){const i=db.vendors.findIndex(v=>v.id===editVid);if(i>=0)db.vendors[i]={id:editVid,uni,name,contact:_c,phone:_p,email:_e,note:""};editVid=null;const b=$("#vdSubmitBtn");if(b)b.textContent="＋ 新增廠商";}else{if((db.vendors||[]).some(v=>v.name===name||(uni&&v.uni===uni))){alert("此廠商已存在。");return;}db.vendors.push({id:uid(),uni,name,contact:_c,phone:_p,email:_e,note:""});}["vd_name","vd_uni","vd_contact","vd_phone","vd_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});
   const cf=$("#cuForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();const name=$("#cu_name").value.trim(),uni=$("#cu_uni").value.trim(),addr=$("#cu_addr").value.trim();if(!name){alert("請輸入客戶名稱。");return;}
-  if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,contact:(($("#cu_contact")||{}).value||"").trim(),phone:(($("#cu_phone")||{}).value||"").trim(),email:(($("#cu_email")||{}).value||"").trim(),note:""});["cu_name","cu_uni","cu_addr","cu_contact","cu_phone","cu_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});})();
+  const _c=(($("#cu_contact")||{}).value||"").trim(),_p=(($("#cu_phone")||{}).value||"").trim(),_e=(($("#cu_email")||{}).value||"").trim();if(editCid){const i=db.customers.findIndex(c=>c.id===editCid);if(i>=0)db.customers[i]={id:editCid,uni,name,addr,contact:_c,phone:_p,email:_e,note:""};editCid=null;const b=$("#cuSubmitBtn");if(b)b.textContent="＋ 新增客戶";}else{if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,contact:_c,phone:_p,email:_e,note:""});}["cu_name","cu_uni","cu_addr","cu_contact","cu_phone","cu_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});})();
 
 /* ===== 進項扣抵防呆（依營業稅法§19/§33/§36）===== */
 function judgeDeductible(){
@@ -1098,9 +1098,9 @@ function fillProjSel(sel,all){if(!sel)return;const cur=sel.value;
 function projStat(id){const fe=flowEntries().filter(v=>v.proj===id);const m=balancesOf(fe);let inc=0,exp=0;Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc+=-m[a];else if(c==="成本"||c==="費用")exp+=m[a];});return {inc,exp};}
 function renderProjList(){const el=$("#pjList");if(!el)return;if(!(db.projects||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無專案/成本中心。新增後，交易可歸屬、損益表可分開看。</div>';return;}
   el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>專案/成本中心</th><th class="r">收入</th><th class="r">成本+費用</th><th class="r">損益</th><th></th></tr></thead><tbody>'+
-    db.projects.map(p=>{const st=projStat(p.id);const ni=st.inc-st.exp;return `<tr><td>${esc(p.name)}</td><td class="r num">${fmt(st.inc)}</td><td class="r num">${fmt(st.exp)}</td><td class="r num ${ni<0?'bad':''}">${fmt(ni)}</td><td class="r"><button class="del" onclick="delProject('${p.id}')">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
+    db.projects.map(p=>{const st=projStat(p.id);const ni=st.inc-st.exp;return `<tr><td>${esc(p.name)}</td><td class="r num">${fmt(st.inc)}</td><td class="r num">${fmt(st.exp)}</td><td class="r num ${ni<0?'bad':''}">${fmt(ni)}</td><td class="r"><button class="del" onclick="editProject('${p.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="delProject('${p.id}')" title="刪除">✕</button></td></tr>`;}).join("")+'</tbody></table></div></div>';}
 function delProject(id){if(!confirm("刪除此專案？（已標記的交易會變回未歸屬）"))return;db.projects=(db.projects||[]).filter(p=>p.id!==id);save();}
-(function(){const pf=$("#pjForm");if(pf)pf.addEventListener("submit",e=>{e.preventDefault();const name=$("#pj_name").value.trim();if(!name){alert("請輸入名稱。");return;}if((db.projects||[]).some(p=>p.name===name)){alert("已存在。");return;}db.projects.push({id:uid(),name});$("#pj_name").value="";save();});
+(function(){const pf=$("#pjForm");if(pf)pf.addEventListener("submit",e=>{e.preventDefault();const name=$("#pj_name").value.trim();if(!name){alert("請輸入名稱。");return;}if(editPjid){const i=db.projects.findIndex(p=>p.id===editPjid);if(i>=0)db.projects[i]={id:editPjid,name};editPjid=null;const b=$("#pjSubmitBtn");if(b)b.textContent="＋ 新增";}else{if((db.projects||[]).some(p=>p.name===name)){alert("已存在。");return;}db.projects.push({id:uid(),name});}$("#pj_name").value="";save();});
   const pp=$("#pl_proj");if(pp)pp.addEventListener("change",renderPL);})();
 
 /* ===== 匯入收據(從Gmail解析的待匯入JSON) ===== */
@@ -1140,6 +1140,17 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
   editJid=id;const b=$("#jSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
+/* ===== 主檔編輯 ===== */
+let editVid=null,editCid=null,editPjid=null;
+function editVendor(id){const v=(db.vendors||[]).find(x=>x.id===id);if(!v)return;var t=document.querySelector('.stab[data-p="vendor"]');if(t)t.click();
+  $("#vd_uni").value=v.uni||"";$("#vd_name").value=v.name||"";if($("#vd_contact"))$("#vd_contact").value=v.contact||"";if($("#vd_phone"))$("#vd_phone").value=v.phone||"";if($("#vd_email"))$("#vd_email").value=v.email||"";
+  editVid=id;const b=$("#vdSubmitBtn");if(b)b.textContent="✔ 更新此筆";}
+function editCustomer(id){const c=(db.customers||[]).find(x=>x.id===id);if(!c)return;var t=document.querySelector('.stab[data-p="customer"]');if(t)t.click();
+  $("#cu_uni").value=c.uni||"";$("#cu_name").value=c.name||"";if($("#cu_addr"))$("#cu_addr").value=c.addr||"";if($("#cu_contact"))$("#cu_contact").value=c.contact||"";if($("#cu_phone"))$("#cu_phone").value=c.phone||"";if($("#cu_email"))$("#cu_email").value=c.email||"";
+  editCid=id;const b=$("#cuSubmitBtn");if(b)b.textContent="✔ 更新此筆";}
+function editProject(id){const p=(db.projects||[]).find(x=>x.id===id);if(!p)return;var t=document.querySelector('.stab[data-p="proj"]');if(t)t.click();
+  $("#pj_name").value=p.name||"";editPjid=id;const b=$("#pjSubmitBtn");if(b)b.textContent="✔ 更新此筆";}
+
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
 </body>
