@@ -120,7 +120,7 @@
   .ok{color:var(--good);font-weight:600} .bad{color:var(--danger);font-weight:600}
 
   @media (max-width:860px){
-    .top{flex-direction:column;align-items:stretch;gap:8px;padding:10px 16px}
+    .top{position:static;flex-wrap:wrap;gap:8px;padding:10px 16px}
     .top .period{margin-left:0;flex-wrap:wrap;gap:6px}
     .pill{white-space:nowrap;font-size:11px;padding:3px 8px}
     .theme-btn{padding:5px 8px;font-size:12px}
@@ -270,7 +270,7 @@
             <div class="fld"><label>收款方式</label><select id="s_pay"><option>現金</option><option>銀行存款</option><option>應收帳款</option></select></div>
             <div class="fld"><label>專案（可略）</label><select id="s_proj"></select></div>
           </div>
-          <div class="actions"><button class="btn" type="submit">＋ 開立並切傳票</button></div>
+          <div class="actions"><button class="btn" type="submit" id="sSubmitBtn">＋ 開立並切傳票</button></div>
         </form>
         <div class="sec-h"><h2>銷項明細</h2><span class="muted sp num" id="sSum"></span></div>
         <div class="twrap"><div class="tscroll"><table>
@@ -320,7 +320,7 @@
           <div class="actions"><button class="btn ghost sm" type="button" id="jAddLine">＋ 加一列</button>
             <span class="sp" style="margin-left:auto"></span>
             <span class="num" id="jBal" style="font-size:13px"></span>
-            <button class="btn" type="submit">＋ 新增分錄</button></div>
+            <button class="btn" type="submit" id="jSubmitBtn">＋ 新增分錄</button></div>
         </form>
         <div class="sec-h"><h2>手動分錄明細</h2></div>
         <div id="jList"></div>
@@ -506,10 +506,11 @@ $("#s_date").addEventListener("input",syncSale);$("#s_net").addEventListener("in
 function syncSale(){const t=trackForDate($("#s_date").value);if(!t){$("#s_no").value="—";$("#s_trkHint").textContent="尚無字軌，請先於上方加入配號。";return;}
   const seq=nextSeq(t);$("#s_no").value=seq>t.end?"（本期字軌已用完）":invStr(t.code,seq);
   $("#s_trkHint").textContent=`期別 ${t.period}｜字軌 ${t.code}｜下一張 ${seq<=t.end?invStr(t.code,seq):"—"}（剩 ${Math.max(0,t.end-seq+1)} 號）`;}
-$("#sForm").addEventListener("submit",e=>{e.preventDefault();const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
+$("#sForm").addEventListener("submit",e=>{e.preventDefault();
+  const _r=saleNetTax();const net=_r.net,tax=_r.tax;const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
+  if(editSid){const i=db.sale.findIndex(x=>x.id===editSid);if(i>=0){const old=db.sale[i];db.sale[i]={id:editSid,code:old.code,seq:old.seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||""};}editSid=null;const b=$("#sSubmitBtn");if(b)b.textContent="＋ 開立並切傳票";e.target.reset();save();return;}
+  const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
-  const _r=saleNetTax();const net=_r.net,tax=_r.tax;
-  const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
   db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||""});
   {const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",note:""});}
   e.target.reset();save();});
@@ -538,8 +539,8 @@ function vouchersFor(){const out=[];let seq=1;
       if(p.ded){L.push({acct:acc,debit:p.net,credit:0});L.push({acct:"進項稅額",debit:p.tax,credit:0});}
       else L.push({acct:acc,debit:p.net+p.tax,credit:0});
       const pay=p.pay==="信用卡"?"應付帳款":p.pay;L.push({acct:pay,debit:0,credit:p.net+p.tax});
-      out.push({no,date:p.date,proj:p.proj||"",memo:`進項 · ${p.name||"—"} ${p.item||""}`.trim(),lines:L});
-    }else{const s=r.d;out.push({no,date:s.date,proj:s.proj||"",memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
+      out.push({no,date:p.date,proj:p.proj||"",srcType:"p",srcId:p.id,memo:`進項 · ${p.name||"—"} ${p.item||""}`.trim(),lines:L});
+    }else{const s=r.d;out.push({no,date:s.date,proj:s.proj||"",srcType:"s",srcId:s.id,memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
       lines:[{acct:s.pay,debit:s.net+s.tax,credit:0},{acct:"銷貨收入",debit:0,credit:s.net},{acct:"銷項稅額",debit:0,credit:s.tax}]});}});
   return out;}
 function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[l.acct]=1));
@@ -559,10 +560,10 @@ function renderKpis(){const t=totals();const owe=t.payable>=0;
     <div class="card kpi"><div class="lbl">憑證張數</div><div class="val num">${db.purchase.length+db.sale.length}</div><div class="sub num">進項 ${db.purchase.length} · 銷項 ${db.sale.length}</div></div>`;
   $("#dashNote").innerHTML=`目前試算：銷項稅額 <b class="num">${fmt(t.salesTax)}</b> − 進項可扣抵 <b class="num">${fmt(t.inTaxDed)}</b>`+(db.prevCredit?` − 上期留抵 <b class="num">${fmt(db.prevCredit)}</b>`:``)+` = <b class="num">${fmt(Math.abs(t.payable))}</b> 元 ${owe?'應納':'溢付'}。`;
   $("#dashSplit").innerHTML=`
-    <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期進項</div>${miniList(db.purchase.slice(-4).reverse(),p=>`${esc(p.name||p.item||'—')} · <span class="num">${fmt(p.net+p.tax)}</span>`)}</div>
-    <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期銷項</div>${miniList(db.sale.slice(-4).reverse(),s=>`${invStr(s.code,s.seq)} · <span class="num">${fmt(s.net+s.tax)}</span>`)}</div>`;}
-function miniList(a,f){if(!a.length)return `<div style="color:var(--ink-3);font-size:13px;padding:10px 0">尚無資料</div>`;
-  return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:7px">`+a.map(x=>`<div style="font-size:13px;display:flex;justify-content:space-between;gap:10px">${f(x)}</div>`).join("")+`</div>`;}
+    <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期進項</div>${miniList(db.purchase.slice(-4).reverse(),p=>`${esc(p.name||p.item||'—')} · <span class="num">${fmt(p.net+p.tax)}</span>`,p=>`editPurchase('${p.id}')`)}</div>
+    <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期銷項</div>${miniList(db.sale.slice(-4).reverse(),s=>`${invStr(s.code,s.seq)} · <span class="num">${fmt(s.net+s.tax)}</span>`,s=>`editSale('${s.id}')`)}</div>`;}
+function miniList(a,f,click){if(!a.length)return `<div style="color:var(--ink-3);font-size:13px;padding:10px 0">尚無資料</div>`;
+  return `<div style="margin-top:8px;display:flex;flex-direction:column;gap:7px">`+a.map(x=>`<div ${click?`onclick="${click(x)}"`:``} style="font-size:13px;display:flex;justify-content:space-between;gap:10px;padding:2px 0;cursor:${click?"pointer":"default"}">${f(x)}</div>`).join("")+`</div>`;}
 
 function renderTracks(){$("#trkBody").innerHTML=db.tracks.length?db.tracks.map(t=>`<tr><td class="num">${t.period}</td><td>${esc(t.category||"")}</td><td><span class="tag">${t.code}</span></td><td class="r num">${invStr(t.code,t.start)}</td><td class="r num">${invStr(t.code,t.end)}</td><td class="r num">${trackUsed(t)}/${t.end-t.start+1}</td></tr>`).join(""):`<tr><td colspan="6" class="empty">尚無字軌，貼上配號信解析。</td></tr>`;}
 
@@ -575,13 +576,13 @@ function renderPurchase(){const b=$("#pBody");
 function renderSale(){const b=$("#sBody");
   b.innerHTML=db.sale.length?db.sale.slice().sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>`<tr><td class="num">${invStr(s.code,s.seq)}</td><td class="num">${s.date||"—"}</td>
     <td>${esc(s.name)||"—"}${s.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(s.uni)}</span>`:""}</td><td>${esc(s.item)||"—"}</td>
-    <td class="r num">${fmt(s.net)}</td><td class="r num">${fmt(s.tax)}</td><td class="r"><button class="del" onclick="del('sale','${s.id}')">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
+    <td class="r num">${fmt(s.net)}</td><td class="r num">${fmt(s.tax)}</td><td class="r"><button class="del" onclick="editSale('${s.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('sale','${s.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
   const t=totals();$("#sSum").textContent=`合計 銷售額 ${fmt(t.salesNet)} · 稅額 ${fmt(t.salesTax)}`;}
 
 function renderVouchers(){const vs=allEntries();const el=$("#vList");
   if(!vs.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">新增進項或銷項後自動產生傳票。</div>`;return;}
   el.innerHTML=vs.map(v=>{const dt=v.lines.reduce((a,l)=>a+l.debit,0),ct=v.lines.reduce((a,l)=>a+l.credit,0);
-    return `<div class="vch"><div class="vh"><span class="vno">${v.no}</span><span class="num">${v.date||"—"}</span><span style="color:var(--ink-3)">${esc(v.memo)}</span></div>
+    return `<div class="vch"><div class="vh"><span class="vno">${v.no}</span><span class="num">${v.date||"—"}</span><span style="color:var(--ink-3)">${esc(v.memo)}</span>${v.srcType?`<button class="del" onclick="editVoucher('${v.srcType}','${v.srcId}')" title="編輯來源" style="color:var(--accent-ink);margin-left:auto">✎</button>`:""}</div>
     <table><thead><tr><th>會計科目</th><th class="r">借方</th><th class="r">貸方</th></tr></thead>
     <tbody>${v.lines.map(l=>`<tr><td>${esc(l.acct)}</td><td class="r num">${l.debit?fmt(l.debit):""}</td><td class="r num">${l.credit?fmt(l.credit):""}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td>合計</td><td class="r num">${fmt(dt)}</td><td class="r num">${fmt(ct)}</td></tr></tfoot></table></div>`;}).join("");}
@@ -675,7 +676,7 @@ function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_c
 
 function openingEntries(){const ops=db.opening||[];if(!ops.length)return [];
   return [{no:"OB",date:"期初",memo:"期初餘額",lines:ops.map(o=>({acct:o.acct,debit:o.side==="借"?+o.amount||0:0,credit:o.side==="貸"?+o.amount||0:0}))}];}
-function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,proj:j.proj||"",memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
+function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,proj:j.proj||"",srcType:"j",srcId:j.id,memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
 function flowEntries(){return [...vouchersFor(),...manualEntries()];}
 function allEntries(){const mid=[...vouchersFor(),...manualEntries()].sort((a,b)=>(a.date||"").localeCompare(b.date||""));return [...openingEntries(),...mid];}
 function balancesOf(entries){const m={};entries.forEach(v=>v.lines.forEach(l=>{m[l.acct]=(m[l.acct]||0)+l.debit-l.credit;}));return m;}
@@ -729,13 +730,14 @@ $("#jForm").addEventListener("submit",e=>{e.preventDefault();const lines=[];
   const d=lines.reduce((a,l)=>a+l.debit,0),c=lines.reduce((a,l)=>a+l.credit,0);
   if(Math.round(d)!==Math.round(c)){alert(`借貸不平衡：借 ${fmt(d)} / 貸 ${fmt(c)}。`);return;}
   if(d===0){alert("金額不可為 0。");return;}
-  db.journal.push({id:uid(),date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""});
+  if(editJid){const i=db.journal.findIndex(x=>x.id===editJid);if(i>=0)db.journal[i]={id:editJid,date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""};editJid=null;const b=$("#jSubmitBtn");if(b)b.textContent="＋ 新增分錄";}
+  else db.journal.push({id:uid(),date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""});
   $("#j_memo").value="";resetJLines();save();});
 function delJournal(id){if(!confirm("刪除這筆手動分錄？"))return;db.journal=db.journal.filter(j=>j.id!==id);save();}
 function renderJournalList(){const el=$("#jList");if(!el)return;
   if(!db.journal.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無手動分錄。用上方表單或「常用範本」新增。</div>`;return;}
   el.innerHTML=db.journal.map((j,idx)=>{const lines=j.lines||[];const dt=lines.reduce((a,l)=>a+(+l.debit||0),0),ct=lines.reduce((a,l)=>a+(+l.credit||0),0);
-    return `<div class="vch"><div class="vh"><span class="vno">J${String(idx+1).padStart(3,"0")}</span><span class="num">${j.date||"—"}</span><span style="color:var(--ink-3)">${esc(j.memo||"")}</span><span class="sp" style="margin-left:auto"></span><button class="del" onclick="delJournal('${j.id}')">✕</button></div>
+    return `<div class="vch"><div class="vh"><span class="vno">J${String(idx+1).padStart(3,"0")}</span><span class="num">${j.date||"—"}</span><span style="color:var(--ink-3)">${esc(j.memo||"")}</span><span class="sp" style="margin-left:auto"></span><button class="del" onclick="editJournal('${j.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="delJournal('${j.id}')" title="刪除">✕</button></div>
     <table><thead><tr><th>會計科目</th><th class="r">借方</th><th class="r">貸方</th></tr></thead>
     <tbody>${lines.map(l=>`<tr><td>${esc(l.acct)}</td><td class="r num">${l.debit?fmt(l.debit):""}</td><td class="r num">${l.credit?fmt(l.credit):""}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td>合計</td><td class="r num">${fmt(dt)}</td><td class="r num">${fmt(ct)}</td></tr></tfoot></table></div>`;}).join("");}
@@ -1090,6 +1092,23 @@ function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)ret
   if(typeof fillProjSel==="function")fillProjSel($("#p_proj"));if(p.proj)$("#p_proj").value=p.proj;
   if($("#p_ent"))$("#p_ent").checked=false;if($("#p_emp"))$("#p_emp").checked=false;if($("#p_car"))$("#p_car").checked=false;
   editPid=id;if(typeof syncPTotal==="function")syncPTotal();const b=$("#pSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
+
+/* ===== 銷項/手動分錄 編輯 ===== */
+let editSid=null,editJid=null;
+function editVoucher(t,id){if(t==="p")editPurchase(id);else if(t==="s")editSale(id);else if(t==="j")editJournal(id);}
+function editSale(id){const sd=(db.sale||[]).find(x=>x.id===id);if(!sd)return;
+  document.querySelector('#nav button[data-v="sale"]').click();
+  $("#s_date").value=sd.date||"";$("#s_uni").value=sd.uni||"";$("#s_name").value=sd.name||"";$("#s_item").value=sd.item||"";
+  if($("#s_taxmode"))$("#s_taxmode").value="未稅";$("#s_net").value=sd.net||0;$("#s_pay").value=sd.pay||"現金";
+  if(typeof fillProjSel==="function")fillProjSel($("#s_proj"));if(sd.proj)$("#s_proj").value=sd.proj;
+  editSid=id;if(typeof updateSaleAmt==="function")updateSaleAmt();const b=$("#sSubmitBtn");if(b)b.textContent="✔ 更新此筆";
+  if($("#s_no"))$("#s_no").value=invStr(sd.code,sd.seq);window.scrollTo(0,0);}
+function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)return;
+  document.querySelector('#nav button[data-v="journal"]').click();
+  $("#j_date").value=j.date||"";$("#j_memo").value=j.memo||"";
+  if(typeof fillProjSel==="function")fillProjSel($("#j_proj"));if(j.proj)$("#j_proj").value=j.proj;
+  $("#jLines").innerHTML="";(j.lines||[]).forEach(l=>addJLine(l.acct,l.debit||"",l.credit||""));if(typeof computeJBal==="function")computeJBal();
+  editJid=id;const b=$("#jSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
