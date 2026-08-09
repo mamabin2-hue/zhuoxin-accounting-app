@@ -1139,7 +1139,7 @@ function renderInbox(){const badge=$("#inboxBadge"),panel=$("#inboxPanel");const
     `<div class="twrap"><div class="tscroll"><table><thead><tr><th>日期</th><th>賣方</th><th>品名</th><th class="r">金額</th><th>可扣抵</th><th></th></tr></thead><tbody>`+
     inboxItems.map(it=>{const o=it.receipt||{};const amt=(+o.net||0)+(+o.tax||0);
       const ded=o.ded?'<span class="tag" style="background:var(--good,#30a46c);color:#fff">可抵</span>':(o.s36?'<span class="tag">國外§36</span>':'<span class="tag">不可抵</span>');
-      return `<tr><td class="num">${esc(o.date||'—')}</td><td>${esc(o.name||'—')}</td><td>${esc(o.item||'—')}</td><td class="r num">${fmt(amt)}</td><td>${ded}</td><td style="white-space:nowrap"><button class="btn sm" onclick="inboxAccept('${it.id}')">✔ 入帳</button> <button class="btn ghost sm" onclick="inboxIgnore('${it.id}')">✕ 忽略</button></td></tr>`;}).join("")+
+      return `<tr><td class="num">${esc(o.date||'—')}</td><td>${esc(o.name||'—')}</td><td>${esc(o.item||'—')}${o.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(o.note)}</span>`:""}</td><td class="r num">${fmt(amt)}</td><td>${ded}</td><td style="white-space:nowrap"><button class="btn sm" onclick="inboxAccept('${it.id}')">✔ 入帳</button> <button class="btn ghost sm" onclick="inboxIgnore('${it.id}')">✕ 忽略</button></td></tr>`;}).join("")+
     `</tbody></table></div></div>`;}
 async function inboxAccept(id){const it=inboxItems.find(x=>x.id===id);if(!it)return;
   const p=receiptToPurchase(it.receipt||{});if(!p){alert("這筆缺金額/品名，無法入帳；可先忽略。");return;}
