@@ -409,7 +409,7 @@
         </div>
         <div class="setpane" id="set-vendor">
         <div class="sec-h"><h2>廠商主檔</h2><span class="muted">進項的賣方，可不完整</span></div>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin:2px 0 12px"><input type="checkbox" id="set_autovendor" onchange="toggleAutoVendor(this)">登錄進項／匯入收據時，自動把新賣方加入廠商主檔（關掉則不自動新增）</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink-2);margin:2px 0 12px"><input type="checkbox" id="set_autovendor" onchange="toggleAutoVendor(this)">自動建檔：登錄進項自動建廠商、開立銷項自動建客戶、匯入收據也一併記住（關掉則都不自動新增）</label>
         <form class="form" id="vdForm">
           <div class="frow">
             <div class="fld"><label>統編（可略）</label><input id="vd_uni" inputmode="numeric" placeholder="8 碼"></div>
@@ -546,7 +546,7 @@ $("#sForm").addEventListener("submit",e=>{e.preventDefault();
   const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
   db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||"",note:(($("#s_note")||{}).value||"").slice(0,100)});
-  {const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",note:""});}
+  if(autoAddVendorOn()){const u=$("#s_uni").value.trim();if(!(db.customers||[]).some(c=>c.name===_cn||(u&&c.uni===u)))db.customers.push({id:uid(),uni:u,name:_cn,addr:"",contact:"",phone:"",email:"",note:""});}
   e.target.reset();save();});
 
 /* track paste parse */
