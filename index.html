@@ -154,15 +154,14 @@
 <div class="ovl" id="loginOvl">
   <div class="modal">
     <h3>☁︎ 登入雲端同步</h3>
-    <p class="sub">登入後手機與電腦同一本帳、即時同步。</p>
+    <p class="sub">請以帳號密碼登入才能使用；登入後手機與電腦同一本帳、即時同步。</p>
     <div class="fld"><label>Email</label><input id="lg_email" type="email" autocomplete="username" placeholder="zhuohsin@gmail.com"></div>
     <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="你的 Supabase 密碼"></div>
     <div class="actions" style="margin-top:6px">
       <button class="btn" id="lg_login">登入</button>
-      <button class="btn ghost sm" id="lg_magic">改用 email 寄登入連結</button>
     </div>
     <div class="msg" id="lg_msg"></div>
-    <div style="text-align:right;margin-top:10px"><button class="btn ghost sm" id="lg_close">關閉（先本機用）</button></div>
+    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請至 Supabase 重設，或告知管理者。</p>
   </div>
 </div>
 <div class="app">
@@ -495,6 +494,14 @@
       <!-- EXPORT -->
       <section class="view" id="v-export">
         <div class="sec-h"><h2>匯出／備份</h2><span class="muted">供上傳國稅局平台核對，或存回會計資料夾</span></div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div><h3 style="font-size:15px">☁︎ 雲端歷史版本（即時備份）</h3>
+              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">登入後每次存檔自動在雲端存一份，保留最近 60 版，可隨時還原到任一時間點。</p></div>
+            <button class="btn sm" onclick="loadSnapshots()">載入版本列表</button>
+          </div>
+          <div id="snapList" style="margin-top:12px"></div>
+        </div>
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">🔄 自動備份</h3>
@@ -1054,7 +1061,36 @@ function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catc
 async function cloudPush(){
   if(!sb||!sbUser)return;setCloud("sync");const ts=new Date().toISOString();
   const {error}=await sb.from("books").upsert({user_id:sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
-  if(error){setCloud("err",error.message);}else{lastRemoteTs=Date.parse(ts);setCloud("in");}
+  if(error){setCloud("err",error.message);}else{lastRemoteTs=Date.parse(ts);setCloud("in");snapshotPush();}
+}
+let lastSnapTs=0;
+async function snapshotPush(){
+  if(!sb||!sbUser)return;const now=Date.now();if(now-lastSnapTs<60000)return;if(dataScore(db)<=0)return;lastSnapTs=now;
+  try{await sb.from("book_snapshots").insert({user_id:sbUser.id,data:db});
+    const {data}=await sb.from("book_snapshots").select("id,created_at").eq("user_id",sbUser.id).order("created_at",{ascending:false});
+    if(data&&data.length>60){const old=data.slice(60).map(r=>r.id);if(old.length)await sb.from("book_snapshots").delete().in("id",old);}
+  }catch(e){console.warn("snapshot",e);}
+}
+async function loadSnapshots(){
+  const box=$("#snapList");if(!box)return;
+  if(!sb||!sbUser){box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">請先登入雲端。</p>';return;}
+  box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">載入中…</p>';
+  try{const {data,error}=await sb.from("book_snapshots").select("id,data,created_at").eq("user_id",sbUser.id).order("created_at",{ascending:false}).limit(60);
+    if(error){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗：'+esc(error.message)+'（雲端快照表可能尚未建立）</p>';return;}
+    if(!data||!data.length){box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">尚無雲端歷史版本（登入後每次存檔會自動建立）。</p>';return;}
+    box.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th class="r">進項</th><th class="r">銷項</th><th class="r">分錄</th><th></th></tr></thead><tbody>'+
+      data.map(r=>{const d=r.data||{};const t=new Date(r.created_at);const ts=t.toLocaleString("zh-TW",{month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"});
+        return `<tr><td class="num">${ts}</td><td class="r num">${(d.purchase||[]).length}</td><td class="r num">${(d.sale||[]).length}</td><td class="r num">${(d.journal||[]).length}</td><td class="r"><button class="btn ghost sm" onclick="restoreSnapshot('${r.id}')">還原</button></td></tr>`;}).join("")+
+      '</tbody></table></div></div>';
+  }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
+}
+async function restoreSnapshot(id){
+  if(!sb||!sbUser)return;
+  if(!confirm("還原到此版本？\n目前資料會先自動備份（之後仍可再還原），再套用這個歷史版本。"))return;
+  try{const {data,error}=await sb.from("book_snapshots").select("data").eq("id",id).maybeSingle();
+    if(error||!data){alert("讀取版本失敗。");return;}
+    adopt(data.data);await cloudPush();alert("✅ 已還原到所選版本。");
+  }catch(e){alert("還原失敗。");}
 }
 function cloudSaveDebounced(){if(!sbUser)return;clearTimeout(sbTimer);setCloud("sync");sbTimer=setTimeout(cloudPush,800);}
 function subscribeRealtime(){
@@ -1067,8 +1103,6 @@ function openLogin(){$("#lg_email").value=$("#lg_email").value||"zhuohsin@gmail.
 function closeLogin(){$("#loginOvl").classList.remove("on");}
 function lgMsg(t,ok){const m=$("#lg_msg");m.textContent=t;m.style.color=ok?"var(--good)":"var(--danger)";}
 $("#cloudBtn").addEventListener("click",()=>{ if(sbUser){ if(confirm("目前已登入雲端（"+(sbUser.email||"")+"）。要登出嗎？（登出後改用本機資料）"))sb.auth.signOut(); } else openLogin(); });
-$("#lg_close").addEventListener("click",closeLogin);
-$("#loginOvl").addEventListener("click",e=>{if(e.target.id==="loginOvl")closeLogin();});
 $("#lg_login").addEventListener("click",async()=>{
   if(!sb){lgMsg("雲端未連線，請檢查網路。");return;}
   const email=$("#lg_email").value.trim(),pw=$("#lg_pw").value;
@@ -1076,12 +1110,7 @@ $("#lg_login").addEventListener("click",async()=>{
   lgMsg("登入中…",true);const {error}=await sb.auth.signInWithPassword({email,password:pw});
   if(error)lgMsg("登入失敗："+error.message);else lgMsg("登入成功，同步中…",true);
 });
-$("#lg_magic").addEventListener("click",async()=>{
-  if(!sb){lgMsg("雲端未連線。");return;}
-  const email=$("#lg_email").value.trim();if(!email){lgMsg("請先輸入 email。");return;}
-  lgMsg("寄送中…",true);const {error}=await sb.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split("#")[0]}});
-  if(error)lgMsg("寄送失敗："+error.message);else lgMsg("已寄出登入連結，請到 "+email+" 收信點擊。",true);
-});
+$("#lg_pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#lg_login").click();});
 
 /* ===== 科目大類/自訂 + 設定頁 ===== */
 const CATS=["資產","負債","權益","收入","成本","費用"];
