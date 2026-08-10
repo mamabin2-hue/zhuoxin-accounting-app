@@ -176,6 +176,7 @@
       <button data-v="journal"><span class="ic">✎</span>手動分錄</button>
       <button data-v="ledger"><span class="ic">☰</span>分類帳</button>
       <button data-v="fund"><span class="ic">＄</span>資金／銀行簿</button>
+      <button data-v="petty"><span class="ic">¢</span>零用金</button>
       <button data-v="balance"><span class="ic">⚖</span>餘額表</button>
       <button data-v="pl"><span class="ic">▲</span>損益表</button>
       <button data-v="bs"><span class="ic">▦</span>資產負債表</button>
@@ -287,6 +288,41 @@
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>發票號碼</th><th>日期</th><th>買受人</th><th>品名</th><th class="r">銷售額</th><th class="r">稅額</th><th></th></tr></thead>
           <tbody id="sBody"></tbody></table></div></div>
+      </section>
+
+      <!-- PETTY 零用金 -->
+      <section class="view" id="v-petty">
+        <div class="sec-h"><h2>零用金</h2><span class="muted">小額現金支出控管（定額撥補制）</span></div>
+        <div class="grid kpis" id="pettyKpis" style="margin-bottom:14px"></div>
+        <form class="form" id="pettyCfgForm" style="margin-bottom:14px">
+          <div class="frow">
+            <div class="fld"><label>零用金定額</label><input type="number" id="pc_amount" inputmode="numeric" placeholder="例：10000"></div>
+            <div class="fld"><label>保管人</label><input id="pc_keeper" placeholder="例：王小明"></div>
+            <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn sm" type="submit">儲存定額設定</button></div>
+          </div>
+        </form>
+        <div class="sec-h"><h2 style="font-size:15px">新增支出</h2></div>
+        <form class="form" id="pettyForm">
+          <div class="frow">
+            <div class="fld"><label>日期</label><input type="date" id="pt_date" required></div>
+            <div class="fld"><label>用途／摘要</label><input id="pt_item" placeholder="例：拜拜金紙、文具、計程車" required></div>
+            <div class="fld"><label>費用科目</label><select id="pt_acct"></select></div>
+            <div class="fld"><label>金額</label><input type="number" id="pt_amount" inputmode="numeric" step="1" placeholder="0" required></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>可否扣抵</label><select id="pt_ded"><option value="0">不可扣抵</option><option value="1">可扣抵（有統編發票）</option></select></div>
+            <div class="fld"><label>憑證</label><select id="pt_inv"><option value="0">收據／無憑證</option><option value="1">有統一發票</option></select></div>
+            <div class="fld" style="grid-column:span 2"><label>備註（單行，上限 100 字）</label><input id="pt_note" maxlength="100" placeholder="選填"></div>
+          </div>
+          <div class="actions"><button class="btn" type="submit" id="ptSubmitBtn">＋ 新增支出</button>
+            <button class="btn ghost sm" type="button" onclick="pettyReplenish()">💵 撥補（補回定額並入帳）</button>
+            <button class="btn ghost sm" type="button" onclick="pettyCount()">🔢 盤點差異</button>
+            <span class="muted" style="color:var(--ink-3);font-size:12.5px">小額收據多無統編→不可扣抵營業稅、但可列費用</span></div>
+        </form>
+        <div class="sec-h"><h2>支出明細</h2><span class="muted sp num" id="pettySum"></span></div>
+        <div class="twrap"><div class="tscroll"><table>
+          <thead><tr><th>日期</th><th>用途</th><th>科目</th><th class="r">金額</th><th>扣抵</th><th>狀態</th><th></th></tr></thead>
+          <tbody id="pettyBody"></tbody></table></div></div>
       </section>
 
       <!-- VOUCHER -->
@@ -504,7 +540,7 @@ function save(){localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBack
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份"};
 $("#nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("on",x===b));
   const v=b.dataset.v;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
@@ -582,7 +618,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();fillPettyAcct();renderPetty();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -704,6 +740,58 @@ function voidSale(id){
   save();
   alert("已標記作廢：發票號碼保留、不列入銷售額/401。\n\n下一步：銷項頁『⬆ 匯出作廢上傳檔』產生 CAN 檔，上傳財政部完成存證作廢。");
 }
+
+/* ===== 零用金(定額撥補制) ===== */
+function pettyUnrep(){return (db.petty||[]).filter(p=>!p.rep);}
+function pettyBal(){const amt=+((db.pettyCfg&&db.pettyCfg.amount))||0;return amt-pettyUnrep().reduce((a,p)=>a+(+p.amount||0),0);}
+function fillPettyAcct(){const s=$("#pt_acct");if(!s)return;const cur=s.value;const list=accountsByCat("費用")||[];s.innerHTML=[...list].map(a=>`<option>${esc(a)}</option>`).join("");if(cur)s.value=cur;}
+function renderPetty(){
+  const cfg=db.pettyCfg||{amount:0,keeper:""};
+  if($("#pc_amount")&&document.activeElement!==$("#pc_amount"))$("#pc_amount").value=cfg.amount||"";
+  if($("#pc_keeper")&&document.activeElement!==$("#pc_keeper"))$("#pc_keeper").value=cfg.keeper||"";
+  const k=$("#pettyKpis");
+  if(k){const spent=pettyUnrep().reduce((a,p)=>a+(+p.amount||0),0);
+    k.innerHTML=`<div class="card kpi"><div class="lbl">零用金定額</div><div class="val num">${fmt(+cfg.amount||0)}</div><div class="sub">保管人：${esc(cfg.keeper||"—")}</div></div>`+
+    `<div class="card kpi"><div class="lbl">已支未撥補</div><div class="val num">${fmt(spent)}</div><div class="sub num">${pettyUnrep().length} 筆</div></div>`+
+    `<div class="card kpi"><div class="lbl">目前結餘（應有現金）</div><div class="val num">${fmt(pettyBal())}</div><div class="sub">定額 − 已支未撥補</div></div>`;}
+  const b=$("#pettyBody");
+  if(b){const rows=(db.petty||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+    b.innerHTML=rows.length?rows.map(p=>`<tr${p.rep?' style="opacity:.55"':''}><td class="num">${p.date||"—"}</td><td>${esc(p.item)||"—"}${p.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(p.note)}</span>`:""}</td><td>${esc(p.acct)||"—"}</td><td class="r num">${fmt(p.amount)}</td><td>${p.ded?'<span class="tag">可抵</span>':'<span class="tag no">不可</span>'}</td><td>${p.rep?'<span class="tag">已撥補</span>':'<span class="tag" style="background:#f59e0b;color:#fff">待撥補</span>'}</td><td class="r"><button class="del" onclick="delPetty('${p.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無零用金支出。先設定定額，再逐筆登記小額現金支出。</td></tr>`;
+    const sp=$("#pettySum");if(sp)sp.textContent=`支出合計 ${fmt((db.petty||[]).reduce((a,p)=>a+(+p.amount||0),0))}｜待撥補 ${fmt(pettyUnrep().reduce((a,p)=>a+(+p.amount||0),0))}`;}
+}
+function delPetty(id){if(!confirm("刪除此筆零用金支出？"))return;db.petty=(db.petty||[]).filter(p=>p.id!==id);save();}
+function pettyReplenish(){
+  const un=pettyUnrep();if(!un.length){alert("目前沒有待撥補的支出。");return;}
+  const total=un.reduce((a,p)=>a+(+p.amount||0),0);
+  const credit=prompt("撥補來源（貸方）科目：\n輸入 1＝銀行存款、2＝現金","1");
+  if(credit===null)return;const cAcct=(credit.trim()==="2")?"現金":"銀行存款";
+  if(!confirm(`確定撥補？將把 ${un.length} 筆、合計 ${fmt(total)} 元彙總入帳：\n借 各費用科目／貸 ${cAcct} ${fmt(total)}\n並把這些支出標記為已撥補。`))return;
+  const byAcct={};un.forEach(p=>{const a=p.acct||"雜項費用";byAcct[a]=(byAcct[a]||0)+(+p.amount||0);});
+  const lines=Object.keys(byAcct).map(a=>({acct:a,debit:byAcct[a],credit:0}));
+  lines.push({acct:cAcct,debit:0,credit:total});
+  const today=new Date().toISOString().slice(0,10);
+  if(!Array.isArray(db.journal))db.journal=[];
+  db.journal.push({id:uid(),date:today,memo:"零用金撥補（"+un.length+"筆）",lines,proj:""});
+  un.forEach(p=>{p.rep=true;p.repDate=today;});
+  save();
+  alert("✅ 已撥補入帳（手動分錄新增一筆：借各費用／貸"+cAcct+"），結餘回到定額。");
+}
+function pettyCount(){
+  const v=prompt("實際數點的現金金額：","");if(v===null)return;
+  const real=Math.round(+v||0),bal=pettyBal(),diff=real-bal;
+  alert(`盤點結果：\n帳面結餘 ${fmt(bal)}\n實際現金 ${fmt(real)}\n差異 ${diff>0?"+":""}${fmt(diff)} ${diff===0?"（相符 ✓）":(diff>0?"（溢，可能漏登支出）":"（短，可能多登或現金短少）")}`);
+}
+(function(){
+  const today10=()=>new Date().toISOString().slice(0,10);
+  const f=$("#pettyForm");if(f)f.addEventListener("submit",e=>{e.preventDefault();
+    if(!Array.isArray(db.petty))db.petty=[];
+    const amt=Math.round(+$("#pt_amount").value||0);if(!amt){alert("金額必填且需大於 0。");return;}
+    db.petty.push({id:uid(),date:$("#pt_date").value||today10(),item:$("#pt_item").value.trim(),acct:$("#pt_acct").value||"雜項費用",amount:amt,ded:$("#pt_ded").value==="1",hasInv:$("#pt_inv").value==="1",note:(($("#pt_note")||{}).value||"").slice(0,100),rep:false});
+    e.target.reset();if($("#pt_date"))$("#pt_date").value=today10();fillPettyAcct();save();});
+  const cf=$("#pettyCfgForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.pettyCfg)db.pettyCfg={amount:0,keeper:""};db.pettyCfg.amount=Math.round(+$("#pc_amount").value||0);db.pettyCfg.keeper=($("#pc_keeper").value||"").trim();save();alert("已儲存零用金定額設定。");});
+  const it=$("#pt_item");if(it)it.addEventListener("blur",()=>{const s=(typeof suggestAcct==="function")?suggestAcct(it.value):"";if(s&&$("#pt_acct")){fillPettyAcct();$("#pt_acct").value=s;}});
+  if($("#pt_date")&&!$("#pt_date").value)$("#pt_date").value=today10();
+})();
 function exportCSV(kind){if(kind==="purchase"){const h=["格式代號","發票日期","賣方統編","賣方名稱","憑證類別","品名","金額(未稅)","稅額","扣抵代號","科目"];
     const rows=db.purchase.map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_115-4_進項.csv",toCSV([h,...rows]),"csv");}
   else{const h=["格式代號","發票號碼","發票日期","買受人統編","買受人名稱","品名","銷售額(未稅)","稅額","課稅別"];
@@ -927,7 +1015,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true}});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""}});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
