@@ -282,7 +282,7 @@
           <div class="frow" style="margin-top:12px"><div class="fld" style="grid-column:1 / -1"><label>備註（單行，上限 100 字）</label><input id="s_note" maxlength="100" placeholder="選填，例：合約編號、服務期間、專案…"></div></div>
           <div class="actions"><button class="btn" type="submit" id="sSubmitBtn">＋ 開立並切傳票</button></div>
         </form>
-        <div class="sec-h"><h2>銷項明細</h2><span class="muted sp num" id="sSum"></span><button class="btn ghost sm" type="button" onclick="exportEinvoiceBTB()" style="margin-left:8px" title="產生財政部平台可上傳的存證發票檔(僅B2B有統編)">⬆ 匯出存證發票上傳檔</button></div>
+        <div class="sec-h"><h2>銷項明細</h2><span class="muted sp num" id="sSum"></span><button class="btn ghost sm" type="button" onclick="exportEinvoiceBTB('issue')" style="margin-left:8px" title="產生財政部可上傳的『開立』存證檔(B2B有統編、未作廢)">⬆ 匯出開立上傳檔</button><button class="btn ghost sm" type="button" onclick="exportEinvoiceBTB('void')" style="margin-left:6px" title="產生『作廢』(CAN)上傳檔(已標記作廢者)">⬆ 匯出作廢上傳檔</button></div>
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>發票號碼</th><th>日期</th><th>買受人</th><th>品名</th><th class="r">銷售額</th><th class="r">稅額</th><th></th></tr></thead>
           <tbody id="sBody"></tbody></table></div></div>
@@ -608,9 +608,9 @@ function renderPurchase(){const b=$("#pBody");
     <td class="r"><button class="del" onclick="editPurchase('${p.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('purchase','${p.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">尚無進項。把收據照片放「01_進項憑證/待辨識」，或用上方表單新增。</td></tr>`;
   const t=totals();$("#pSum").textContent=`合計 未稅 ${fmt(t.inNet)} · 稅額 ${fmt(db.purchase.reduce((a,p)=>a+p.tax,0))}`;}
 function renderSale(){const b=$("#sBody");
-  b.innerHTML=db.sale.length?db.sale.slice().sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>`<tr><td class="num">${invStr(s.code,s.seq)}</td><td class="num">${s.date||"—"}</td>
-    <td>${esc(s.name)||"—"}${s.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(s.uni)}</span>`:""}</td><td>${esc(s.item)||"—"}${s.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(s.note)}</span>`:""}</td>
-    <td class="r num">${fmt(s.net)}</td><td class="r num">${fmt(s.tax)}</td><td class="r"><button class="del" onclick="editSale('${s.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('sale','${s.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
+  b.innerHTML=db.sale.length?db.sale.slice().sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>`<tr${s.void?' style="opacity:.6"':''}><td class="num">${invStr(s.code,s.seq)}</td><td class="num">${s.date||"—"}</td>
+    <td>${esc(s.name)||"—"}${s.void?' <span class="tag no">作廢</span>':''}${s.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(s.uni)}</span>`:""}</td><td>${s.void?`<s>${esc(s.item)||'—'}</s>`:(esc(s.item)||"—")}${s.void?(s.voidReason?`<br><span style="color:var(--danger);font-size:11px">⊘ ${esc(s.voidReason)}</span>`:''):(s.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(s.note)}</span>`:"")}</td>
+    <td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.net)||0)}</s>`:fmt(s.net)}</td><td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.tax)||0)}</s>`:fmt(s.tax)}</td><td class="r" style="white-space:nowrap"><button class="del" onclick="voidSale('${s.id}')" title="${s.void?'取消作廢':'作廢'}" style="color:var(--danger)">⊘</button><button class="del" onclick="editSale('${s.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('sale','${s.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
   const t=totals();$("#sSum").textContent=`合計 銷售額 ${fmt(t.salesNet)} · 稅額 ${fmt(t.salesTax)}`;}
 
 function renderVouchers(){const vs=allEntries();const el=$("#vList");
@@ -667,28 +667,41 @@ function renderTax(){const t=totals();const owe=t.payable>=0;
 function dl(name,text,type){const b=new Blob([type==="csv"?"﻿"+text:text],{type:(type==="csv"?"text/csv":"application/json")+";charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
 function toCSV(rows){return rows.map(r=>r.map(c=>{c=c==null?"":String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(",")).join("\r\n");}
-/* ===== 匯出財政部存證發票上傳檔(BTB207W)：H賣方 + 每張M主檔 + D明細 ===== */
+/* ===== 匯出財政部存證發票上傳檔(BTB207W)：H賣方 + 每張M主檔 + D明細；mode=issue開立/void作廢(H帶CAN) ===== */
 function eiSan(v,max){return String(v==null?"":v).replace(/[<>%&!$,\r\n]/g,"").slice(0,max||200);}
-function exportEinvoiceBTB(){
+function exportEinvoiceBTB(mode){
+  mode=(mode==="void")?"void":"issue";
   const co=db.company||{};
   const sUni=(co.uni||"62098963"),sName=(co.name||"卓信人資整合有限公司"),sAddr=(co.addr||"台南市安南區府安路七街24號"),sTel=(co.tel||co.phone||"");
   const all=db.sale||[];
-  const rows=all.filter(s=>/^\d{8}$/.test((s.uni||"").trim()));
-  const skip=all.length-rows.length;
-  if(!rows.length){alert("沒有可匯出的存證發票。\n\n存證發票只能開給「有統編的公司(B2B)」。\n目前銷項 "+all.length+" 筆中，沒有帶買方統編的。\n（賣給個人 B2C 不能用存證，需改用綠界等加值中心。）");return;}
+  const hasUni=s=>/^\d{8}$/.test((s.uni||"").trim());
+  const rows=all.filter(s=>hasUni(s)&&(mode==="void"?s.void:!s.void));
+  if(!rows.length){alert(mode==="void"?"沒有已作廢的 B2B 發票可匯出。\n請先在銷項明細點該筆的『⊘ 作廢』。":"沒有可開立的 B2B 發票。\n\n存證發票只能開給有統編的公司(B2B)、且未作廢。\n（賣給個人 B2C 不可存證，需用綠界等。）");return;}
   const L=[];
-  L.push(["H",sUni,eiSan(sName,60),eiSan(sAddr,100),eiSan(sTel,26)].join(","));
+  L.push((mode==="void"?["H",sUni,eiSan(sName,60),eiSan(sAddr,100),eiSan(sTel,26),"CAN"]:["H",sUni,eiSan(sName,60),eiSan(sAddr,100),eiSan(sTel,26)]).join(","));
   rows.forEach(s=>{
     const no=invStr(s.code,s.seq);
     const d=(s.date||"").replace(/-/g,"/");
-    const net=Math.round(+s.net||0),tax=Math.round(+s.tax||0),tot=net+tax;
-    L.push(["M",no,d,"07",(s.uni||"").trim(),eiSan(s.name,60),"","1","5",net,tax,tot,"","",eiSan(s.note||"",200),"","","","","","",""].join(","));
+    const o=(mode==="void"&&s.voidOrig)?s.voidOrig:{net:+s.net||0,tax:+s.tax||0};
+    const net=Math.round(o.net||0),tax=Math.round(o.tax||0),tot=net+tax;
+    const bz=mode==="void"?eiSan(s.voidReason||"作廢",200):eiSan(s.note||"",200);
+    L.push(["M",no,d,"07",(s.uni||"").trim(),eiSan(s.name,60),"","1","5",net,tax,tot,"","",bz,"","","","","","",""].join(","));
     L.push(["D",eiSan(s.item||"銷售額",256),"1",net,net,"","",""].join(","));
   });
   const text=L.join("\r\n")+"\r\n";
   const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); // 無BOM,確保第一字為H
-  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="卓信_存證發票上傳_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
-  alert("✅ 已匯出 "+rows.length+" 張存證發票(B2B)。"+(skip?("\n⚠️ 略過 "+skip+" 筆無買方統編(B2C不可存證)。"):"")+"\n\n下一步：財政部平台→存證發票作業→開立存證發票→『上傳檔案』，選此檔上傳→再到『查詢』勾選寄送。");
+  const fn="卓信_存證發票"+(mode==="void"?"作廢CAN":"開立")+"_"+new Date().toISOString().slice(0,10)+".csv";
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=fn;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+  alert("✅ 已匯出 "+rows.length+" 張"+(mode==="void"?"作廢(CAN)":"開立")+"發票。\n\n財政部平台→存證發票作業→開立存證發票→『上傳檔案』選此檔→上傳→[查詢]勾選寄送。"+(mode==="void"?"\n\n⚠️ 作廢前須已聯繫買受人取回、雙方合意；跨期(已申報)不可作廢，請改開折讓。":""));
+}
+function voidSale(id){
+  const s=(db.sale||[]).find(x=>x.id===id);if(!s)return;
+  if(s.void){if(!confirm("取消此發票的作廢？金額會還原、重新列入銷售額。"))return;if(s.voidOrig){s.net=+s.voidOrig.net||0;s.tax=+s.voidOrig.tax||0;}s.void=false;delete s.voidReason;delete s.voidDate;delete s.voidOrig;save();return;}
+  const r=prompt("作廢原因（例：金額打錯、統編打錯）：\n\n⚠️ B2B 須先聯繫買受人取回、雙方合意；\n跨期(該期已申報)不可作廢，請改開折讓。","");
+  if(r===null)return;
+  s.voidOrig={net:+s.net||0,tax:+s.tax||0};s.void=true;s.voidReason=(r||"作廢").slice(0,100);s.voidDate=new Date().toISOString().slice(0,10);s.net=0;s.tax=0;
+  save();
+  alert("已標記作廢：發票號碼保留、不列入銷售額/401。\n\n下一步：銷項頁『⬆ 匯出作廢上傳檔』產生 CAN 檔，上傳財政部完成存證作廢。");
 }
 function exportCSV(kind){if(kind==="purchase"){const h=["格式代號","發票日期","賣方統編","賣方名稱","憑證類別","品名","金額(未稅)","稅額","扣抵代號","科目"];
     const rows=db.purchase.map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_115-4_進項.csv",toCSV([h,...rows]),"csv");}
