@@ -282,7 +282,7 @@
           <div class="frow" style="margin-top:12px"><div class="fld" style="grid-column:1 / -1"><label>備註（單行，上限 100 字）</label><input id="s_note" maxlength="100" placeholder="選填，例：合約編號、服務期間、專案…"></div></div>
           <div class="actions"><button class="btn" type="submit" id="sSubmitBtn">＋ 開立並切傳票</button></div>
         </form>
-        <div class="sec-h"><h2>銷項明細</h2><span class="muted sp num" id="sSum"></span></div>
+        <div class="sec-h"><h2>銷項明細</h2><span class="muted sp num" id="sSum"></span><button class="btn ghost sm" type="button" onclick="exportEinvoiceBTB()" style="margin-left:8px" title="產生財政部平台可上傳的存證發票檔(僅B2B有統編)">⬆ 匯出存證發票上傳檔</button></div>
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>發票號碼</th><th>日期</th><th>買受人</th><th>品名</th><th class="r">銷售額</th><th class="r">稅額</th><th></th></tr></thead>
           <tbody id="sBody"></tbody></table></div></div>
@@ -667,6 +667,29 @@ function renderTax(){const t=totals();const owe=t.payable>=0;
 function dl(name,text,type){const b=new Blob([type==="csv"?"﻿"+text:text],{type:(type==="csv"?"text/csv":"application/json")+";charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
 function toCSV(rows){return rows.map(r=>r.map(c=>{c=c==null?"":String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(",")).join("\r\n");}
+/* ===== 匯出財政部存證發票上傳檔(BTB207W)：H賣方 + 每張M主檔 + D明細 ===== */
+function eiSan(v,max){return String(v==null?"":v).replace(/[<>%&!$,\r\n]/g,"").slice(0,max||200);}
+function exportEinvoiceBTB(){
+  const co=db.company||{};
+  const sUni=(co.uni||"62098963"),sName=(co.name||"卓信人資整合有限公司"),sAddr=(co.addr||"台南市安南區府安路七街24號"),sTel=(co.tel||co.phone||"");
+  const all=db.sale||[];
+  const rows=all.filter(s=>/^\d{8}$/.test((s.uni||"").trim()));
+  const skip=all.length-rows.length;
+  if(!rows.length){alert("沒有可匯出的存證發票。\n\n存證發票只能開給「有統編的公司(B2B)」。\n目前銷項 "+all.length+" 筆中，沒有帶買方統編的。\n（賣給個人 B2C 不能用存證，需改用綠界等加值中心。）");return;}
+  const L=[];
+  L.push(["H",sUni,eiSan(sName,60),eiSan(sAddr,100),eiSan(sTel,26)].join(","));
+  rows.forEach(s=>{
+    const no=invStr(s.code,s.seq);
+    const d=(s.date||"").replace(/-/g,"/");
+    const net=Math.round(+s.net||0),tax=Math.round(+s.tax||0),tot=net+tax;
+    L.push(["M",no,d,"07",(s.uni||"").trim(),eiSan(s.name,60),"","1","5",net,tax,tot,"","",eiSan(s.note||"",200),"","","","","","",""].join(","));
+    L.push(["D",eiSan(s.item||"銷售額",256),"1",net,net,"","",""].join(","));
+  });
+  const text=L.join("\r\n")+"\r\n";
+  const blob=new Blob([text],{type:"text/csv;charset=utf-8"}); // 無BOM,確保第一字為H
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="卓信_存證發票上傳_"+new Date().toISOString().slice(0,10)+".csv";document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+  alert("✅ 已匯出 "+rows.length+" 張存證發票(B2B)。"+(skip?("\n⚠️ 略過 "+skip+" 筆無買方統編(B2C不可存證)。"):"")+"\n\n下一步：財政部平台→存證發票作業→開立存證發票→『上傳檔案』，選此檔上傳→再到『查詢』勾選寄送。");
+}
 function exportCSV(kind){if(kind==="purchase"){const h=["格式代號","發票日期","賣方統編","賣方名稱","憑證類別","品名","金額(未稅)","稅額","扣抵代號","科目"];
     const rows=db.purchase.map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_115-4_進項.csv",toCSV([h,...rows]),"csv");}
   else{const h=["格式代號","發票號碼","發票日期","買受人統編","買受人名稱","品名","銷售額(未稅)","稅額","課稅別"];
