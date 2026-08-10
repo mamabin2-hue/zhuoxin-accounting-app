@@ -197,6 +197,7 @@
       </div>
     </div>
     <div class="content">
+      <div id="loginWarn" style="display:none;background:#fde68a;color:#78350f;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600">⚠️ 尚未登入雲端 — 現在打的資料只存這台裝置、不會同步（換手機/電腦看不到）。<button class="btn sm" style="margin-left:10px" onclick="openLogin()">立即登入</button></div>
 
       <!-- DASH -->
       <section class="view on" id="v-dash">
@@ -928,7 +929,10 @@ const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
 const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true}});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
-function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0);}
+function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0);}
+/* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
+function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEach(x=>{if(!x)return;const k=(x.id!=null)?x.id:JSON.stringify(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out;}
+function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]);});out.prevCredit=R.prevCredit||Lc.prevCredit||0;if(!out.company&&Lc.company)out.company=Lc.company;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
 function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
@@ -936,11 +940,12 @@ function setCloud(state,msg){
   else if(state==="sync"){cloudDot("sync","同步中");}
   else if(state==="err"){cloudDot("err","同步錯誤");if(msg)console.warn("雲端:",msg);}
   else if(state==="nolib"){cloudDot("","雲端(離線)");}
-  else cloudDot("","登入雲端");}
+  else cloudDot("","登入雲端");
+  const lw=$("#loginWarn");if(lw)lw.style.display=(state==="in"||state==="sync")?"none":"";}
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
-  sb.auth.getSession().then(({data})=>{data&&data.session?onSignedIn(data.session.user):setCloud("out");});
+  sb.auth.getSession().then(({data})=>{if(data&&data.session){onSignedIn(data.session.user);}else{setCloud("out");try{openLogin();}catch(e){}}});
   sb.auth.onAuthStateChange((_e,s)=>{s?onSignedIn(s.user):onSignedOut();});
 }
 async function onSignedIn(user){
@@ -951,7 +956,8 @@ async function onSignedIn(user){
     if(error){setCloud("err",error.message);return;}
     const remote=data&&data.data?data.data:null;const rScore=dataScore(remote),lScore=dataScore(db);
     // 只有雲端「較完整或相等」才採用雲端；本機較完整(或雲端空)一律上傳本機——空資料永不覆蓋有資料
-    if(rScore>0&&rScore>=lScore){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
+    if(rScore>0&&lScore>0){const merged=mergeDb(db,remote);adopt(merged);lastRemoteTs=Date.parse(data.updated_at||0)||0;await cloudPush();}
+    else if(rScore>0){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
     subscribeRealtime();loadInbox();subscribeInbox();
   }catch(e){setCloud("err",e.message);}
