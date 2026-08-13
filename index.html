@@ -159,6 +159,7 @@
     <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="你的 Supabase 密碼"></div>
     <div class="actions" style="margin-top:6px">
       <button class="btn" id="lg_login">登入</button>
+      <button class="btn ghost sm" id="lg_signup">員工註冊新帳號</button>
     </div>
     <div class="msg" id="lg_msg"></div>
     <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請至 Supabase 重設，或告知管理者。</p>
@@ -182,6 +183,7 @@
       <button data-v="tax"><span class="ic">％</span>401 試算</button>
       <button data-v="settings"><span class="ic">⚙</span>設定</button>
       <button data-v="export"><span class="ic">⇩</span>匯出／備份</button>
+      <button data-v="users" style="display:none"><span class="ic">⚑</span>使用者</button>
     </nav>
     <div class="foot">一般稅額計算 · 401 申報<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
@@ -411,6 +413,23 @@
       </section>
 
       <!-- SETTINGS -->
+      <!-- USERS 使用者管理 -->
+      <section class="view" id="v-users">
+        <div class="sec-h"><h2>使用者管理</h2><span class="muted">員工用自己的 email＋密碼登入；你在這裡開通功能</span></div>
+        <div class="note" style="margin-bottom:12px">流程：① 你在下方加員工 email、選角色、勾功能 → ② 員工到登入頁按「員工註冊新帳號」用<b>同一 email</b> 設自己的密碼 → ③ 員工登入後即依權限使用本帳。<b>密碼由員工自設，你我都不經手。</b></div>
+        <form class="form" id="memForm">
+          <div class="frow">
+            <div class="fld"><label>員工 Email</label><input id="mem_email" type="email" placeholder="staff@example.com" required></div>
+            <div class="fld"><label>角色</label><select id="mem_role"><option value="staff">記帳員（依勾選功能）</option><option value="admin">管理員（全部功能）</option><option value="viewer">唯讀（依勾選功能）</option></select></div>
+            <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn sm" type="submit">＋ 新增成員</button></div>
+          </div>
+          <div class="frow" style="margin-top:12px"><div class="fld" style="grid-column:1 / -1"><label>可用功能（管理員不受限）</label>
+            <div id="mem_feats" style="display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:6px"></div></div></div>
+        </form>
+        <div class="sec-h"><h2>成員清單</h2><span class="sp"></span><button class="btn ghost sm" onclick="loadMembers()">重新載入</button></div>
+        <div id="memList"></div>
+      </section>
+
       <section class="view" id="v-settings">
         <div class="settabs" id="settabs"><button class="stab on" data-p="account">帳號安全</button><button class="stab" data-p="bank">銀行帳戶</button><button class="stab" data-p="proj">專案</button><button class="stab" data-p="vendor">廠商</button><button class="stab" data-p="customer">客戶</button><button class="stab" data-p="acct">會計科目</button></div>
         <div class="setpane on" id="set-account">
@@ -547,11 +566,11 @@ function save(){localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBack
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理"};
 $("#nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("on",x===b));
   const v=b.dataset.v;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
-  $("#topTitle").textContent=TITLES[v];window.scrollTo(0,0);});
+  $("#topTitle").textContent=TITLES[v];if(v==="users"){fillMemFeats();loadMembers();}window.scrollTo(0,0);});
 
 /* theme */
 $("#themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
@@ -1028,6 +1047,36 @@ function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
 function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEach(x=>{if(!x)return;const k=(x.id!=null)?x.id:JSON.stringify(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out;}
 function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]);});out.prevCredit=R.prevCredit||Lc.prevCredit||0;if(!out.company&&Lc.company)out.company=Lc.company;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
+/* ===== 多人帳號：成員解析 + 功能權限 ===== */
+let bookOwnerId=null,myRole="owner",myFeatures=null;
+const PAGE_KEYS=[["purchase","進項憑證"],["sale","銷項憑證"],["voucher","傳票"],["journal","手動分錄"],["ledger","分類帳"],["fund","資金／銀行簿"],["petty","零用金"],["balance","餘額表"],["pl","損益表"],["bs","資產負債表"],["tax","401 試算"],["export","匯出／備份"]];
+async function resolveMembership(user){
+  bookOwnerId=user.id;myRole="owner";myFeatures=null;
+  if(!sb)return;
+  try{try{await sb.from("members").update({member_id:user.id}).is("member_id",null).ilike("email",(user.email||"").trim());}catch(e){}
+    const {data}=await sb.from("members").select("owner_id,role,features").eq("member_id",user.id).eq("status","active").maybeSingle();
+    if(data&&data.owner_id){bookOwnerId=data.owner_id;myRole=data.role||"staff";myFeatures=(data.role==="admin")?null:(data.features||[]);}
+  }catch(e){console.warn("membership",e);}
+}
+function applyFeatureGate(){
+  const nav=$("#nav");if(nav)nav.querySelectorAll("button[data-v]").forEach(b=>{const v=b.dataset.v;if(v==="users")return;let show=true;if(myFeatures){show=(v==="dash")||myFeatures.indexOf(v)>=0;}b.style.display=show?"":"none";});
+  const um=$('#nav button[data-v="users"]');if(um)um.style.display=(myRole==="owner"||myRole==="admin")?"":"none";
+  const cur=document.querySelector('.view.on');if(cur&&myFeatures){const v=cur.id.replace("v-","");if(v!=="dash"&&myFeatures.indexOf(v)<0){const d=$('#nav button[data-v="dash"]');if(d)d.click();}}
+}
+function fillMemFeats(){const el=$("#mem_feats");if(!el)return;el.innerHTML=PAGE_KEYS.map(p=>`<label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:5px"><input type="checkbox" class="memfeat" value="${p[0]}">${p[1]}</label>`).join("");}
+async function loadMembers(){
+  const box=$("#memList");if(!box)return;
+  if(!sb||!sbUser){box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">請先登入。</p>';return;}
+  try{const {data,error}=await sb.from("members").select("id,email,role,features,status,member_id").eq("owner_id",sbUser.id).order("created_at",{ascending:true});
+    if(error){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗：'+esc(error.message)+'</p>';return;}
+    if(!data||!data.length){box.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無成員。上方加員工 email、勾功能；員工用同一 email 註冊登入後即生效。</div>';return;}
+    box.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>Email</th><th>角色</th><th>可用功能</th><th>狀態</th><th></th></tr></thead><tbody>'+
+      data.map(m=>{const feats=(m.role==="admin")?"全部":((m.features||[]).map(k=>{const p=PAGE_KEYS.find(x=>x[0]===k);return p?p[1]:k;}).join("、")||"—");
+        return `<tr><td>${esc(m.email||"—")}</td><td>${esc(m.role)}</td><td style="font-size:12px">${esc(feats)}</td><td>${m.member_id?'<span class="tag">已啟用</span>':'<span class="tag" style="background:#f59e0b;color:#fff">待註冊</span>'}</td><td class="r"><button class="del" onclick="delMember('${m.id}')" title="移除">✕</button></td></tr>`;}).join("")+
+      '</tbody></table></div></div>';
+  }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
+}
+async function delMember(id){if(!confirm("移除此成員？對方將無法再存取本帳。"))return;try{await sb.from("members").delete().eq("id",id);}catch(e){}loadMembers();}
 function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
@@ -1045,27 +1094,28 @@ function initCloud(){
 }
 async function onSignedIn(user){
   if(sbUser&&sbUser.id===user.id)return;sbUser=user;setCloud("sync");
-  const em=$("#lg_email");closeLogin();
+  closeLogin();
   try{
-    const {data,error}=await sb.from("books").select("data,updated_at").eq("user_id",user.id).maybeSingle();
+    await resolveMembership(user);
+    const {data,error}=await sb.from("books").select("data,updated_at").eq("user_id",bookOwnerId).maybeSingle();
     if(error){setCloud("err",error.message);return;}
     const remote=data&&data.data?data.data:null;const rScore=dataScore(remote),lScore=dataScore(db);
     // 只有雲端「較完整或相等」才採用雲端；本機較完整(或雲端空)一律上傳本機——空資料永不覆蓋有資料
     if(rScore>0&&lScore>0){const merged=mergeDb(db,remote);adopt(merged);lastRemoteTs=Date.parse(data.updated_at||0)||0;await cloudPush();}
     else if(rScore>0){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
-    subscribeRealtime();loadInbox();subscribeInbox();
+    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();
   }catch(e){setCloud("err",e.message);}
 }
 function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
 async function cloudPush(){
   if(!sb||!sbUser)return;setCloud("sync");const ts=new Date().toISOString();
-  const {error}=await sb.from("books").upsert({user_id:sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
+  const {error}=await sb.from("books").upsert({user_id:bookOwnerId||sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
   if(error){setCloud("err",error.message);}else{lastRemoteTs=Date.parse(ts);setCloud("in");snapshotPush();}
 }
 let lastSnapTs=0;
 async function snapshotPush(){
-  if(!sb||!sbUser)return;const now=Date.now();if(now-lastSnapTs<60000)return;if(dataScore(db)<=0)return;lastSnapTs=now;
+  if(!sb||!sbUser)return;if(bookOwnerId&&bookOwnerId!==sbUser.id)return;const now=Date.now();if(now-lastSnapTs<60000)return;if(dataScore(db)<=0)return;lastSnapTs=now;
   try{await sb.from("book_snapshots").insert({user_id:sbUser.id,data:db});
     const {data}=await sb.from("book_snapshots").select("id,created_at").eq("user_id",sbUser.id).order("created_at",{ascending:false});
     if(data&&data.length>60){const old=data.slice(60).map(r=>r.id);if(old.length)await sb.from("book_snapshots").delete().in("id",old);}
@@ -1095,7 +1145,7 @@ async function restoreSnapshot(id){
 function cloudSaveDebounced(){if(!sbUser)return;clearTimeout(sbTimer);setCloud("sync");sbTimer=setTimeout(cloudPush,800);}
 function subscribeRealtime(){
   if(!sb||!sbUser)return;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}}
-  sbChan=sb.channel("books-"+sbUser.id).on("postgres_changes",{event:"*",schema:"public",table:"books",filter:"user_id=eq."+sbUser.id},p=>{
+  const oid=bookOwnerId||sbUser.id;sbChan=sb.channel("books-"+oid).on("postgres_changes",{event:"*",schema:"public",table:"books",filter:"user_id=eq."+oid},p=>{
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
@@ -1111,6 +1161,23 @@ $("#lg_login").addEventListener("click",async()=>{
   if(error)lgMsg("登入失敗："+error.message);else lgMsg("登入成功，同步中…",true);
 });
 $("#lg_pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#lg_login").click();});
+$("#lg_signup").addEventListener("click",async()=>{
+  if(!sb){lgMsg("雲端未連線。");return;}
+  const email=$("#lg_email").value.trim(),pw=$("#lg_pw").value;
+  if(!email||!pw){lgMsg("請輸入 email 與要設定的密碼（至少 6 碼）。");return;}
+  if(pw.length<6){lgMsg("密碼至少 6 碼。");return;}
+  lgMsg("註冊中…",true);const {error}=await sb.auth.signUp({email,password:pw});
+  if(error)lgMsg("註冊失敗："+error.message);else lgMsg("註冊成功！若收到驗證信請點連結確認，之後用此帳密登入即可。",true);
+});
+(function(){const mf=$("#memForm");if(mf)mf.addEventListener("submit",async e=>{e.preventDefault();
+  if(!sb||!sbUser){alert("請先登入。");return;}
+  const email=$("#mem_email").value.trim().toLowerCase();if(!email){alert("請輸入員工 email。");return;}
+  const role=$("#mem_role").value;const features=[...document.querySelectorAll("#mem_feats .memfeat:checked")].map(c=>c.value);
+  const {error}=await sb.from("members").insert({owner_id:sbUser.id,email,role,features,status:"active"});
+  if(error){alert("新增失敗："+error.message);return;}
+  $("#mem_email").value="";document.querySelectorAll("#mem_feats .memfeat").forEach(c=>c.checked=false);loadMembers();
+  alert("已新增成員。請通知對方用此 email 到登入頁『員工註冊新帳號』設定密碼，登入後即依權限生效。");
+});})();
 
 /* ===== 科目大類/自訂 + 設定頁 ===== */
 const CATS=["資產","負債","權益","收入","成本","費用"];
