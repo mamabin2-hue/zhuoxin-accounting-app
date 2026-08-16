@@ -307,12 +307,13 @@
             <div class="fld"><label>日期</label><input type="date" id="pt_date" required></div>
             <div class="fld"><label>用途／摘要</label><input id="pt_item" placeholder="例：拜拜金紙、文具、計程車" required></div>
             <div class="fld"><label>費用科目</label><select id="pt_acct"></select></div>
-            <div class="fld"><label>金額</label><input type="number" id="pt_amount" inputmode="numeric" step="1" placeholder="0" required></div>
+            <div class="fld"><label>金額（統一發票填含稅）</label><input type="number" id="pt_amount" inputmode="numeric" step="1" placeholder="0" required></div>
           </div>
           <div class="frow" style="margin-top:12px">
-            <div class="fld"><label>可否扣抵</label><select id="pt_ded"><option value="0">不可扣抵</option><option value="1">可扣抵（有統編發票）</option></select></div>
-            <div class="fld"><label>憑證</label><select id="pt_inv"><option value="0">收據／無憑證</option><option value="1">有統一發票</option></select></div>
-            <div class="fld" style="grid-column:span 2"><label>備註（單行，上限 100 字）</label><input id="pt_note" maxlength="100" placeholder="選填"></div>
+            <div class="fld"><label>憑證</label><select id="pt_inv"><option value="0">收據／無憑證（不可扣抵）</option><option value="1">統一發票（可扣抵·撥補自動轉進項）</option></select></div>
+            <div class="fld"><label>賣方統編（發票才需）</label><input id="pt_uni" inputmode="numeric" placeholder="8 碼"></div>
+            <div class="fld"><label>發票號碼（發票才需）</label><input id="pt_invno" placeholder="AB12345678"></div>
+            <div class="fld"><label>備註（單行，上限 100 字）</label><input id="pt_note" maxlength="100" placeholder="選填"></div>
           </div>
           <div class="actions"><button class="btn" type="submit" id="ptSubmitBtn">＋ 新增支出</button>
             <label style="font-size:12.5px;color:var(--ink-2);display:inline-flex;align-items:center;gap:5px">撥補來源 <select id="pt_src" style="padding:5px 8px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink)"></select></label>
@@ -792,16 +793,19 @@ function pettyReplenish(){
   const un=pettyUnrep();if(!un.length){alert("目前沒有待撥補的支出。");return;}
   const total=un.reduce((a,p)=>a+(+p.amount||0),0);
   const cAcct=($("#pt_src")&&$("#pt_src").value)||((typeof bankNames==="function"&&bankNames()[0])||"銀行存款");
-  if(!confirm(`確定撥補？將把 ${un.length} 筆、合計 ${fmt(total)} 元彙總入帳：\n借 各費用科目／貸 ${cAcct} ${fmt(total)}\n並把這些支出標記為已撥補。`))return;
-  const byAcct={};un.forEach(p=>{const a=p.acct||"雜項費用";byAcct[a]=(byAcct[a]||0)+(+p.amount||0);});
-  const lines=Object.keys(byAcct).map(a=>({acct:a,debit:byAcct[a],credit:0}));
-  lines.push({acct:cAcct,debit:0,credit:total});
+  const inv=un.filter(p=>p.hasInv&&/^\d{8}$/.test((p.uni||"").trim()));
+  const plain=un.filter(p=>!(p.hasInv&&/^\d{8}$/.test((p.uni||"").trim())));
+  const plainTotal=plain.reduce((a,p)=>a+(+p.amount||0),0);
+  if(!confirm(`確定撥補？貸方＝${cAcct}\n・收據 ${plain.length} 筆（${fmt(plainTotal)}）→ 列費用\n・統一發票 ${inv.length} 筆 → 自動轉進項憑證、計入 401 扣抵\n處理完標記為已撥補。`))return;
   const today=new Date().toISOString().slice(0,10);
-  if(!Array.isArray(db.journal))db.journal=[];
-  db.journal.push({id:uid(),date:today,memo:"零用金撥補（"+un.length+"筆）",lines,proj:""});
+  if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.purchase))db.purchase=[];
+  if(plain.length){const byAcct={};plain.forEach(p=>{const a=p.acct||"雜項費用";byAcct[a]=(byAcct[a]||0)+(+p.amount||0);});
+    const lines=Object.keys(byAcct).map(a=>({acct:a,debit:byAcct[a],credit:0}));lines.push({acct:cAcct,debit:0,credit:plainTotal});
+    db.journal.push({id:uid(),date:today,memo:"零用金撥補（收據 "+plain.length+" 筆）",lines,proj:""});}
+  inv.forEach(p=>{db.purchase.push({id:uid(),date:p.date||today,type:"電子發票",uni:(p.uni||"").trim(),name:p.item||"零用金支出",item:(p.item||"")+(p.invNo?("（"+p.invNo+"）"):""),cat:"費用",acct:p.acct||"雜項費用",net:+p.net||0,tax:+p.tax||0,ded:true,pay:cAcct,s36:false,proj:"",note:"零用金付"});});
   un.forEach(p=>{p.rep=true;p.repDate=today;});
   save();
-  alert("✅ 已撥補入帳（手動分錄新增一筆：借各費用／貸"+cAcct+"），結餘回到定額。");
+  alert("✅ 撥補完成。\n收據 "+plain.length+" 筆已列費用（貸 "+cAcct+"）；統一發票 "+inv.length+" 筆已轉進項憑證、計入 401 扣抵。結餘回到定額。");
 }
 function pettyCount(){
   const v=prompt("實際數點的現金金額：","");if(v===null)return;
@@ -813,7 +817,8 @@ function pettyCount(){
   const f=$("#pettyForm");if(f)f.addEventListener("submit",e=>{e.preventDefault();
     if(!Array.isArray(db.petty))db.petty=[];
     const amt=Math.round(+$("#pt_amount").value||0);if(!amt){alert("金額必填且需大於 0。");return;}
-    db.petty.push({id:uid(),date:$("#pt_date").value||today10(),item:$("#pt_item").value.trim(),acct:$("#pt_acct").value||"雜項費用",amount:amt,ded:$("#pt_ded").value==="1",hasInv:$("#pt_inv").value==="1",note:(($("#pt_note")||{}).value||"").slice(0,100),rep:false});
+    const hasInv=$("#pt_inv").value==="1";const puni=(($("#pt_uni")||{}).value||"").trim();const pinv=(($("#pt_invno")||{}).value||"").trim();let pnet=amt,ptax=0;if(hasInv){pnet=Math.round(amt/1.05);ptax=amt-pnet;}
+    db.petty.push({id:uid(),date:$("#pt_date").value||today10(),item:$("#pt_item").value.trim(),acct:$("#pt_acct").value||"雜項費用",amount:amt,ded:hasInv,hasInv:hasInv,uni:hasInv?puni:"",invNo:hasInv?pinv:"",net:pnet,tax:ptax,note:(($("#pt_note")||{}).value||"").slice(0,100),rep:false});
     e.target.reset();if($("#pt_date"))$("#pt_date").value=today10();fillPettyAcct();save();});
   const cf=$("#pettyCfgForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.pettyCfg)db.pettyCfg={amount:0,keeper:""};db.pettyCfg.amount=Math.round(+$("#pc_amount").value||0);db.pettyCfg.keeper=($("#pc_keeper").value||"").trim();save();alert("已儲存零用金定額設定。");});
   const it=$("#pt_item");if(it)it.addEventListener("blur",()=>{const s=(typeof suggestAcct==="function")?suggestAcct(it.value):"";if(s&&$("#pt_acct")){fillPettyAcct();$("#pt_acct").value=s;}});
