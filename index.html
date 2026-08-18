@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>卓信會計系統</title>
+<meta name="theme-color" content="#1f7a5c">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="卓信會計">
 <style>
   :root{
     --bg:#FAF8F5; --surface:#FFFFFF; --surface-2:#F4F0EA; --surface-3:#EDE7DE;
@@ -1421,5 +1428,6 @@ function editProject(id){const p=(db.projects||[]).find(x=>x.id===id);if(!p)retu
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
+<script>if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('/service-worker.js').catch(function(){});});}</script>
 </body>
 </html>
