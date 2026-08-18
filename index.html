@@ -259,10 +259,22 @@
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_ent">交際應酬</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_emp">員工福利</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">自用小客車/油料修理</label>
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_nonbiz">非供本業使用</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_personal">個人名義/公司成立前</label>
           </div>
           <div class="frow" style="margin-top:12px"><div class="fld" style="grid-column:1 / -1"><label>備註（單行，上限 100 字）</label><input id="p_note" maxlength="100" placeholder="選填，例：3月國外訂閱、憑證編號、用途…"></div></div>
           <div id="p_dedHint" class="note" style="margin-top:10px;display:none"></div>
+          <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;font-weight:600;color:var(--ink-2)">📖 不可扣抵進項稅額 法條速查（營業稅法 §19）</summary>
+          <div class="note" style="margin-top:8px;font-size:12.5px;line-height:1.95">
+          ① 未取得/未保存 §33 合法憑證（無統一發票、未載卓信統編）—§19 I①<br>
+          ② <b>非供本業及附屬業務</b>使用（私人用途、與營業無關）—§19 I②<br>
+          ③ <b>交際應酬</b>用（餐敘、送禮、招待客戶）—§19 I③<br>
+          ④ <b>酬勞員工個人</b>（員工福利、聚餐、禮品）—§19 I④<br>
+          ⑤ <b>自用乘人小客車</b>（9 座以下客車及其油料、修理）—§19 I⑤<br>
+          ・專營免稅貨物勞務者，進項不得扣抵—§19 II<br>
+          ・國外勞務逆向課稅，填 401 第 74 欄、專營應稅免繳—§36<br>
+          <b>心法</b>：要抵稅＝台灣統一發票 ＋ 載卓信統編 ＋ 含 5% ＋ 供本業使用，缺一不可（§15、§33）。
+          </div></details>
           <div class="actions"><button class="btn" type="submit" id="pSubmitBtn">＋ 新增並切傳票</button>
             <button class="btn ghost sm" type="button" id="pSample">載入 GoDaddy 範例</button>
             <label class="btn ghost sm" style="display:inline-block">📥 匯入收據JSON<input type="file" accept=".json" style="display:none" onchange="importReceipts(this)"></label>
@@ -631,7 +643,7 @@ function totals(){const salesTax=db.sale.reduce((a,s)=>a+s.tax,0),salesNet=db.sa
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:((($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||$("#p_type").value.indexOf("國外invoice")>=0)?false:($("#p_ded").value==="1")),pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||"",note:(($("#p_note")||{}).value||"").slice(0,100)};
+  const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:((($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0)?false:($("#p_ded").value==="1")),pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||"",note:(($("#p_note")||{}).value||"").slice(0,100)};
   if(editPid){const i=db.purchase.findIndex(x=>x.id===editPid);if(i>=0)db.purchase[i]=_obj;editPid=null;const b=$("#pSubmitBtn");if(b)b.textContent="＋ 新增並切傳票";}
   else{db.purchase.push(_obj);if(autoAddVendorOn()){const nm=_obj.name,u=_obj.uni;if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}}
   e.target.reset();$("#p_total").value="";if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
@@ -1309,7 +1321,8 @@ function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受
 /* ===== 進項扣抵防呆（依營業稅法§19/§33/§36）===== */
 function judgeDeductible(){
   const type=$("#p_type").value, uni=$("#p_uni").value.trim();
-  const ent=$("#p_ent")&&$("#p_ent").checked, emp=$("#p_emp")&&$("#p_emp").checked, car=$("#p_car")&&$("#p_car").checked;
+  const ent=$("#p_ent")&&$("#p_ent").checked, emp=$("#p_emp")&&$("#p_emp").checked, car=$("#p_car")&&$("#p_car").checked, nonbiz=$("#p_nonbiz")&&$("#p_nonbiz").checked;
+  if(nonbiz)return{r:"不可扣抵",c:"bad",m:"非供本業及附屬業務使用（§19 I②）：私人用途或與營業無關，不得扣抵。"};
   if(ent)return{r:"不可扣抵",c:"bad",m:"交際應酬用（營業稅法§19 I③）：即使有三聯式發票也不得扣抵，僅能列費用。"};
   if(emp)return{r:"不可扣抵",c:"bad",m:"酬勞員工個人（§19 I④）：不得扣抵。"};
   if(car)return{r:"不可扣抵",c:"bad",m:"自用乘人小客車及其油料修理（§19 I⑤）：不得扣抵。"};
@@ -1328,8 +1341,8 @@ function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDed
   const ecol=je.c==="ok"?"var(--good)":(je.c==="warn"?"var(--warn)":"var(--danger)");
   el.style.display="block";el.style.borderLeftColor=col;
   el.innerHTML=`<b style="color:${col}">① 營業稅 401：${j.r}</b>　${esc(j.m)}<br><b style="color:${ecol}">② 營所稅費用：${je.r}</b>　${esc(je.m)}`;
-  const ded=$("#p_ded");if(ded){const lock19=($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||$("#p_type").value.indexOf("國外invoice")>=0;ded.value=(j.r==="可扣抵")?"1":"0";ded.disabled=lock19;}}
-(function(){["p_type","p_ent","p_emp","p_car","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
+  const ded=$("#p_ded");if(ded){const lock19=($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0;ded.value=(j.r==="可扣抵")?"1":"0";ded.disabled=lock19;}}
+(function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
 
 /* ===== 銷項含稅/未稅四捨五入 + 建議費用科目 ===== */
@@ -1423,7 +1436,7 @@ function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)ret
   if(typeof fillPAcctSel==="function")fillPAcctSel();if(p.acct)$("#p_acct").value=p.acct;
   $("#p_net").value=p.net||0;$("#p_tax").value=p.tax||0;$("#p_ded").value=p.ded?"1":"0";$("#p_pay").value=p.pay||"現金";
   if(typeof fillProjSel==="function")fillProjSel($("#p_proj"));if(p.proj)$("#p_proj").value=p.proj;
-  if($("#p_ent"))$("#p_ent").checked=false;if($("#p_emp"))$("#p_emp").checked=false;if($("#p_car"))$("#p_car").checked=false;
+  if($("#p_ent"))$("#p_ent").checked=false;if($("#p_emp"))$("#p_emp").checked=false;if($("#p_car"))$("#p_car").checked=false;if($("#p_nonbiz"))$("#p_nonbiz").checked=false;
   if($("#p_note"))$("#p_note").value=p.note||"";
   editPid=id;if(typeof syncPTotal==="function")syncPTotal();const b=$("#pSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
