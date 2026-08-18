@@ -158,6 +158,22 @@
 .cloud-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--ink-3);margin-right:5px;vertical-align:middle}
 .cloud-dot.on{background:var(--good)} .cloud-dot.err{background:var(--danger)} .cloud-dot.sync{background:var(--warn)}
 </style>
+<div class="ovl" id="setupOvl">
+  <div class="modal" style="max-width:520px">
+    <h3>🚀 開帳精靈</h3>
+    <p class="sub">歡迎使用！照這 3 步完成開帳，就能開始記帳。</p>
+    <div style="font-size:13px;color:var(--ink-2);line-height:2.1">
+      <b>① 公司資料</b>：統編、名稱、地址、開帳日（存證發票／報表會用）<br>
+      <b>② 銀行帳戶</b>：到「設定 → 銀行帳戶」加你的往來銀行<br>
+      <b>③ 字軌配號</b>：到「銷項憑證」頁貼上國稅局配號信自動解析<br>
+      <span style="color:var(--ink-3)">期初餘額可稍後到「資產負債表 → 期初餘額設定」補。</span>
+    </div>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn" id="setupGo">先填公司資料</button>
+      <button class="btn ghost sm" id="setupSkip">略過（稍後自己設）</button>
+    </div>
+  </div>
+</div>
 <div class="ovl" id="loginOvl">
   <div class="modal">
     <h3>☁︎ 登入雲端同步</h3>
@@ -439,7 +455,7 @@
       </section>
 
       <section class="view" id="v-settings">
-        <div class="settabs" id="settabs"><button class="stab on" data-p="account">帳號安全</button><button class="stab" data-p="bank">銀行帳戶</button><button class="stab" data-p="proj">專案</button><button class="stab" data-p="vendor">廠商</button><button class="stab" data-p="customer">客戶</button><button class="stab" data-p="acct">會計科目</button></div>
+        <div class="settabs" id="settabs"><button class="stab on" data-p="account">帳號安全</button><button class="stab" data-p="company">公司資料</button><button class="stab" data-p="bank">銀行帳戶</button><button class="stab" data-p="proj">專案</button><button class="stab" data-p="vendor">廠商</button><button class="stab" data-p="customer">客戶</button><button class="stab" data-p="acct">會計科目</button></div>
         <div class="setpane on" id="set-account">
         <div class="sec-h"><h2>帳號安全</h2><span class="muted">設定只有你知道的登入密碼（我看不到）</span></div>
         <form class="form" id="pwForm">
@@ -450,6 +466,21 @@
           </div>
           <div id="pw_msg" style="font-size:13px;min-height:18px;margin-top:6px"></div>
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:2px 0 0">需先登入雲端。更新後下次登入請用新密碼；統編就不再是密碼了。</p>
+        </form>
+        </div>
+        <div class="setpane" id="set-company">
+        <div class="sec-h"><h2>公司資料</h2><span class="muted">用於存證發票、報表抬頭；開帳日供期初起算</span><span class="sp"></span><button class="btn ghost sm" type="button" onclick="$('#setupOvl').classList.add('on')">🚀 開帳精靈</button></div>
+        <form class="form" id="coForm">
+          <div class="frow">
+            <div class="fld"><label>統一編號</label><input id="co_uni" inputmode="numeric" placeholder="8 碼"></div>
+            <div class="fld" style="grid-column:span 2"><label>公司名稱</label><input id="co_name" placeholder="例：卓信人資整合有限公司"></div>
+            <div class="fld"><label>開帳日</label><input type="date" id="co_open"></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：台南市安南區府安路七街24號"></div>
+            <div class="fld"><label>電話</label><input id="co_tel" placeholder="06-xxxxxxxx"></div>
+          </div>
+          <div class="actions"><button class="btn sm" type="submit">儲存公司資料</button></div>
         </form>
         </div>
         <div class="setpane" id="set-bank">
@@ -652,7 +683,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();fillPettyAcct();fillPettySrc();renderPetty();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -1118,7 +1149,7 @@ async function onSignedIn(user){
     if(rScore>0&&lScore>0){const merged=mergeDb(db,remote);adopt(merged);lastRemoteTs=Date.parse(data.updated_at||0)||0;await cloudPush();}
     else if(rScore>0){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
-    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();
+    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}
   }catch(e){setCloud("err",e.message);}
 }
 function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
@@ -1415,6 +1446,14 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
   editJid=id;const b=$("#jSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
+/* ===== 公司資料 + 開帳精靈 ===== */
+function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);}
+function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owner")return;const co=db.company||{};if(!co.name&&!db.setupSkipped&&dataScore(db)===0){const o=$("#setupOvl");if(o)o.classList.add("on");}}
+(function(){
+  const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
+  const sg=$("#setupGo");if(sg)sg.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");const nb=document.querySelector('#nav button[data-v="settings"]');if(nb)nb.click();const cb=document.querySelector('#settabs .stab[data-p="company"]');if(cb)cb.click();});
+  const ss=$("#setupSkip");if(ss)ss.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");if(!db.company)db.company={};db.setupSkipped=true;save();});
+})();
 /* ===== 主檔編輯 ===== */
 let editVid=null,editCid=null,editPjid=null;
 function editVendor(id){const v=(db.vendors||[]).find(x=>x.id===id);if(!v)return;var t=document.querySelector('.stab[data-p="vendor"]');if(t)t.click();
