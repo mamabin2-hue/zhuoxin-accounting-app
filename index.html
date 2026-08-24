@@ -490,10 +490,15 @@
         <div class="sec-h"><h2>銀行帳戶</h2><span class="muted">分銀行別管理，未來開新銀行可再新增</span></div>
         <form class="form" id="bkForm">
           <div class="frow">
-            <div class="fld"><label>銀行別</label><input id="bk_bank" placeholder="例：新光銀行"></div>
-            <div class="fld"><label>分行</label><input id="bk_branch" placeholder="例：台南分行"></div>
+            <div class="fld"><label>銀行名稱（會成為科目名）</label><input id="bk_bank" placeholder="例：新光台南分行"></div>
+            <div class="fld"><label>銀行代碼</label><input id="bk_code" inputmode="numeric" placeholder="例：103"></div>
+            <div class="fld"><label>分行（可留空）</label><input id="bk_branch" placeholder="例：台南分行"></div>
             <div class="fld"><label>帳號</label><input id="bk_acct" inputmode="numeric" placeholder="銀行帳號"></div>
-            <div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit">＋ 新增銀行</button></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld" style="grid-column:span 2"><label>戶名</label><input id="bk_owner" placeholder="例：卓信人資整合有限公司"></div>
+            <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn sm" type="submit">＋ 新增銀行</button></div>
+            <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn ghost sm" type="button" onclick="fillZhuohsinBank()">帶入卓信匯款資訊</button></div>
           </div>
           <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">會建立「銀行存款-新光銀行(台南分行)」等子科目，出現在科目下拉、付款/收款方式與銀行簿，各家分開記餘額。</p>
         </form>
@@ -1331,14 +1336,24 @@ function bankAcctName(b){return "銀行存款-"+b.bank+(b.branch?("("+b.branch+"
 function bankNames(){return (db.banks||[]).map(bankAcctName);}
 function renderBankList(){const el=$("#bkList");if(!el)return;
   if(!(db.banks||[]).length){el.innerHTML='<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚未新增銀行帳戶。</div>';return;}
-  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>科目</th><th>銀行</th><th>分行</th><th>帳號</th><th></th></tr></thead><tbody>'+
-    db.banks.map(b=>`<tr><td>${esc(bankAcctName(b))}</td><td>${esc(b.bank)}</td><td>${esc(b.branch||"")}</td><td class="num">${esc(b.acctNo||"")}</td><td class="r"><button class="del" onclick="delBank('${b.id}')">✕</button></td></tr>`).join("")+
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>科目</th><th>銀行</th><th>代碼</th><th>帳號</th><th>戶名</th><th></th></tr></thead><tbody>'+
+    db.banks.map(b=>`<tr><td>${esc(bankAcctName(b))}</td><td>${esc(b.bank)}${b.branch?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(b.branch)+'</span>'):""}</td><td class="num">${esc(b.code||"")}</td><td class="num">${esc(b.acctNo||"")}</td><td style="font-size:12.5px">${esc(b.owner||"")}</td><td class="r" style="white-space:nowrap"><button class="del" onclick="copyRemitInfo('${b.id}')" title="複製匯款資訊">⧉</button><button class="del" onclick="delBank('${b.id}')">✕</button></td></tr>`).join("")+
     '</tbody></table></div></div>';}
 function delBank(id){if(!confirm("刪除這個銀行帳戶？（已入帳分錄不受影響）"))return;db.banks=(db.banks||[]).filter(b=>b.id!==id);save();}
 (function(){const bf=$("#bkForm");if(!bf)return;bf.addEventListener("submit",e=>{e.preventDefault();
   const bank=$("#bk_bank").value.trim(),branch=$("#bk_branch").value.trim(),acctNo=$("#bk_acct").value.trim();
-  if(!bank){alert("請輸入銀行別。");return;}
-  db.banks.push({id:uid(),bank,branch,acctNo});$("#bk_bank").value="";$("#bk_branch").value="";$("#bk_acct").value="";save();});})();
+  const code=(($("#bk_code")||{}).value||"").trim(),owner=(($("#bk_owner")||{}).value||"").trim();
+  if(!bank){alert("請輸入銀行名稱。");return;}
+  if((db.banks||[]).some(x=>x.bank===bank&&(x.acctNo||"")===acctNo)){alert("這個銀行帳戶已經存在了。");return;}
+  db.banks.push({id:uid(),bank,branch,acctNo,code,owner});
+  ["bk_bank","bk_branch","bk_acct","bk_code","bk_owner"].forEach(i=>{const e=$("#"+i);if(e)e.value="";});save();});})();
+function fillZhuohsinBank(){
+  const v={bk_bank:"新光台南分行",bk_code:"103",bk_branch:"台南分行",bk_acct:"0657100005506",bk_owner:"卓信人資整合有限公司"};
+  Object.keys(v).forEach(k=>{const e=$("#"+k);if(e)e.value=v[k];});
+  alert("已帶入卓信匯款資訊，確認無誤後按「＋ 新增銀行」即可。");}
+function copyRemitInfo(id){const b=(db.banks||[]).find(x=>x.id===id);if(!b)return;
+  const t=["銀行："+b.bank+(b.code?("（代碼 "+b.code+"）"):""),"帳號："+(b.acctNo||""),"戶名："+(b.owner||"")].join("\n");
+  try{navigator.clipboard.writeText(t);alert("已複製匯款資訊：\n\n"+t);}catch(e){prompt("匯款資訊（可複製）",t);}}
 const PAYLABEL={"股東往來":"股東往來（負責人代墊）","信用卡":"信用卡（公司卡）"};
 function fillPaySelects(){const banks=bankNames();const uniq=a=>a.filter((v,i,x)=>x.indexOf(v)===i);
   const P=uniq(["股東往來","現金","零用金",...banks,"銀行存款","應付帳款","信用卡"]);const p=$("#p_pay");if(p){const c=p.value;p.innerHTML=P.map(o=>`<option value="${esc(o)}">${esc(PAYLABEL[o]||o)}</option>`).join("");if(c&&P.includes(c))p.value=c;else p.value="股東往來";}
