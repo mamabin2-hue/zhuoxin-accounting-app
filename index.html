@@ -566,6 +566,14 @@
         <div class="sec-h"><h2>匯出／備份</h2><span class="muted">供上傳國稅局平台核對，或存回會計資料夾</span></div>
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div><h3 style="font-size:15px">🛡 備份健康檢查</h3>
+              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">三層保護：雲端主資料 → 雲端歷史版本 → 異地備份（本機檔案／GitHub）</p></div>
+            <button class="btn sm" onclick="renderBackupHealth()">重新檢查</button>
+          </div>
+          <div id="bkHealth" style="margin-top:12px"></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">☁︎ 雲端歷史版本（即時備份）</h3>
               <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">登入後每次存檔自動在雲端存一份，保留最近 60 版，可隨時還原到任一時間點。</p></div>
             <button class="btn sm" onclick="loadSnapshots()">載入版本列表</button>
@@ -621,7 +629,7 @@ const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:
 $("#nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
   document.querySelectorAll(".nav button").forEach(x=>x.classList.toggle("on",x===b));
   const v=b.dataset.v;document.querySelectorAll(".view").forEach(s=>s.classList.toggle("on",s.id==="v-"+v));
-  $("#topTitle").textContent=TITLES[v];if(v==="users"){fillMemFeats();loadMembers();}window.scrollTo(0,0);});
+  $("#topTitle").textContent=TITLES[v];if(v==="users"){fillMemFeats();loadMembers();}if(v==="export"){try{renderBackupHealth();}catch(e){}}window.scrollTo(0,0);});
 
 /* theme */
 $("#themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
@@ -1086,13 +1094,40 @@ async function restoreBackupHandle(){if(!fsaOK()){refreshBackupUI();return;}
   if(!h){refreshBackupUI();return;}
   bkHandle=h;try{bkNeedsGrant=((await h.queryPermission({mode:"readwrite"}))!=="granted");}catch(_){bkNeedsGrant=true;}
   refreshBackupUI();}
+function warnIfNoBackup(){
+  if(dataScore(db)<=0)return;
+  const age=backupAgeDays();
+  if(age!==null&&age<=7)return;
+  const key=LS+"_bkWarn";const lastWarn=+(localStorage.getItem(key)||0);
+  if(Date.now()-lastWarn<86400000)return;   // 一天最多提醒一次
+  localStorage.setItem(key,String(Date.now()));
+  const b=$("#loginWarn");if(!b)return;
+  const box=document.createElement("div");
+  box.style.cssText="background:#fde68a;color:#78350f;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600";
+  box.innerHTML='🛡 你的帳本目前<b>沒有異地備份</b>（只存在雲端一處）。建議到「匯出／備份」啟用自動備份。 <button class="btn sm" style="margin-left:8px" onclick="document.querySelector(\'#nav button[data-v=&quot;export&quot;]\').click();this.parentNode.remove();">前往設定</button> <button class="btn ghost sm" onclick="this.parentNode.remove()">稍後</button>';
+  b.parentNode.insertBefore(box,b.nextSibling);}
+function backupAgeDays(){const last=localStorage.getItem(LS+"_bk");if(!last)return null;return (Date.now()-Date.parse(last))/86400000;}
+function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
+  const row=(icon,title,desc,col)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:16px;line-height:1.3">${icon}</span><div><div style="font-weight:600;font-size:13.5px;color:${col||'var(--ink)'}">${title}</div><div style="font-size:12.5px;color:var(--ink-2)">${desc}</div></div></div>`;
+  let h="";
+  h+= sbUser ? row("✅","① 雲端主資料 — 已連線同步","登入 "+esc(sbUser.email||"")+"，每次存檔即時上傳")
+             : row("⚠️","① 雲端主資料 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
+  h+= sbUser ? row("✅","② 雲端歷史版本 — 運作中","每次存檔自動留一版，最多保留 60 版，可還原任一時間點")
+             : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
+  const age=backupAgeDays();
+  if(!bkHandle && age===null) h+=row("❌","③ 異地備份 — 尚未啟用","<b>風險：帳本只存在雲端一處</b>。請點下方『啟用自動備份…』選一個備份檔位置（建議存到「記帳系統」資料夾，會隨 GitHub 一起異地保存）","var(--danger)");
+  else if(age===null) h+=row("⚠️","③ 異地備份 — 已設定但尚未寫入","請改一筆資料觸發，或點『重新啟用』授權","var(--warn)");
+  else if(age>3) h+=row("⚠️","③ 異地備份 — 已 "+Math.floor(age)+" 天沒更新","請點下方『重新啟用』重新授權，讓自動備份繼續","var(--warn)");
+  else h+=row("✅","③ 異地備份 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
+  h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表你的帳本同時存在「雲端 + 雲端多版本 + 異地檔案」三個地方。</div>`;
+  el.innerHTML=h;}
 function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRegrant"),di=$("#bkDisable");if(!st)return;
   const last=localStorage.getItem(LS+"_bk");const lastTxt=last?new Date(last).toLocaleString("zh-TW"):"—";
   if(!fsaOK()){st.innerHTML="此瀏覽器不支援自動寫檔，請改用 Chrome / Edge；目前請用下方「下載備份」手動備份。";en.style.display="none";rg.style.display="none";di.style.display="none";return;}
   if(!bkHandle){st.textContent="未啟用";en.style.display="";rg.style.display="none";di.style.display="none";return;}
   en.style.display="none";di.style.display="";
   if(bkNeedsGrant){st.innerHTML="已設定備份檔，重新開啟後需點一下「重新啟用」授權才會繼續自動寫入。";rg.style.display="";}
-  else{st.innerHTML=`✅ 已啟用 · 檔案 <b>${esc(bkHandle.name)}</b> · 上次備份 <span class="num">${lastTxt}</span>`;rg.style.display="none";}}
+  else{st.innerHTML=`✅ 已啟用 · 檔案 <b>${esc(bkHandle.name)}</b> · 上次備份 <span class="num">${lastTxt}</span>`;rg.style.display="none";}try{renderBackupHealth();}catch(e){}}
 
 /* ===== 雲端同步（Supabase）===== */
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
@@ -1161,7 +1196,7 @@ async function onSignedIn(user){
     if(rScore>0&&lScore>0){const merged=mergeDb(db,remote);adopt(merged);lastRemoteTs=Date.parse(data.updated_at||0)||0;await cloudPush();}
     else if(rScore>0){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
-    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}
+    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}
   }catch(e){setCloud("err",e.message);}
 }
 function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
