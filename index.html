@@ -650,7 +650,7 @@ $("#nav").addEventListener("click",function(e){const b=e.target.closest("button"
   if(b.dataset.g){const items=visibleItems(b.dataset.g);if(items.length)goView(items[0]);return;}
   if(b.dataset.v)goView(b.dataset.v);});
 $("#subtabs").addEventListener("click",function(e){const b=e.target.closest("button");if(!b||!b.dataset.v)return;goView(b.dataset.v);});
-try{renderSubtabs("book","dash");}catch(e){}
+
 
 /* theme */
 $("#themeBtn").addEventListener("click",()=>{const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
@@ -1541,6 +1541,7 @@ function editProject(id){const p=(db.projects||[]).find(x=>x.id===id);if(!p)retu
 
 initJournal();initAcctPickers();renderAll();refreshBackupUI();restoreBackupHandle();initCloud();
 </script>
+<script>try{var _cur=(document.querySelector(".view.on")||{}).id||"v-dash";renderSubtabs(groupOf(_cur.replace("v-","")),_cur.replace("v-",""));}catch(e){console.warn("subtabs init",e);}</script>
 <script>if('serviceWorker' in navigator&&location.protocol==='https:'){window.addEventListener('load',function(){navigator.serviceWorker.register('/service-worker.js').catch(function(){});});}</script>
 </body>
 </html>
