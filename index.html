@@ -1199,7 +1199,7 @@ async function loadMembers(){
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
 }
 async function delMember(id){if(!confirm("移除此成員？對方將無法再存取本帳。"))return;try{await sb.from("members").delete().eq("id",id);}catch(e){}loadMembers();}
-function adopt(obj){try{const prev=localStorage.getItem(LS);if(prev)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
+function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
   if(state==="in"){cloudDot("on","已同步");}
@@ -1219,6 +1219,11 @@ async function onSignedIn(user){
   closeLogin();
   try{
     await resolveMembership(user);
+    await resolveOrg();
+    if(bookOrgId&&await loadFromTables()){
+      subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}
+      setCloud("in");return;
+    }
     const {data,error}=await sb.from("books").select("data,updated_at").eq("user_id",bookOwnerId).maybeSingle();
     if(error){setCloud("err",error.message);return;}
     const remote=data&&data.data?data.data:null;const rScore=dataScore(remote),lScore=dataScore(db);
@@ -1230,6 +1235,98 @@ async function onSignedIn(user){
   }catch(e){setCloud("err",e.message);}
 }
 function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
+/* ===== 階段3:正規資料表同步層(逐筆讀寫,流量降99%;失敗自動降級回books) ===== */
+let bookOrgId=null,_lastSync=null,useTables=false,_syncTimer=null,_lastBlobPush=0,_lastSyncAt=0,_sBusy=false;
+const TBL={
+ purchase:{t:"purchases",to:o=>({date:o.date||null,type:o.type||null,uni:o.uni||null,name:o.name||null,item:o.item||null,cat:o.cat||null,acct:o.acct||null,net:+o.net||0,tax:+o.tax||0,ded:!!o.ded,s36:!!o.s36,pay:o.pay||null,proj:o.proj||null,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,date:r.date||"",type:r.type||"",uni:r.uni||"",name:r.name||"",item:r.item||"",cat:r.cat||"費用",acct:r.acct||"",net:+r.net||0,tax:+r.tax||0,ded:!!r.ded,s36:!!r.s36,pay:r.pay||"",proj:r.proj||"",note:r.note||""})},
+ sale:{t:"sales",to:o=>({code:o.code||null,seq:o.seq||0,date:o.date||null,uni:o.uni||null,name:o.name||null,item:o.item||null,net:+o.net||0,tax:+o.tax||0,pay:o.pay||null,proj:o.proj||null,note:o.note||null,void:!!o.void,void_reason:o.voidReason||null,void_orig:(o.voidOrig?Object.assign({},o.voidOrig,{voidDate:o.voidDate||null}):null)}),
+  from:r=>{const o={id:r.legacy_id||r.id,code:r.code||"",seq:+r.seq||0,date:r.date||"",uni:r.uni||"",name:r.name||"",item:r.item||"",net:+r.net||0,tax:+r.tax||0,pay:r.pay||"",proj:r.proj||"",note:r.note||""};if(r.void){o.void=true;o.voidReason=r.void_reason||"";o.voidOrig=r.void_orig||null;if(o.voidOrig&&o.voidOrig.voidDate){o.voidDate=o.voidOrig.voidDate;}}return o;}},
+ journal:{t:"journals",to:o=>({date:o.date||null,memo:o.memo||null,proj:o.proj||null,lines:o.lines||[]}),
+  from:r=>({id:r.legacy_id||r.id,date:r.date||"",memo:r.memo||"",proj:r.proj||"",lines:r.lines||[]})},
+ petty:{t:"petty_items",to:o=>({date:o.date||null,item:o.item||null,acct:o.acct||null,amount:+o.amount||0,ded:!!o.ded,has_inv:!!o.hasInv,uni:o.uni||null,inv_no:o.invNo||null,net:+o.net||0,tax:+o.tax||0,note:o.note||null,rep:!!o.rep,rep_date:o.repDate||null}),
+  from:r=>({id:r.legacy_id||r.id,date:r.date||"",item:r.item||"",acct:r.acct||"",amount:+r.amount||0,ded:!!r.ded,hasInv:!!r.has_inv,uni:r.uni||"",invNo:r.inv_no||"",net:+r.net||0,tax:+r.tax||0,note:r.note||"",rep:!!r.rep,repDate:r.rep_date||""})},
+ banks:{t:"banks",to:o=>({bank:o.bank||"",branch:o.branch||null,acct_no:o.acctNo||null,code:o.code||null,owner:o.owner||null}),
+  from:r=>({id:r.legacy_id||r.id,bank:r.bank||"",branch:r.branch||"",acctNo:r.acct_no||"",code:r.code||"",owner:r.owner||""})},
+ vendors:{t:"vendors",to:o=>({uni:o.uni||null,name:o.name||null,contact:o.contact||null,phone:o.phone||null,email:o.email||null,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,uni:r.uni||"",name:r.name||"",contact:r.contact||"",phone:r.phone||"",email:r.email||"",note:r.note||""})},
+ customers:{t:"customers",to:o=>({uni:o.uni||null,name:o.name||null,addr:o.addr||null,contact:o.contact||null,phone:o.phone||null,email:o.email||null,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,uni:r.uni||"",name:r.name||"",addr:r.addr||"",contact:r.contact||"",phone:r.phone||"",email:r.email||"",note:r.note||""})},
+ projects:{t:"projects",to:o=>({name:o.name||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||""})},
+ accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
+ opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
+};
+async function resolveOrg(){bookOrgId=null;if(!sb||!sbUser)return;
+  try{const {data}=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active").limit(1).maybeSingle();
+    if(data&&data.org_id){bookOrgId=data.org_id;myRole=data.role||myRole;myFeatures=(data.role==="owner"||data.role==="admin")?null:(data.features&&data.features.length?data.features:myFeatures);}
+  }catch(e){console.warn("resolveOrg",e);}}
+async function loadFromTables(){
+  if(!sb||!bookOrgId)return false;
+  if(_sBusy){setTimeout(loadFromTables,1200);return true;}
+  _sBusy=true;
+  try{
+    const keys=Object.keys(TBL);
+    const reads=keys.map(k=>sb.from(TBL[k].t).select("*").eq("org_id",bookOrgId).limit(10000).then(r=>r));
+    const setRead=sb.from("org_settings").select("*").eq("org_id",bookOrgId).maybeSingle();
+    const trkRead=sb.from("tracks").select("*").eq("org_id",bookOrgId);
+    const orgRead=sb.from("orgs").select("*").eq("id",bookOrgId).maybeSingle();
+    const rs=await Promise.all([...reads,setRead,trkRead,orgRead]);
+    for(const r of rs){if(r&&r.error)throw r.error;}
+    const nd=DBDEF();
+    keys.forEach((k,i)=>{nd[k]=(rs[i].data||[]).map(TBL[k].from);});
+    const st=rs[keys.length].data;
+    if(st){nd.prevCredit=+st.prev_credit||0;nd.pettyCfg={amount:+st.petty_amount||0,keeper:st.petty_keeper||""};nd.settings={autoAddVendor:st.auto_add_vendor!==false};}
+    nd.tracks=(rs[keys.length+1].data||[]).map(r=>({period:r.period,ps:+r.ps||0,pe:+r.pe||0,category:r.category||"",code:r.code||"",start:+r.start_no||0,end:+r.end_no||0}));
+    if(!nd.tracks.length)nd.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
+    const org=rs[keys.length+2].data;
+    if(org)nd.company={uni:org.uni||"",name:org.name||"",addr:org.addr||"",tel:org.tel||"",openDate:org.open_date||""};
+    nd.deleted=db.deleted||[];
+    _sBusy=false;
+    const nScore=dataScore(nd),lScore=dataScore(db);
+    if(nScore<=0&&lScore>0){useTables=true;_lastSync=null;_sBusy=false;await syncDiff();return true;}
+    const dirty=(_lastSync&&JSON.stringify(db)!==JSON.stringify(_lastSync))||(!_lastSync&&lScore>0);
+    if(dirty){const merged=mergeDb(db,nd);adopt(merged);useTables=true;_lastSync=JSON.parse(JSON.stringify(nd));if(JSON.stringify(merged)!==JSON.stringify(nd))tableSyncDebounced();}
+    else{adopt(nd);useTables=true;_lastSync=JSON.parse(JSON.stringify(nd));}
+    return true;
+  }catch(e){_sBusy=false;console.warn("loadFromTables降級:",e);return false;}
+}
+async function syncDiff(){
+  if(!sb||!bookOrgId||!useTables)return;
+  if(_sBusy){clearTimeout(_syncTimer);_syncTimer=setTimeout(syncDiff,1000);return;}
+  _sBusy=true;
+  const prev=_lastSync||DBDEF();
+  const cur=db;
+  try{
+    for(const k of Object.keys(TBL)){
+      const t=TBL[k].t,to=TBL[k].to;
+      const po=prev[k]||[],co=cur[k]||[];
+      const pm={};po.forEach(o=>{if(o&&o.id!=null)pm[o.id]=o;});
+      const cm={};co.forEach(o=>{if(o&&o.id!=null)cm[o.id]=o;});
+      const adds=[],upds=[],dels=[];
+      for(const id in cm){if(!(id in pm))adds.push(cm[id]);else if(JSON.stringify(to(cm[id]))!==JSON.stringify(to(pm[id])))upds.push(cm[id]);}
+      for(const id in pm){if(!(id in cm))dels.push(id);}
+      if(adds.length){const dr=await sb.from(t).delete().eq("org_id",bookOrgId).in("legacy_id",adds.map(o=>String(o.id)));if(dr.error)throw dr.error;const rows=adds.map(o=>Object.assign({org_id:bookOrgId,legacy_id:String(o.id)},to(o)));const {error}=await sb.from(t).insert(rows);if(error)throw error;}
+      for(const o of upds){const {error}=await sb.from(t).update(to(o)).eq("org_id",bookOrgId).eq("legacy_id",String(o.id));if(error)throw error;}
+      if(dels.length){const {error}=await sb.from(t).delete().eq("org_id",bookOrgId).in("legacy_id",dels.map(String));if(error)throw error;}
+    }
+    if(JSON.stringify(cur.tracks||[])!==JSON.stringify(prev.tracks||[])){
+      {const tr=await sb.from("tracks").delete().eq("org_id",bookOrgId);if(tr.error)throw tr.error;}
+      const rows=(cur.tracks||[]).map(t=>({org_id:bookOrgId,period:t.period,ps:+t.ps||0,pe:+t.pe||0,category:t.category||"",code:t.code||"",start_no:+t.start||0,end_no:+t.end||0}));
+      if(rows.length){const {error}=await sb.from("tracks").insert(rows);if(error)throw error;}
+    }
+    const pc=prev.pettyCfg||{},cc=cur.pettyCfg||{};
+    if((+cur.prevCredit||0)!==(+prev.prevCredit||0)||JSON.stringify(cc)!==JSON.stringify(pc)||JSON.stringify(cur.settings||{})!==JSON.stringify(prev.settings||{})){
+      const {error}=await sb.from("org_settings").upsert({org_id:bookOrgId,prev_credit:+cur.prevCredit||0,petty_amount:+(cc.amount)||0,petty_keeper:cc.keeper||null,auto_add_vendor:!(cur.settings&&cur.settings.autoAddVendor===false),updated_at:new Date().toISOString()});if(error)throw error;}
+    if(cur.company&&JSON.stringify(cur.company)!==JSON.stringify(prev.company||{})){
+      {const orr=await sb.from("orgs").update({name:cur.company.name||null,uni:cur.company.uni||null,addr:cur.company.addr||null,tel:cur.company.tel||null,open_date:cur.company.openDate||null}).eq("id",bookOrgId);if(orr.error)throw orr.error;}}
+    _lastSync=JSON.parse(JSON.stringify(cur));_lastSyncAt=Date.now();_sBusy=false;
+    setCloud("in");
+    const now=Date.now();
+    if(now-_lastBlobPush>600000){_lastBlobPush=now;cloudPush();}else{snapshotPush();}
+  }catch(e){_sBusy=false;_lastSyncAt=Date.now();console.warn("syncDiff失敗,退回全量:",e);setCloud("err",e.message||"同步失敗");try{cloudPush();}catch(_){}}
+}
+function tableSyncDebounced(){clearTimeout(_syncTimer);setCloud("sync");_syncTimer=setTimeout(syncDiff,900);}
+
 async function cloudPush(){
   if(!sb||!sbUser)return;setCloud("sync");const ts=new Date().toISOString();
   const {error}=await sb.from("books").upsert({user_id:bookOwnerId||sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
@@ -1261,12 +1358,26 @@ async function restoreSnapshot(id){
   if(!confirm("還原到此版本？\n目前資料會先自動備份（之後仍可再還原），再套用這個歷史版本。"))return;
   try{const {data,error}=await sb.from("book_snapshots").select("data").eq("id",id).maybeSingle();
     if(error||!data){alert("讀取版本失敗。");return;}
-    adopt(data.data);await cloudPush();alert("✅ 已還原到所選版本。");
+    adopt(data.data);if(useTables&&bookOrgId){await syncDiff();}await cloudPush();alert("✅ 已還原到所選版本。");
   }catch(e){alert("還原失敗。");}
 }
-function cloudSaveDebounced(){if(!sbUser)return;clearTimeout(sbTimer);setCloud("sync");sbTimer=setTimeout(cloudPush,800);}
+function cloudSaveDebounced(){if(!sbUser)return;if(useTables&&bookOrgId){tableSyncDebounced();return;}clearTimeout(sbTimer);setCloud("sync");sbTimer=setTimeout(cloudPush,800);}
+let _rtReload=null;
 function subscribeRealtime(){
   if(!sb||!sbUser)return;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}}
+  if(useTables&&bookOrgId){
+    const f="org_id=eq."+bookOrgId;
+    const onchg=()=>{clearTimeout(_rtReload);const wait=(Date.now()-_lastSyncAt<5000)?6000:2000;_rtReload=setTimeout(()=>{if(Date.now()-_lastSyncAt<5000){onchg();return;}loadFromTables();},wait);};
+    sbChan=sb.channel("org-"+bookOrgId)
+      .on("postgres_changes",{event:"*",schema:"public",table:"purchases",filter:f},onchg)
+      .on("postgres_changes",{event:"*",schema:"public",table:"sales",filter:f},onchg)
+      .on("postgres_changes",{event:"*",schema:"public",table:"journals",filter:f},onchg)
+      .on("postgres_changes",{event:"*",schema:"public",table:"petty_items",filter:f},onchg)
+      .on("postgres_changes",{event:"*",schema:"public",table:"tracks",filter:f},onchg)
+      .on("postgres_changes",{event:"*",schema:"public",table:"banks",filter:f},onchg)
+      .subscribe();
+    return;
+  }
   const oid=bookOwnerId||sbUser.id;sbChan=sb.channel("books-"+oid).on("postgres_changes",{event:"*",schema:"public",table:"books",filter:"user_id=eq."+oid},p=>{
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
