@@ -1193,7 +1193,8 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   let h="";
   h+= sbUser ? row("✅","① 雲端主資料 — 已連線同步","登入 "+esc(sbUser.email||"")+"，每次存檔即時上傳")
              : row("⚠️","① 雲端主資料 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
-  h+= sbUser ? row("✅","② 雲端歷史版本 — 運作中","每次存檔自動留一版，最多保留 60 版，可還原任一時間點")
+  const dk=localStorage.getItem(LS+"_dailyBk")===todayStr();
+  h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本，共 60 版可還原")
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
   if(!bkHandle && age===null) h+=row("❌","③ 異地備份 — 尚未啟用","<b>風險：帳本只存在雲端一處</b>。請點下方『啟用自動備份…』選一個備份檔位置（建議存到「記帳系統」資料夾，會隨 GitHub 一起異地保存）","var(--danger)");
@@ -1311,7 +1312,7 @@ async function onSignedIn(user){
     await resolveMembership(user);
     await resolveOrg();
     if(bookOrgId&&await loadFromTables()){
-      subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}
+      subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}try{dailyAutoBackup();}catch(e){}
       setCloud("in");return;
     }
     const {data,error}=await sb.from("books").select("data,updated_at").eq("user_id",bookOwnerId).maybeSingle();
@@ -1321,7 +1322,7 @@ async function onSignedIn(user){
     if(rScore>0&&lScore>0){const merged=mergeDb(db,remote);adopt(merged);lastRemoteTs=Date.parse(data.updated_at||0)||0;await cloudPush();}
     else if(rScore>0){adopt(remote);lastRemoteTs=Date.parse(data.updated_at||0)||0;setCloud("in");}
     else{await cloudPush();}
-    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}
+    subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}try{dailyAutoBackup();}catch(e){}
   }catch(e){setCloud("err",e.message);}
 }
 function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
@@ -1426,6 +1427,19 @@ async function cloudPush(){
   if(!sb||!sbUser)return;setCloud("sync");const ts=new Date().toISOString();
   const {error}=await sb.from("books").upsert({user_id:bookOwnerId||sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
   if(error){setCloud("err",error.message);}else{lastRemoteTs=Date.parse(ts);setCloud("in");snapshotPush();}
+}
+function todayStr(){const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");}
+async function dailyAutoBackup(){
+  try{
+    if(!sb||!sbUser)return;
+    const key=LS+"_dailyBk";
+    if(localStorage.getItem(key)===todayStr())return;
+    if(dataScore(db)<=0)return;
+    lastSnapTs=0;
+    await snapshotPush();
+    try{if(typeof writeBackup==="function")await writeBackup();}catch(e){}
+    localStorage.setItem(key,todayStr());
+  }catch(e){console.warn("dailyAutoBackup",e);}
 }
 let lastSnapTs=0;
 async function snapshotPush(){
