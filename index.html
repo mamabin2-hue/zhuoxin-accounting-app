@@ -143,7 +143,7 @@
   .stab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--ink-2);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;margin-bottom:-1px}
   .stab:hover{color:var(--ink)} .stab.on{color:var(--accent-ink);border-bottom-color:var(--accent);font-weight:600}
   .setpane{display:none} .setpane.on{display:block}
-.ro-viewer form button[type=submit],.ro-viewer .del,.ro-viewer .actions .btn{display:none!important}.ro-viewer form input,.ro-viewer form select,.ro-viewer form textarea{pointer-events:none;opacity:.6}
+.ro-viewer form button[type=submit],.ro-viewer .del,.ro-viewer .actions .btn,.ro-viewer #inboxPanel button,.ro-viewer #v-export .btn,.ro-viewer #v-export label,.ro-viewer #taxWrap input,.ro-viewer #setupOvl,.ro-viewer .card .btn{display:none!important}.ro-viewer form input,.ro-viewer form select,.ro-viewer form textarea{pointer-events:none;opacity:.6}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -633,12 +633,12 @@ const DEFAULT_TRACKS=[{period:"115/07~115/08",ps:11507,pe:11508,category:"一般
 const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
-const esc=s=>(s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));}
-function save(){localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBackup();cloudSaveDebounced();}
+function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法修改資料。");try{loadFromTables();}catch(e){}return;}localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBackup();cloudSaveDebounced();}
 load();
 
 /* nav */
@@ -693,16 +693,16 @@ function nextSeq(t){const used=db.sale.filter(s=>s.code===t.code).map(s=>s.seq);
 function trackUsed(t){return db.sale.filter(s=>s.code===t.code&&s.seq>=t.start&&s.seq<=t.end).length;}
 function periodOf(d){if(!d)return null;const y=+d.slice(0,4)-1911,m=+d.slice(5,7);if(!y||!m)return null;const s1=Math.floor((m-1)/2)*2+1;return y+"/"+String(s1).padStart(2,"0")+"-"+String(s1+1).padStart(2,"0");}
 function periodRange(p){const y=+p.slice(0,3)+1911,m1=+p.slice(4,6),m2=+p.slice(7,9);const from=y+"-"+String(m1).padStart(2,"0")+"-01";const last=new Date(y,m2,0).getDate();return [from,y+"-"+String(m2).padStart(2,"0")+"-"+last];}
-function curPeriod(){const t=new Date();const d=t.toISOString().slice(0,10);return periodOf(d);}
+function curPeriod(){const t=new Date();const d=t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");return periodOf(d);}
 let taxPeriod=null; // null=當期
 function allPeriods(){const set=new Set();[...db.purchase,...db.sale].forEach(r=>{const p=periodOf(r.date);if(p)set.add(p);});set.add(curPeriod());return [...set].sort().reverse();}
 function inPeriod(d,p){if(!p)return true;return periodOf(d)===p;}
-function totals(period){const P=period===undefined?(taxPeriod||curPeriod()):period;
+function totals(period){const P=period===undefined?curPeriod():period;
   const ss=db.sale.filter(s=>inPeriod(s.date,P)),pp=db.purchase.filter(x=>inPeriod(x.date,P));
   const salesTax=ss.reduce((a,s)=>a+s.tax,0),salesNet=ss.reduce((a,s)=>a+s.net,0),
   inTaxDed=pp.filter(p=>p.ded).reduce((a,p)=>a+p.tax,0),inNet=pp.reduce((a,p)=>a+p.net,0),
   s36=pp.filter(p=>p.s36).reduce((a,p)=>a+(+p.net||0),0);
-  return {salesTax,salesNet,inTaxDed,inNet,s36,payable:salesTax-inTaxDed-(db.prevCredit||0)};}
+  const _isCur=(P===curPeriod());return {salesTax,salesNet,inTaxDed,inNet,s36,payable:salesTax-inTaxDed-(_isCur?(db.prevCredit||0):0)};}
 
 /* purchase */
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
@@ -770,7 +770,7 @@ function renderKpis(){const t=totals();const owe=t.payable>=0;
     <div class="card kpi"><div class="lbl">▼ 進項可扣抵稅額</div><div class="val num">${fmt(t.inTaxDed)}<small> 元</small></div><div class="sub num">進項 ${fmt(t.inNet)}</div></div>
     <div class="card kpi hl"><div class="stripe ${owe?'warn':'good'}"></div><div class="lbl">${owe?'● 本期應納稅額':'● 本期溢付（留抵）'}</div>
       <div class="val num ${owe?'warn':'good'}">${fmt(Math.abs(t.payable))}<small> 元</small></div><div class="sub">${owe?'需繳納':'可留抵下期'}</div></div>
-    <div class="card kpi"><div class="lbl">憑證張數</div><div class="val num">${db.purchase.length+db.sale.length}</div><div class="sub num">進項 ${db.purchase.length} · 銷項 ${db.sale.length}</div></div>`;
+    <div class="card kpi"><div class="lbl">本期憑證張數</div><div class="val num">${db.purchase.filter(x=>inPeriod(x.date,curPeriod())).length+db.sale.filter(x=>inPeriod(x.date,curPeriod())).length}</div><div class="sub num">全部 進${db.purchase.length}·銷${db.sale.length}</div></div>`;
   $("#dashNote").innerHTML=`目前試算：銷項稅額 <b class="num">${fmt(t.salesTax)}</b> − 進項可扣抵 <b class="num">${fmt(t.inTaxDed)}</b>`+(db.prevCredit?` − 上期留抵 <b class="num">${fmt(db.prevCredit)}</b>`:``)+` = <b class="num">${fmt(Math.abs(t.payable))}</b> 元 ${owe?'應納':'溢付'}。`;
   $("#dashSplit").innerHTML=`
     <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期進項</div>${miniList(db.purchase.slice(-4).reverse(),p=>`${esc(p.name||p.item||'—')} · <span class="num">${fmt(p.net+p.tax)}</span>`,p=>`editPurchase('${p.id}')`)}</div>
@@ -785,12 +785,12 @@ function renderPurchase(){const b=$("#pBody");
     <td>${esc(p.name)||"—"}${p.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(p.uni)}</span>`:""}</td><td>${esc(p.item)||"—"}${p.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(p.note).replace(/📎([\w\/\.\-]+)/g,'<a href="#" onclick="openReceiptPhoto(\'$1\');return false" style="color:var(--accent-ink)">📎照片</a>')}</span>`:""}</td>
     <td class="r num">${fmt(p.net)}</td><td class="r num">${fmt(p.tax)}</td><td>${p.ded?'<span class="tag">可扣抵</span>':'<span class="tag no">不可</span>'}</td>
     <td class="r" style="white-space:nowrap"><button class="del" onclick="editPurchase('${p.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('purchase','${p.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="8" class="empty">尚無進項。把收據照片放「01_進項憑證/待辨識」，或用上方表單新增。</td></tr>`;
-  const t=totals();$("#pSum").textContent=`合計 未稅 ${fmt(t.inNet)} · 稅額 ${fmt(db.purchase.reduce((a,p)=>a+p.tax,0))}`;}
+  $("#pSum").textContent=`合計(全部) 未稅 ${fmt(db.purchase.reduce((a,p)=>a+p.net,0))} · 稅額 ${fmt(db.purchase.reduce((a,p)=>a+p.tax,0))}`;}
 function renderSale(){const b=$("#sBody");
   b.innerHTML=db.sale.length?db.sale.slice().sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>`<tr${s.void?' style="opacity:.6"':''}><td class="num">${invStr(s.code,s.seq)}</td><td class="num">${s.date||"—"}</td>
     <td>${esc(s.name)||"—"}${s.void?' <span class="tag no">作廢</span>':''}${s.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(s.uni)}</span>`:""}</td><td>${s.void?`<s>${esc(s.item)||'—'}</s>`:(esc(s.item)||"—")}${s.void?(s.voidReason?`<br><span style="color:var(--danger);font-size:11px">⊘ ${esc(s.voidReason)}</span>`:''):(s.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(s.note)}</span>`:"")}</td>
     <td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.net)||0)}</s>`:fmt(s.net)}</td><td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.tax)||0)}</s>`:fmt(s.tax)}</td><td class="r" style="white-space:nowrap"><button class="del" onclick="voidSale('${s.id}')" title="${s.void?'取消作廢':'作廢'}" style="color:var(--danger)">⊘</button><button class="del" onclick="editSale('${s.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('sale','${s.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
-  const t=totals();$("#sSum").textContent=`合計 銷售額 ${fmt(t.salesNet)} · 稅額 ${fmt(t.salesTax)}`;}
+  $("#sSum").textContent=`合計(全部·不含作廢) 銷售額 ${fmt(db.sale.filter(x=>!x.void).reduce((a,x)=>a+x.net,0))} · 稅額 ${fmt(db.sale.filter(x=>!x.void).reduce((a,x)=>a+x.tax,0))}`;}
 
 function renderVouchers(){const vs=allEntries();const el=$("#vList");
   if(!vs.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">新增進項或銷項後自動產生傳票。</div>`;return;}
@@ -830,7 +830,7 @@ function renderBalance(){const rows=balanceRows();const b=$("#balBody");
 function renderTax(){
   const sel=$("#taxPeriodSel");if(sel){const ps=allPeriods();const cur=taxPeriod||curPeriod();sel.innerHTML=ps.map(p=>`<option value="${p}"${p===cur?" selected":""}>${p}</option>`).join("");if(!taxPeriod)taxPeriod=cur;}
   const pb=$("#periodBody");if(pb){pb.innerHTML=allPeriods().map(p=>{const t=totals(p);const owe=t.salesTax-t.inTaxDed;return `<tr${p===(taxPeriod||curPeriod())?' style="background:var(--surface)"':''}><td class="num">${p}</td><td class="r num">${fmt(t.salesNet)}</td><td class="r num">${fmt(t.salesTax)}</td><td class="r num">${fmt(db.purchase.filter(x=>inPeriod(x.date,p)&&x.ded).reduce((a,x)=>a+x.net,0))}</td><td class="r num">${fmt(t.inTaxDed)}</td><td class="r num">${fmt(t.s36)}</td><td class="r num" style="color:${owe>=0?'var(--warn)':'var(--good)'}">${fmt(Math.abs(owe))}${owe>=0?'':'(溢)'}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">尚無資料</td></tr>';}
-  const t=totals();const owe=t.payable>=0;
+  const t=totals(taxPeriod||curPeriod());const owe=t.payable>=0;
   $("#taxWrap").innerHTML=`
     <div class="card"><table style="font-size:14px"><tbody>
       <tr><td>銷項 應稅銷售額</td><td class="r num">${fmt(t.salesNet)}</td></tr>
@@ -944,9 +944,9 @@ function pettyCount(){
   if($("#pt_date")&&!$("#pt_date").value)$("#pt_date").value=today10();
 })();
 function exportCSV(kind){const _P=taxPeriod||curPeriod();if(kind==="purchase"){const h=["格式代號","發票日期","賣方統編","賣方名稱","憑證類別","品名","金額(未稅)","稅額","扣抵代號","科目"];
-    const rows=db.purchase.filter(p=>inPeriod(p.date,_P)).map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_115-4_進項.csv",toCSV([h,...rows]),"csv");}
+    const rows=db.purchase.filter(p=>inPeriod(p.date,_P)).map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_"+_P.replace("/","-")+"_進項.csv",toCSV([h,...rows]),"csv");}
   else{const h=["格式代號","發票號碼","發票日期","買受人統編","買受人名稱","品名","銷售額(未稅)","稅額","課稅別"];
-    const rows=db.sale.slice().filter(s=>!s.void&&inPeriod(s.date,_P)).sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>["35",invStr(s.code,s.seq),s.date,s.uni,s.name,s.item,s.net,s.tax,"1應稅"]);dl("卓信_115-4_銷項.csv",toCSV([h,...rows]),"csv");}}
+    const rows=db.sale.slice().filter(s=>!s.void&&inPeriod(s.date,_P)).sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>["35",invStr(s.code,s.seq),s.date,s.uni,s.name,s.item,s.net,s.tax,"1應稅"]);dl("卓信_"+_P.replace("/","-")+"_銷項.csv",toCSV([h,...rows]),"csv");}}
 function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目","借方","貸方"];const rows=[];
   allEntries().forEach(v=>v.lines.forEach(l=>rows.push([v.no,v.date,v.memo,l.acct,l.debit||"",l.credit||""])));dl("卓信_115-4_傳票.csv",toCSV([h,...rows]),"csv");}
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
@@ -1219,7 +1219,7 @@ function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===fal
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
 function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEach(x=>{if(!x)return;const k=(x.id!=null)?x.id:JSON.stringify(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out;}
-function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.deleted=[...del];out.prevCredit=R.prevCredit||Lc.prevCredit||0;if(!out.company&&Lc.company)out.company=Lc.company;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
+function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
 /* ===== 多人帳號：成員解析 + 功能權限 ===== */
 let bookOwnerId=null,myRole="owner",myFeatures=null;
 const PAGE_KEYS=[["purchase","進項憑證"],["sale","銷項憑證"],["voucher","傳票"],["journal","手動分錄"],["ledger","分類帳"],["fund","資金／銀行簿"],["petty","零用金"],["balance","餘額表"],["pl","損益表"],["bs","資產負債表"],["tax","401 試算"],["export","匯出／備份"]];
@@ -1336,6 +1336,7 @@ async function resolveOrg(){bookOrgId=null;if(!sb||!sbUser)return;
   try{let {data}=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active").limit(1).maybeSingle();
     if(!data&&localStorage.getItem(LS+"_pendingReg")){
       try{const r=await sb.rpc("create_org",{org_name:(sbUser.email||"我的公司").split("@")[0]+" 的帳本"});
+        if(r&&r.error&&String(r.error.message||"").indexOf("already")>=0)localStorage.removeItem(LS+"_pendingReg");
         if(r&&!r.error){localStorage.removeItem(LS+"_pendingReg");const q=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active").limit(1).maybeSingle();data=q.data;}
       }catch(e){console.warn("create_org",e);}}
     if(data&&data.org_id){bookOrgId=data.org_id;myRole=data.role||myRole;myFeatures=(data.role==="owner"||data.role==="admin")?null:(data.features&&data.features.length?data.features:myFeatures);}
@@ -1693,7 +1694,7 @@ async function scanInvoiceQR(){
       for(const c of codes){const r=parseEinvQR(c.rawValue);
         if(r){stop();
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
-          $("#p_net").value=r.net;$("#p_tax").value=r.tax;$("#p_ded").value=(r.buyer==="62098963"||(db.company&&r.buyer===db.company.uni))?"1":"0";
+          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";$("#p_ded").value=(myUni&&r.buyer===myUni)?"1":"0";
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
           try{const g=await fetch("https://company.g0v.ronny.tw/api/show/"+r.seller).then(x=>x.json());const nm=g&&g.data&&(g.data["公司名稱"]||g.data["名稱"]);if(nm&&$("#p_name"))$("#p_name").value=String(nm).slice(0,60);}catch(_){}
@@ -1703,7 +1704,7 @@ async function scanInvoiceQR(){
     requestAnimationFrame(tick);};
   video.onloadedmetadata=()=>tick();
 }
-async function compressImage(file,maxW,q){return new Promise(res=>{const img=new Image();img.onload=()=>{const sc=Math.min(1,maxW/img.width);const w=Math.round(img.width*sc),h=Math.round(img.height*sc);const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);cv.toBlob(b=>res(b),"image/jpeg",q||0.72);};img.src=URL.createObjectURL(file);});}
+async function compressImage(file,maxW,q){return new Promise((res,rej)=>{const img=new Image();img.onerror=()=>rej(new Error("非有效圖片"));img.onload=()=>{const sc=Math.min(1,maxW/img.width);const w=Math.round(img.width*sc),h=Math.round(img.height*sc);const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);cv.toBlob(b=>res(b),"image/jpeg",q||0.72);};img.src=URL.createObjectURL(file);});}
 async function attachReceiptPhoto(inp){
   const f=inp.files&&inp.files[0];if(!f)return;inp.value="";
   const blob=await compressImage(f,1280,0.72);
