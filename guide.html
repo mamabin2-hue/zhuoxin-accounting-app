@@ -34,6 +34,7 @@ footer{color:#8a857a;font-size:12px;text-align:center;margin-top:44px}
 <a href="#a3">3. 日常記帳：買東西（進項）</a>
 <a href="#a4">4. 日常記帳：開發票給客戶（銷項）</a>
 <a href="#a5">5. 零用金（小額現金）</a>
+<a href="#a55">5.5 請款單與簽核</a>
 <a href="#a6">6. 每兩個月報稅（401）</a>
 <a href="#a7">7. 看報表</a>
 <a href="#a8">8. 多人使用與權限</a>
@@ -77,6 +78,12 @@ footer{color:#8a857a;font-size:12px;text-align:center;margin-top:44px}
 <div class="step"><b>Step 3</b>　現金快用完時點 <span class="kbd">💵 撥補</span> → 選錢從哪個銀行出 → 系統<b>自動切傳票入帳</b>，有發票的還會<b>自動轉進項幫你抵稅</b>。</div>
 <div class="tip">點 <span class="kbd">🔢 盤點差異</span> 輸入抽屜裡實際數到的現金，系統自動告訴你帳有沒有對。</div>
 
+<h2 id="a55">5.5 請款單與簽核（員工請款）</h2>
+<div class="step"><b>員工</b>　<span class="kbd">記帳作業</span> → <span class="kbd">請款單</span>：填日期、付款對象、金額、事由，可附憑證照片 → <span class="kbd">＋ 建立並送審</span>。</div>
+<div class="step"><b>老闆／管理員</b>　在清單看到「<b>待審</b>」→ 按 <span class="kbd">✔ 核准</span> 或 <span class="kbd">✕ 退回</span>（退回要填原因）。</div>
+<div class="step"><b>付款</b>　核准後按 <span class="kbd">💵 付款入帳</span> → 選錢從哪個帳戶出 → 系統<b>自動建進項憑證＋傳票</b>，一氣呵成。</div>
+<div class="warn">核准權限只有老闆／管理員有——記帳員就算按了也會被系統擋下（資料庫層防護，不是只藏按鈕）。</div>
+<div class="tip">請款多半沒有統一發票（例如代墊、跑腿），系統自動列為「不可扣抵、列費用」。若之後拿到發票，到進項憑證編輯那筆補統編改可扣抵即可。</div>
 <h2 id="a6">6. 每兩個月報稅（401）</h2>
 <table><tr><th>期別</th><th>月份</th><th>申報期限</th></tr>
 <tr><td>1</td><td>1–2月</td><td>3/15 前</td></tr><tr><td>2</td><td>3–4月</td><td>5/15 前</td></tr>

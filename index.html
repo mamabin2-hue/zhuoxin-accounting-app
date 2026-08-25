@@ -197,7 +197,7 @@
       <button data-g="report"><span class="ic">▤</span>帳簿報表</button>
       <button data-g="tax"><span class="ic">％</span>稅務申報</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button></div>
     </nav>
     <div class="foot">一般稅額計算 · 401 申報<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
@@ -354,6 +354,26 @@
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>日期</th><th>用途</th><th>科目</th><th class="r">金額</th><th>扣抵</th><th>狀態</th><th></th></tr></thead>
           <tbody id="pettyBody"></tbody></table></div></div>
+      </section>
+
+      <!-- PAYREQ 請款單 -->
+      <section class="view" id="v-payreq">
+        <div class="sec-h"><h2>請款單</h2><span class="muted">送審 → 核准 → 付款自動入帳（核准權限僅老闆/管理員）</span></div>
+        <form class="form" id="prForm">
+          <div class="frow">
+            <div class="fld"><label>日期</label><input type="date" id="pr_date" required></div>
+            <div class="fld"><label>付款對象（廠商/員工）</label><input id="pr_payee" placeholder="例：王小明、XX公司" required></div>
+            <div class="fld"><label>金額（含稅總額）</label><input type="number" id="pr_amount" inputmode="numeric" step="1" placeholder="0" required></div>
+            <div class="fld"><label>費用科目</label><select id="pr_acct"></select></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld" style="grid-column:span 3"><label>請款事由</label><input id="pr_reason" maxlength="100" placeholder="例：8月網路費代墊、出差交通費" required></div>
+            <div class="fld" style="align-self:end"><label class="btn ghost sm" style="display:inline-block">🧾 附憑證照片<input type="file" accept="image/*" capture="environment" style="display:none" onchange="prPhoto(this)"></label><span id="pr_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div>
+          </div>
+          <div class="actions"><button class="btn" type="submit">＋ 建立並送審</button><span class="muted" style="color:var(--ink-3);font-size:12.5px">送審後由老闆／管理員核准，核准後付款自動入帳</span></div>
+        </form>
+        <div class="sec-h"><h2>請款清單</h2><span class="muted sp" id="prSum"></span></div>
+        <div id="prList"></div>
       </section>
 
       <!-- VOUCHER -->
@@ -642,9 +662,9 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單"};
 const NAVGROUPS=[
-  {g:"book",items:["dash","purchase","sale","petty","journal"]},
+  {g:"book",items:["dash","purchase","sale","petty","payreq","journal"]},
   {g:"report",items:["voucher","ledger","fund","balance","pl","bs"]},
   {g:"tax",items:["tax","export"]},
   {g:"setup",items:["settings","users","ops"]}];
@@ -760,7 +780,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -887,6 +907,68 @@ function voidSale(id){
   alert("已標記作廢：發票號碼保留、不列入銷售額/401。\n\n下一步：銷項頁『⬆ 匯出作廢上傳檔』產生 CAN 檔，上傳財政部完成存證作廢。");
 }
 
+/* ===== 請款單(簽核流程) ===== */
+let _prPhotoKey="";
+async function prPhoto(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;inp.value="";
+  try{const blob=await compressImage(f,1280,0.72);
+    if(!sb||!sbUser||!bookOrgId){alert("需登入才能附照片。");return;}
+    const key=bookOrgId+"/pr-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
+    const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
+    if(error){alert("上傳失敗："+error.message);return;}
+    _prPhotoKey=key;const t=$("#pr_photoTag");if(t)t.textContent="✓ 已附照片";
+  }catch(e){alert("照片處理失敗："+e.message);}}
+function fillPrAcct(){const s2=$("#pr_acct");if(!s2)return;const cur=s2.value;const list=accountsByCat("費用")||[];s2.innerHTML=[...list].map(a=>`<option>${esc(a)}</option>`).join("");if(cur)s2.value=cur;}
+function prStatusPill(st){const M={pending:["待審","#e9a23b"],approved:["已核准","#1f7a5c"],rejected:["已退回","#d64545"],paid:["已付款","#3b76d6"]};const m=M[st]||[st,"#888"];return `<span class="tag" style="background:${m[1]};color:#fff">${m[0]}</span>`;}
+function canApprove(){return myRole==="owner"||myRole==="admin";}
+function renderPayreq(){
+  const el=$("#prList");if(!el)return;
+  const rows=(db.payreq||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const sum=$("#prSum");if(sum){const pend=rows.filter(r=>r.status==="pending");sum.textContent=pend.length?("待審 "+pend.length+" 筆・合計 "+fmt(pend.reduce((a,r)=>a+(+r.amount||0),0))):"";}
+  el.innerHTML=rows.length?('<div class="twrap"><div class="tscroll"><table><thead><tr><th>日期</th><th>請款人</th><th>付款對象</th><th>事由</th><th class="r">金額</th><th>狀態</th><th></th></tr></thead><tbody>'+
+    rows.map(r=>{
+      let ops="";
+      if(r.status==="pending"&&canApprove())ops=`<button class="btn ghost sm" onclick="prAct('${r.id}','approve')">✔ 核准</button> <button class="btn ghost sm" onclick="prAct('${r.id}','reject')">✕ 退回</button>`;
+      else if(r.status==="approved"&&canApprove())ops=`<button class="btn sm" onclick="prPay('${r.id}')">💵 付款入帳</button>`;
+      if(r.status==="pending"&&!canApprove()&&r.applicant===(sbUser&&sbUser.email))ops+=` <button class="del" onclick="delPayreq('${r.id}')" title="撤回">✕</button>`;
+      const photo=r.photoKey?` <a href="#" onclick="openReceiptPhoto('${esc(r.photoKey)}');return false" style="color:var(--accent-ink);font-size:12px">📎</a>`:"";
+      const extra=r.status==="rejected"&&r.rejectReason?`<br><span style="color:var(--danger);font-size:11px">退回：${esc(r.rejectReason)}</span>`:(r.status==="paid"&&r.payFrom?`<br><span style="color:var(--ink-3);font-size:11px">付自 ${esc(r.payFrom)}</span>`:(r.status==="approved"&&r.approvedBy?`<br><span style="color:var(--ink-3);font-size:11px">核准 ${esc(r.approvedBy)}</span>`:""));
+      return `<tr><td class="num">${esc(r.date||"—")}</td><td style="font-size:12.5px">${esc((r.applicant||"").split("@")[0])}</td><td>${esc(r.payee)}</td><td>${esc(r.reason)}${photo}${extra}</td><td class="r num">${fmt(r.amount)}</td><td>${prStatusPill(r.status)}</td><td class="r" style="white-space:nowrap">${ops}</td></tr>`;
+    }).join("")+'</tbody></table></div></div>'):'<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無請款單。員工可在上方建立送審。</div>';
+}
+async function prAct(id,act){
+  const r=(db.payreq||[]).find(x=>x.id===id);if(!r)return;
+  let reason=null;
+  if(act==="reject"){reason=prompt("退回原因：","");if(reason===null)return;}
+  else if(!confirm("核准這筆請款？\n"+r.payee+"　"+fmt(r.amount)+"\n"+r.reason))return;
+  const {error}=await sb.rpc("payreq_action",{pid:r.dbid||r.id,act,reason});
+  if(error){alert((error.message||"").indexOf("forbidden")>=0?"只有老闆／管理員可以核准。":"失敗："+error.message);return;}
+  r.status=act==="approve"?"approved":"rejected";if(reason)r.rejectReason=reason;r.approvedBy=(sbUser&&sbUser.email)||"";
+  save();renderPayreq();}
+async function prPay(id){
+  const r=(db.payreq||[]).find(x=>x.id===id);if(!r)return;
+  const banks=(typeof bankNames==="function")?bankNames():[];
+  const opts=[...banks,"現金","股東往來"];
+  const pick=prompt("付款來源（輸入編號）：\n"+opts.map((o,i)=>(i+1)+"."+o).join("\n"),"1");
+  if(pick===null)return;const bank=opts[(+pick||1)-1]||opts[0];
+  const {error}=await sb.rpc("payreq_action",{pid:r.dbid||r.id,act:"paid",bank});
+  if(error){alert("失敗："+error.message);return;}
+  r.status="paid";r.payFrom=bank;
+  // 自動入帳:建一筆進項(無發票→不可扣抵列費用;含照片備註)
+  db.purchase.push({id:uid(),date:todayStr(),type:"其他",uni:"",name:r.payee,item:"請款："+(r.reason||""),cat:"費用",acct:r.acct||"雜項費用",net:+r.amount||0,tax:0,ded:false,pay:bank,s36:false,proj:"",note:("請款單付款"+(r.photoKey?";📎"+r.photoKey:"")).slice(0,100)});
+  save();renderPayreq();
+  alert("✅ 已付款並自動入帳（進項憑證＋傳票已建立）。");}
+function delPayreq(id){if(!confirm("撤回這筆請款單？"))return;db.payreq=(db.payreq||[]).filter(x=>x.id!==id);save();renderPayreq();}
+(function(){
+  const f=$("#prForm");if(f)f.addEventListener("submit",e=>{e.preventDefault();
+    if(!Array.isArray(db.payreq))db.payreq=[];
+    const amt=Math.round(+$("#pr_amount").value||0);if(!amt){alert("金額必填。");return;}
+    db.payreq.push({id:uid(),date:$("#pr_date").value||todayStr(),applicant:(sbUser&&sbUser.email)||"",payee:$("#pr_payee").value.trim(),amount:amt,reason:$("#pr_reason").value.trim(),acct:$("#pr_acct").value||"雜項費用",photoKey:_prPhotoKey,status:"pending"});
+    _prPhotoKey="";const t=$("#pr_photoTag");if(t)t.textContent="";
+    e.target.reset();if($("#pr_date"))$("#pr_date").value=todayStr();fillPrAcct();save();renderPayreq();
+    alert("已送審。老闆／管理員核准後即可付款入帳。");});
+  if($("#pr_date")&&!$("#pr_date").value)try{$("#pr_date").value=todayStr();}catch(e){}
+})();
 /* ===== 零用金(定額撥補制) ===== */
 function pettyUnrep(){return (db.petty||[]).filter(p=>!p.rep);}
 function pettyBal(){const amt=+((db.pettyCfg&&db.pettyCfg.amount))||0;return amt-pettyUnrep().reduce((a,p)=>a+(+p.amount||0),0);}
@@ -1215,7 +1297,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},deleted:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],deleted:[]});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
@@ -1344,6 +1426,8 @@ const TBL={
  customers:{t:"customers",to:o=>({uni:o.uni||null,name:o.name||null,addr:o.addr||null,contact:o.contact||null,phone:o.phone||null,email:o.email||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,uni:r.uni||"",name:r.name||"",addr:r.addr||"",contact:r.contact||"",phone:r.phone||"",email:r.email||"",note:r.note||""})},
  projects:{t:"projects",to:o=>({name:o.name||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||""})},
+ payreq:{t:"pay_requests",to:o=>({date:o.date||null,applicant:o.applicant||null,payee:o.payee||null,amount:+o.amount||0,reason:o.reason||null,acct:o.acct||null,photo_key:o.photoKey||null,status:o.status||"pending",reject_reason:o.rejectReason||null,approved_by:o.approvedBy||null,pay_from:o.payFrom||null}),
+  from:r=>({id:r.legacy_id||r.id,date:r.date||"",applicant:r.applicant||"",payee:r.payee||"",amount:+r.amount||0,reason:r.reason||"",acct:r.acct||"",photoKey:r.photo_key||"",status:r.status||"pending",rejectReason:r.reject_reason||"",approvedBy:r.approved_by||"",payFrom:r.pay_from||"",dbid:r.id})},
  accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
  opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
 };
