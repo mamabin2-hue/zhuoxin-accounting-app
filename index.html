@@ -712,7 +712,7 @@ $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_ne
   if(editPid){const i=db.purchase.findIndex(x=>x.id===editPid);if(i>=0)db.purchase[i]=_obj;editPid=null;const b=$("#pSubmitBtn");if(b)b.textContent="＋ 新增並切傳票";}
   else{db.purchase.push(_obj);if(autoAddVendorOn()){const nm=_obj.name,u=_obj.uni;if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}}
   e.target.reset();$("#p_total").value="";if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
-$("#pSample").addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
+const _ps=$("#pSample");if(_ps)_ps.addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
 
 /* sale */
 $("#s_date").addEventListener("input",syncSale);$("#s_net").addEventListener("input",updateSaleAmt);
