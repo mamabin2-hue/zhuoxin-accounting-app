@@ -252,7 +252,7 @@
           <div class="frow" style="margin-top:10px;align-items:center">
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_ent">交際應酬</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_emp">員工福利</label>
-            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">自用小客車/油料修理</label>
+            <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_car">購買自用小客車（購車款）</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_nonbiz">非供本業使用</label>
             <label style="font-size:12.5px;color:var(--ink-2);display:flex;align-items:center;gap:6px"><input type="checkbox" id="p_personal">個人名義/公司成立前</label>
           </div>
@@ -264,7 +264,7 @@
           ② <b>非供本業及附屬業務</b>使用（私人用途、與營業無關）—§19 I②<br>
           ③ <b>交際應酬</b>用（餐敘、送禮、招待客戶）—§19 I③<br>
           ④ <b>酬勞員工個人</b>（員工福利、聚餐、禮品）—§19 I④<br>
-          ⑤ <b>自用乘人小客車</b>（9 座以下客車及其油料、修理）—§19 I⑤<br>
+          ⑤ <b>購買自用乘人小客車</b>（9 座以下，指「購車款」；業務用油料修理費仍可抵—財政部800453828號函）—§19 I⑤<br>
           ・專營免稅貨物勞務者，進項不得扣抵—§19 II<br>
           ・國外勞務逆向課稅，填 401 第 74 欄、專營應稅免繳—§36<br>
           <b>心法</b>：要抵稅＝台灣統一發票 ＋ 載卓信統編 ＋ 含 5% ＋ 供本業使用，缺一不可（§15、§33）。
@@ -535,7 +535,7 @@
           <div class="sec-h"><h2>💰 營業稅（加值型）3 分鐘懂</h2></div>
           <div class="lawcard"><b>基本公式</b>：應納稅額 ＝ 銷項稅額 − 進項稅額。<br>賣東西收的 5%（銷項）扣掉買東西付的 5%（進項），差額繳給國稅局。每 <b>2 個月一期</b>，單數月 15 日前申報。</div>
           <div class="lawstep">✅ <b>可以扣抵的進項（§33）</b>：台灣<b>統一發票</b> ＋ 載明<b>公司統編</b> ＋ 含 5% 稅額 ＋ <b>供本業使用</b>。四個條件缺一不可。</div>
-          <div class="lawno">🚫 <b>五大不可扣抵（§19）</b>：① 沒有合法發票 ② 非供本業使用 ③ <b>交際應酬</b>（請客送禮） ④ <b>酬勞員工</b>（聚餐福利） ⑤ <b>自用小客車</b>（9座以下含油料維修）。<br>→ 就算拿到三聯式發票也不能抵！但多數仍可列公司費用。</div>
+          <div class="lawno">🚫 <b>五大不可扣抵（§19）</b>：① 沒有合法發票 ② 非供本業使用 ③ <b>交際應酬</b>（請客送禮） ④ <b>酬勞員工</b>（聚餐福利） ⑤ <b>購買自用小客車</b>（9座以下的「購車款」；車子的油料修理費若供業務使用<b>可以抵</b>）。<br>→ 就算拿到三聯式發票也不能抵！但多數仍可列公司費用。</div>
           <div class="lawwarn">⚠️ <b>國外勞務（§36）</b>：Google、AWS、國外訂閱……美國開的 invoice <b>不能扣抵</b>，但要填 401「<b>第 74 欄</b>」給付額。專營應稅免實際繳納——<b>要報、不用繳錢，漏填算短漏報</b>。本系統自動幫你加總。</div>
           <div class="lawtip">💡 <b>發票作廢</b>：同期內、買方同意退回才能作廢；<b>已申報的期別不能作廢</b>，要改開折讓單。</div>
           <div class="lawno">🚫 <b>沒有收入也要申報！</b>整期 0 銷售一樣要報 401，不報會被罰。</div>
@@ -552,7 +552,7 @@
         <div class="lawpane" id="law-faq" style="display:none">
           <div class="sec-h"><h2>❓ 常見問題</h2></div>
           <p class="lawq">Q1：請客戶吃飯有開三聯式發票，可以抵營業稅嗎？</p><div class="lawno">不行（§19 交際應酬），但可列交際費（注意限額）。</div>
-          <p class="lawq">Q2：老闆自己的車加油可以抵嗎？</p><div class="lawno">9 座以下自用小客車的油料維修一律不可扣抵；貨車、營業用車可以。</div>
+          <p class="lawq">Q2：老闆自己的車加油可以抵嗎？</p><div class="lawstep">業務用途<b>可以抵</b>！不能抵的其實只有「<b>買車那台車本身</b>」（§19 I⑤，9 座以下乘人小客車購車款）；營運中的<b>油料費、修理費</b>只要是業務使用＋發票打公司統編，就可扣抵（財政部 80/11/30 台財稅第 800453828 號函）。員工或老闆<b>私車公用</b>也行：簽一份「私車公用協議」約定公司負擔油料維修，發票載公司統編即可。<b>但純私人用途</b>（家用、休假出遊）屬非供本業使用（§19 I②），不可抵。</div>
           <p class="lawq">Q3：買東西店家問「要不要打統編」？</p><div class="lawstep">公司要用的一律打統編！沒打統編就不能扣抵 5%，等於多付 5% 成本。</div>
           <p class="lawq">Q4：拜拜的金紙供品呢？</p><div class="lawwarn">不能扣抵營業稅，但可列「雜項費用」抵營所稅。</div>
           <p class="lawq">Q5：Claude／ChatGPT 這種國外訂閱怎麼報？</p><div class="lawtip">走 §36：401 第 74 欄填給付額（台幣扣款額），專營應稅免繳。本系統自動加總。</div>
@@ -2047,7 +2047,7 @@ function judgeDeductible(){
   if(nonbiz)return{r:"不可扣抵",c:"bad",m:"非供本業及附屬業務使用（§19 I②）：私人用途或與營業無關，不得扣抵。"};
   if(ent)return{r:"不可扣抵",c:"bad",m:"交際應酬用（營業稅法§19 I③）：即使有三聯式發票也不得扣抵，僅能列費用。"};
   if(emp)return{r:"不可扣抵",c:"bad",m:"酬勞員工個人（§19 I④）：不得扣抵。"};
-  if(car)return{r:"不可扣抵",c:"bad",m:"自用乘人小客車及其油料修理（§19 I⑤）：不得扣抵。"};
+  if(car)return{r:"不可扣抵",c:"bad",m:"購買自用乘人小客車之購車款（§19 I⑤）：不得扣抵。油料、修理費若供業務使用可扣抵（財政部800453828號函），請改勾其他選項。"};
   if(type.indexOf("國外invoice")>=0)return{r:"需自行報繳(§36)",c:"warn",m:"未在台登記國外勞務，依§36逆向課稅。卓信專供應稅→免實際繳納，但務必於401「第74欄」填列給付額（漏填屬短漏報）。"};
   if(type==="二聯式收銀機")return uni?{r:"可扣抵",c:"ok",m:"收銀機二聯式且收執聯載有統編，可彙總扣抵。"}:{r:"不可扣抵",c:"bad",m:"二聯式無統編、無扣抵聯，不得扣抵。"};
   if(type==="海關代徵")return{r:"可扣抵",c:"ok",m:"海關代徵營業稅繳納證扣抵聯可扣抵（供本業用）。"};
