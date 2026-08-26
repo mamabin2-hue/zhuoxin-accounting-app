@@ -1538,7 +1538,7 @@ async function idbDel(k){const d=await idb();return new Promise(res=>{const t=d.
 async function perm(h,write){const o={mode:write?"readwrite":"read"};if((await h.queryPermission(o))==="granted")return true;return (await h.requestPermission(o))==="granted";}
 async function enableAutoBackup(){
   if(!fsaOK()){alert("此瀏覽器不支援自動寫檔備份，建議用 Chrome 或 Edge 開啟。仍可用下方「下載備份」手動備份。");return;}
-  let h;try{h=await window.showSaveFilePicker({suggestedName:"卓信會計_備份.json",types:[{description:"JSON 備份",accept:{"application/json":[".json"]}}]});}
+  let h;try{h=await window.showSaveFilePicker({id:"zxbk",startIn:"documents",suggestedName:"卓信會計_備份.json",types:[{description:"JSON 備份",accept:{"application/json":[".json"]}}]});}
   catch(e){if(e&&e.name!=="AbortError")alert("啟用失敗："+(e.message||e));return;}
   bkHandle=h;bkNeedsGrant=false;try{await idbSet(IDB_KEY,h);}catch(_){}
   await writeBackup(true);refreshBackupUI();}
@@ -1555,7 +1555,12 @@ async function restoreBackupHandle(){if(!fsaOK()){refreshBackupUI();return;}
   let h;try{h=await idbGet(IDB_KEY);}catch(_){}
   if(!h){refreshBackupUI();return;}
   bkHandle=h;try{bkNeedsGrant=((await h.queryPermission({mode:"readwrite"}))!=="granted");}catch(_){bkNeedsGrant=true;}
-  refreshBackupUI();}
+  refreshBackupUI();
+  if(bkNeedsGrant){
+    const once=async()=>{document.removeEventListener("pointerdown",once,true);
+      try{if(await perm(bkHandle,true)){bkNeedsGrant=false;await writeBackup();refreshBackupUI();}}catch(_){}}
+    ;document.addEventListener("pointerdown",once,true);
+  }}
 function warnIfNoBackup(){
   if(dataScore(db)<=0)return;
   const age=backupAgeDays();
@@ -1579,8 +1584,8 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
   if(!bkHandle && age===null) h+=row("❌","③ 電腦備份檔 — 尚未啟用","<b>建議多留一份在自己電腦</b>：按右邊按鈕 → 跳出儲存視窗 → <b>先選資料夾、再按存檔</b>，設定一次就好，之後每次變更自動更新。 <button class=\"btn sm\" style=\"margin-top:6px\" onclick=\"enableAutoBackup()\">立即啟用電腦備份</button>","var(--danger)");
-  else if(age===null) h+=row("⚠️","③ 電腦備份檔 — 已設定但尚未寫入","請改一筆資料觸發，或點『重新啟用』授權","var(--warn)");
-  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","請點下方『重新啟用』重新授權，讓自動備份繼續","var(--warn)");
+  else if(age===null) h+=row("⚠️","③ 電腦備份檔 — 已設定但尚未寫入","若剛跳出權限詢問請按「允許」；或點『重新啟用』後改一筆資料觸發","var(--warn)");
+  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","多半是瀏覽器重開後權限被暫停：跳出詢問時按「允許」（勾「每次造訪時允許」最省事），或點『重新啟用』","var(--warn)");
   else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
   h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表您的帳本同時保存在「雲端資料庫＋60 個歷史版本＋您的電腦」三個地方，任何一處故障都不會遺失。</div>`;
   el.innerHTML=h;}
@@ -1589,7 +1594,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
   if(!fsaOK()){st.innerHTML="此瀏覽器不支援自動寫檔，請改用 Chrome / Edge；目前請用下方「下載備份」手動備份。";en.style.display="none";rg.style.display="none";di.style.display="none";return;}
   if(!bkHandle){st.textContent="未啟用";en.style.display="";rg.style.display="none";di.style.display="none";return;}
   en.style.display="none";di.style.display="";
-  if(bkNeedsGrant){st.innerHTML="已設定備份檔，重新開啟後需點一下「重新啟用」授權才會繼續自動寫入。";rg.style.display="";}
+  if(bkNeedsGrant){st.innerHTML="已設定備份檔。瀏覽器重開後會再問一次權限：點畫面任意處會跳出詢問，按「<b>允許</b>」即繼續（勾「每次造訪時允許」以後就不再問）。";rg.style.display="";}
   else{st.innerHTML=`✅ 已啟用 · 檔案 <b>${esc(bkHandle.name)}</b> · 上次備份 <span class="num">${lastTxt}</span>`;rg.style.display="none";}try{renderBackupHealth();}catch(e){}}
 
 /* ===== 雲端同步（Supabase）===== */
