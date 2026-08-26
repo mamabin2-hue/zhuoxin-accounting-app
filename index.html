@@ -198,7 +198,7 @@
       <button data-g="tax"><span class="ic">％</span>稅務申報</button>
       <button data-g="law"><span class="ic">§</span>法令知識</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
     <div class="foot">一般稅額計算 · 401 申報<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
@@ -294,6 +294,7 @@
           <div class="actions"><button class="btn sm" type="button" id="trkParse">解析並加入</button><span class="muted" id="trkMsg" style="font-size:12.5px"></span></div>
         </details>
 
+        <div id="incomeDue"></div>
         <div class="sec-h"><h2>新增銷項憑證（開立發票）</h2><span class="muted" id="s_trkHint"></span></div>
         <form class="form" id="sForm">
           <div class="frow">
@@ -355,6 +356,35 @@
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>日期</th><th>用途</th><th>科目</th><th class="r">金額</th><th>扣抵</th><th>狀態</th><th></th></tr></thead>
           <tbody id="pettyBody"></tbody></table></div></div>
+      </section>
+
+      <!-- RECUR 週期憑證 -->
+      <section class="view" id="v-recur">
+        <div class="sec-h"><h2>週期憑證</h2><span class="muted">合約期間每月自動：固定支出切傳票／固定收入提醒開票</span></div>
+        <form class="form" id="rcForm">
+          <div class="frow">
+            <div class="fld"><label>型態</label><select id="rc_kind" onchange="rcKindHint()"><option value="expense">固定支出（自動切傳票）</option><option value="income">固定收入（到期提醒開票）</option></select></div>
+            <div class="fld"><label>名稱</label><input id="rc_name" placeholder="例：辦公室房租、源穩月費" required></div>
+            <div class="fld"><label>對象（房東/客戶）</label><input id="rc_party" placeholder="例：王房東、源穩寵食"></div>
+            <div class="fld"><label>每月金額</label><input type="number" id="rc_amount" inputmode="numeric" step="1" required></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>每月幾號</label><select id="rc_day"></select></div>
+            <div class="fld"><label>合約起（含）</label><input type="month" id="rc_start" required></div>
+            <div class="fld"><label>合約迄（可空=持續）</label><input type="month" id="rc_end"></div>
+            <div class="fld"><label>專案（可略）</label><select id="rc_proj"></select></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld" id="rc_acctWrap"><label>費用科目</label><select id="rc_acct"></select></div>
+            <div class="fld" id="rc_creditWrap"><label>貸方（先掛帳選應付）</label><select id="rc_credit"></select></div>
+            <div class="fld" style="grid-column:span 2;align-self:end"><span id="rc_hint" style="font-size:12.5px;color:var(--ink-3)"></span></div>
+          </div>
+          <div class="actions"><button class="btn" type="submit">＋ 建立週期</button>
+            <button class="btn ghost sm" type="button" onclick="runRecurring(true)">🔄 立即執行到本月</button></div>
+        </form>
+        <div class="sec-h"><h2>週期清單</h2></div>
+        <div id="rcList"></div>
+        <div class="note" style="margin-top:12px"><b>💡 應付帳款的用法：</b>貸方選「應付帳款」＝傳票先成立、錢還沒付（提醒你去銀行預約轉帳）；實際付款日再到手動分錄用範本「支付應付帳款」沖銷（借 應付帳款／貸 銀行存款）。<br><b>⚠️ 避免重複：</b>會收到「統一發票」的固定支出（如電信費），建議選「固定收入/支出提醒」型或直接等發票進進項，不要同時自動切傳票又登發票。</div>
       </section>
 
       <!-- PAYREQ 請款單 -->
@@ -741,9 +771,9 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
 const NAVGROUPS=[
-  {g:"book",items:["dash","purchase","sale","petty","payreq","journal"]},
+  {g:"book",items:["dash","purchase","sale","petty","payreq","recur","journal"]},
   {g:"report",items:["voucher","ledger","fund","assets","balance","pl","bs"]},
   {g:"tax",items:["tax","export"]},
   {g:"law",items:["law"]},
@@ -861,7 +891,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -998,6 +1028,76 @@ function voidSale(id){
   alert("已標記作廢：發票號碼保留、不列入銷售額/401。\n\n下一步：銷項頁『⬆ 匯出作廢上傳檔』產生 CAN 檔，上傳財政部完成存證作廢。");
 }
 
+/* ===== 週期憑證(固定支出自動切傳票/固定收入提醒開票) ===== */
+function rcKindHint(){const k=($("#rc_kind")||{}).value||"expense";const h=$("#rc_hint"),aw=$("#rc_acctWrap"),cw=$("#rc_creditWrap");
+  if(k==="expense"){if(aw)aw.style.display="";if(cw)cw.style.display="";if(h)h.textContent="每月自動產生分錄：借 費用科目／貸 下方貸方科目。";}
+  else{if(aw)aw.style.display="none";if(cw)cw.style.display="none";if(h)h.textContent="到期時在總覽與銷項頁提醒你開發票（不自動記帳，避免與發票重複）。";}}
+function fillRcSelects(){
+  const d=$("#rc_day");if(d&&!d.options.length){d.innerHTML=Array.from({length:28},(_,i)=>`<option${i===0?" selected":""}>${i+1}</option>`).join("");}
+  const a=$("#rc_acct");if(a){const cur=a.value;a.innerHTML=(accountsByCat("費用")||[]).map(x=>`<option>${esc(x)}</option>`).join("");if(cur)a.value=cur;}
+  const c=$("#rc_credit");if(c){const cur=c.value;const banks=(typeof bankNames==="function")?bankNames():[];const opts=["應付帳款",...banks,"銀行存款","現金","股東往來"].filter((v,i,x)=>x.indexOf(v)===i);c.innerHTML=opts.map(x=>`<option>${esc(x)}</option>`).join("");if(cur&&opts.includes(cur))c.value=cur;}
+  if(typeof fillProjSel==="function")fillProjSel($("#rc_proj"));
+  rcKindHint();}
+function rcActiveIn(r,ym){if(r.startYm&&ym<r.startYm)return false;if(r.endYm&&ym>r.endYm)return false;return true;}
+function runRecurring(manual){
+  if(typeof myRole!=="undefined"&&myRole==="viewer")return 0;
+  const now=ymNow();const today=+todayStr().slice(8,10);
+  let made=0;
+  (db.recurs||[]).forEach(r=>{
+    if(r.kind!=="expense")return;
+    let cur=r.lastRun?ymAdd(r.lastRun,1):(r.startYm||now);
+    let guard=0;
+    while(cur<=now&&guard<240){
+      guard++;
+      if(!rcActiveIn(r,cur)){if(r.endYm&&cur>r.endYm)break;cur=ymAdd(cur,1);continue;}
+      if(cur===now&&today<(+r.day||1))break;   // 本月未到日
+      const dd=cur+"-"+String(Math.min(28,+r.day||1)).padStart(2,"0");
+      if(!Array.isArray(db.journal))db.journal=[];
+      db.journal.push({id:uid(),date:dd,memo:(r.name||"週期費用")+"("+cur+")"+(r.party?("·"+r.party):""),lines:[{acct:r.acct||"雜項費用",debit:+r.amount||0,credit:0},{acct:r.creditAcct||"應付帳款",debit:0,credit:+r.amount||0}],proj:r.proj||""});
+      made++;r.lastRun=cur;cur=ymAdd(cur,1);
+    }
+  });
+  if(made){save();renderRecur();}
+  if(manual)alert(made?("✅ 已產生 "+made+" 筆週期分錄（見傳票／手動分錄）。"):"目前沒有需要產生的月份。");
+  return made;
+}
+function incomeDueList(){
+  const now=ymNow();const today=+todayStr().slice(8,10);
+  return (db.recurs||[]).filter(r=>r.kind==="income"&&rcActiveIn(r,now)&&(r.lastRun||"")<now&&today>=(+r.day||1));
+}
+function markIncomeDone(id){const r=(db.recurs||[]).find(x=>x.id===id);if(!r)return;r.lastRun=ymNow();save();renderRecur();renderIncomeDue();}
+function renderIncomeDue(){
+  const el=$("#incomeDue");if(!el)return;
+  const list=incomeDueList();
+  el.innerHTML=list.length?('<div class="note" style="margin-bottom:12px;border-left:5px solid #e9a23b"><b>🔔 本月應開發票提醒：</b>'+
+    list.map(r=>`<div style="margin-top:6px">${esc(r.name)}（${esc(r.party||"")}）<b class="num"> ${fmt(r.amount)}</b>　<button class="btn sm" onclick="rcFillSale('${r.id}')">帶入開票</button> <button class="btn ghost sm" onclick="markIncomeDone('${r.id}')">本月已開</button></div>`).join("")+'</div>'):"";}
+function rcFillSale(id){
+  const r=(db.recurs||[]).find(x=>x.id===id);if(!r)return;
+  goView("sale");
+  setTimeout(()=>{
+    const cust=(db.customers||[]).find(c=>c.name===r.party);
+    if(cust){$("#s_uni").value=cust.uni||"";$("#s_name").value=cust.name;}else if(r.party){$("#s_name").value=r.party;}
+    $("#s_item").value=r.name||"";if($("#s_taxmode"))$("#s_taxmode").value="含稅";$("#s_net").value=r.amount;
+    if(typeof updateSaleAmt==="function")updateSaleAmt();
+    alert("已帶入開票內容，確認後按「＋ 開立並切傳票」，開完回週期憑證按「本月已開」。");
+  },150);}
+function renderRecur(){
+  const el=$("#rcList");if(!el)return;
+  const rows=db.recurs||[];
+  el.innerHTML=rows.length?('<div class="twrap"><div class="tscroll"><table><thead><tr><th>名稱</th><th>型態</th><th class="r">金額/月</th><th>每月</th><th>合約期間</th><th>已跑至</th><th></th></tr></thead><tbody>'+
+    rows.map(r=>`<tr><td>${esc(r.name)}${r.party?('<br><span style="color:var(--ink-3);font-size:11px">'+esc(r.party)+'</span>'):""}</td><td>${r.kind==="expense"?'<span class="tag">支出·自動傳票</span>':'<span class="tag" style="background:#3b76d6;color:#fff">收入·提醒開票</span>'}</td><td class="r num">${fmt(r.amount)}</td><td class="num">${r.day}號</td><td class="num" style="font-size:12px">${esc(r.startYm||"")} ~ ${esc(r.endYm||"持續")}</td><td class="num">${esc(r.lastRun||"—")}</td><td class="r"><button class="del" onclick="delRecur('${r.id}')">✕</button></td></tr>`).join("")+
+    '</tbody></table></div></div>'):'<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無週期項目。房租、月費等固定收支在上方建立一次即可。</div>';}
+function delRecur(id){if(!confirm("刪除此週期項目？（已產生的分錄不會刪除）"))return;db.recurs=(db.recurs||[]).filter(x=>x.id!==id);save();renderRecur();}
+(function(){
+  const f=$("#rcForm");if(f)f.addEventListener("submit",e=>{e.preventDefault();
+    if(!Array.isArray(db.recurs))db.recurs=[];
+    const amt=Math.round(+$("#rc_amount").value||0);if(!amt){alert("金額必填。");return;}
+    if(!$("#rc_start").value){alert("請選合約起月。");return;}
+    db.recurs.push({id:uid(),kind:$("#rc_kind").value,name:$("#rc_name").value.trim(),party:$("#rc_party").value.trim(),amount:amt,day:+$("#rc_day").value||1,startYm:$("#rc_start").value,endYm:$("#rc_end").value||"",acct:$("#rc_acct").value||"雜項費用",creditAcct:$("#rc_credit").value||"應付帳款",proj:($("#rc_proj")||{}).value||"",lastRun:""});
+    e.target.reset();fillRcSelects();save();renderRecur();
+    const n=runRecurring(false);
+    alert("✅ 已建立。"+(n?("已自動補產生 "+n+" 個月的分錄。"):($("#rc_kind").value==="income"?"到期會在總覽/銷項提醒你開發票。":"到期日會自動切傳票。")));});
+})();
 /* ===== 固定資產與自動折舊(直線法,取得次月起按月提列) ===== */
 function asMonthly(a){const m=Math.max(1,(+a.years||5)*12);return Math.round(((+a.cost||0)-(+a.salvage||0))/m);}
 function ymAdd(ym,n){let y=+ym.slice(0,4),m=+ym.slice(5,7)+n;while(m>12){m-=12;y++;}while(m<1){m+=12;y--;}return y+"-"+String(m).padStart(2,"0");}
@@ -1235,6 +1335,7 @@ const PRESETS=[
   {name:"提領現金",memo:"提領現金",lines:[{acct:"現金"},{acct:"銀行存款"}]},
   {name:"現金存入銀行",memo:"存入銀行",lines:[{acct:"銀行存款"},{acct:"現金"}]},
   {name:"銀行手續費",memo:"手續費",lines:[{acct:"手續費支出"},{acct:"銀行存款"}]},
+  {name:"支付應付帳款（沖銷）",memo:"付款",lines:[{acct:"應付帳款"},{acct:"銀行存款"}]},
   {name:"業主／股東投入",memo:"股東投入",lines:[{acct:"銀行存款"},{acct:"業主往來"}]},
   {name:"業主／股東提取",memo:"股東提取",lines:[{acct:"業主往來"},{acct:"銀行存款"}]},
   {name:"房租支出",memo:"租金",lines:[{acct:"租金支出"},{acct:"銀行存款"}]},
@@ -1461,7 +1562,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],deleted:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],recurs:[],deleted:[]});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
@@ -1590,6 +1691,8 @@ const TBL={
  customers:{t:"customers",to:o=>({uni:o.uni||null,name:o.name||null,addr:o.addr||null,contact:o.contact||null,phone:o.phone||null,email:o.email||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,uni:r.uni||"",name:r.name||"",addr:r.addr||"",contact:r.contact||"",phone:r.phone||"",email:r.email||"",note:r.note||""})},
  projects:{t:"projects",to:o=>({name:o.name||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||""})},
+ recurs:{t:"recurs",to:o=>({kind:o.kind||"expense",name:o.name||null,party:o.party||null,amount:+o.amount||0,day_of_month:+o.day||1,start_ym:o.startYm||null,end_ym:o.endYm||null,acct:o.acct||null,credit_acct:o.creditAcct||null,proj:o.proj||null,note:o.note||null,last_run:o.lastRun||null}),
+  from:r=>({id:r.legacy_id||r.id,kind:r.kind||"expense",name:r.name||"",party:r.party||"",amount:+r.amount||0,day:+r.day_of_month||1,startYm:r.start_ym||"",endYm:r.end_ym||"",acct:r.acct||"",creditAcct:r.credit_acct||"",proj:r.proj||"",note:r.note||"",lastRun:r.last_run||""})},
  assets:{t:"assets",to:o=>({name:o.name||null,date:o.date||null,cost:+o.cost||0,salvage:+o.salvage||0,years:+o.years||5,acct:o.acct||null,dep_acct:o.depAcct||"折舊費用",last_dep:o.lastDep||null}),
   from:r=>({id:r.legacy_id||r.id,name:r.name||"",date:r.date||"",cost:+r.cost||0,salvage:+r.salvage||0,years:+r.years||5,acct:r.acct||"",depAcct:r.dep_acct||"折舊費用",lastDep:r.last_dep||""})},
  payreq:{t:"pay_requests",to:o=>({date:o.date||null,applicant:o.applicant||null,payee:o.payee||null,amount:+o.amount||0,reason:o.reason||null,acct:o.acct||null,photo_key:o.photoKey||null,status:o.status||"pending",reject_reason:o.rejectReason||null,approved_by:o.approvedBy||null,pay_from:o.payFrom||null}),
@@ -1686,6 +1789,7 @@ async function dailyAutoBackup(){
     if(localStorage.getItem(key)===todayStr())return;
     if(dataScore(db)<=0)return;
     try{runDepreciation(false);}catch(e){}
+    try{runRecurring(false);renderIncomeDue();}catch(e){}
     lastSnapTs=0;
     await snapshotPush();
     try{if(typeof writeBackup==="function")await writeBackup();}catch(e){}
