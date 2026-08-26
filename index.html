@@ -196,8 +196,9 @@
       <button data-g="book" class="on"><span class="ic">✎</span>記帳作業<span id="inboxBadgeG" style="display:none;margin-left:6px;background:var(--danger,#e5484d);color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700"></span></button>
       <button data-g="report"><span class="ic">▤</span>帳簿報表</button>
       <button data-g="tax"><span class="ic">％</span>稅務申報</button>
+      <button data-g="law"><span class="ic">§</span>法令知識</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button></div>
     </nav>
     <div class="foot">一般稅額計算 · 401 申報<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
@@ -418,7 +419,9 @@
           <div class="actions"><button class="btn ghost sm" type="button" id="jAddLine">＋ 加一列</button>
             <span class="sp" style="margin-left:auto"></span>
             <span class="num" id="jBal" style="font-size:13px"></span>
-            <button class="btn" type="submit" id="jSubmitBtn">＋ 新增分錄</button></div>
+            <button class="btn" type="submit" id="jSubmitBtn">＋ 新增分錄</button>
+            <button class="btn ghost sm" type="button" onclick="saveJTpl()">⭐ 存成範本</button>
+            <button class="btn ghost sm" type="button" onclick="manageJTpl()">範本管理</button></div>
         </form>
         <div class="sec-h"><h2>手動分錄明細</h2></div>
         <div id="jList"></div>
@@ -429,6 +432,28 @@
         <div class="sec-h"><h2>資金（銀行／現金簿）</h2><span class="muted">期初餘額 ＋ 每筆存入／支出 ＋ 累計餘額，供對帳</span></div>
         <div class="note" style="margin-bottom:14px">銀行／現金的<b>期初餘額</b>請到「資產負債表」頁最下方的<b>期初餘額設定</b>輸入（資產類用「借」）。這裡會自動帶入並逐筆累計。</div>
         <div id="fundWrap"></div>
+      </section>
+
+      <!-- ASSETS 固定資產 -->
+      <section class="view" id="v-assets">
+        <div class="sec-h"><h2>固定資產與折舊</h2><span class="muted">登記一次，之後每月自動提列折舊（直線法）</span></div>
+        <form class="form" id="asForm">
+          <div class="frow">
+            <div class="fld"><label>資產名稱</label><input id="as_name" placeholder="例：公務車、筆電" required></div>
+            <div class="fld"><label>取得日期</label><input type="date" id="as_date" required></div>
+            <div class="fld"><label>取得成本（含稅入帳額）</label><input type="number" id="as_cost" inputmode="numeric" step="1" required></div>
+            <div class="fld"><label>殘值（可0）</label><input type="number" id="as_salvage" inputmode="numeric" step="1" value="0"></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>耐用年限（年）</label><select id="as_years"><option>3</option><option selected>5</option><option>8</option><option>10</option></select></div>
+            <div class="fld"><label>資產科目</label><select id="as_acct"></select></div>
+            <div class="fld"><label>每月折舊（自動）</label><input id="as_monthly" readonly></div>
+            <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn sm" type="submit">＋ 登記資產</button></div>
+          </div>
+          <p class="muted" style="color:var(--ink-3);font-size:12px;margin:8px 0 0">系統從取得<b>次月</b>起，每月自動產生「借 折舊費用／貸 累計折舊」分錄（在傳票/手動分錄可見）。常見年限：電腦3年、車輛5年、辦公設備5年、裝潢/機器8-10年。</p>
+        </form>
+        <div class="sec-h"><h2>資產清單</h2><span class="sp"></span><button class="btn ghost sm" onclick="runDepreciation(true)">🔄 立即提列到本月</button></div>
+        <div id="asList"></div>
       </section>
 
       <!-- PL -->
@@ -461,12 +486,66 @@
         <div id="obListWrap" style="margin-top:12px"></div>
       </section>
 
+      <!-- LAW 法令知識 -->
+      <section class="view" id="v-law">
+        <div class="settabs" style="margin-bottom:14px">
+          <button class="stab on" data-lp="vat" onclick="lawTab(this)">💰 營業稅重點</button>
+          <button class="stab" data-lp="it" onclick="lawTab(this)">🏢 營所稅重點</button>
+          <button class="stab" data-lp="faq" onclick="lawTab(this)">❓ 常見問題</button>
+          <button class="stab" data-lp="sop" onclick="lawTab(this)">📋 申報SOP</button>
+        </div>
+        <style>.lawstep{background:#e8f5ee;border-left:5px solid var(--good,#1f7a5c);border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawwarn{background:#fdf3d7;border-left:5px solid #e9a23b;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawno{background:#fdeaea;border-left:5px solid #d64545;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawtip{background:#e8f0fb;border-left:5px solid #3b76d6;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin:10px 0}.lawq{font-weight:800;color:var(--accent-ink);margin-top:14px}</style>
+        <div class="lawpane" id="law-vat">
+          <div class="sec-h"><h2>💰 營業稅（加值型）3 分鐘懂</h2></div>
+          <div class="lawcard"><b>基本公式</b>：應納稅額 ＝ 銷項稅額 − 進項稅額。<br>賣東西收的 5%（銷項）扣掉買東西付的 5%（進項），差額繳給國稅局。每 <b>2 個月一期</b>，單數月 15 日前申報。</div>
+          <div class="lawstep">✅ <b>可以扣抵的進項（§33）</b>：台灣<b>統一發票</b> ＋ 載明<b>公司統編</b> ＋ 含 5% 稅額 ＋ <b>供本業使用</b>。四個條件缺一不可。</div>
+          <div class="lawno">🚫 <b>五大不可扣抵（§19）</b>：① 沒有合法發票 ② 非供本業使用 ③ <b>交際應酬</b>（請客送禮） ④ <b>酬勞員工</b>（聚餐福利） ⑤ <b>自用小客車</b>（9座以下含油料維修）。<br>→ 就算拿到三聯式發票也不能抵！但多數仍可列公司費用。</div>
+          <div class="lawwarn">⚠️ <b>國外勞務（§36）</b>：Google、AWS、國外訂閱……美國開的 invoice <b>不能扣抵</b>，但要填 401「<b>第 74 欄</b>」給付額。專營應稅免實際繳納——<b>要報、不用繳錢，漏填算短漏報</b>。本系統自動幫你加總。</div>
+          <div class="lawtip">💡 <b>發票作廢</b>：同期內、買方同意退回才能作廢；<b>已申報的期別不能作廢</b>，要改開折讓單。</div>
+          <div class="lawno">🚫 <b>沒有收入也要申報！</b>整期 0 銷售一樣要報 401，不報會被罰。</div>
+        </div>
+        <div class="lawpane" id="law-it" style="display:none">
+          <div class="sec-h"><h2>🏢 營所稅（公司所得稅）重點</h2></div>
+          <div class="lawcard"><b>是什麼</b>：公司一整年的「利潤」要繳的稅，稅率 <b>20%</b>（課稅所得 12 萬以下免徵）。每年 <b>5 月</b>結算申報去年度、<b>9 月</b>暫繳。</div>
+          <div class="lawstep">✅ <b>費用要能認列</b>：憑證抬頭要是<b>公司</b>（統編 or 公司名），跟營業有關、金額合理。收據沒統編仍可列帳，但查核時證明力較弱。</div>
+          <div class="lawwarn">⚠️ <b>有限額的費用</b>：交際費（依收入級距有上限）、捐贈、職工福利。超限部分會被剔除補稅。</div>
+          <div class="lawno">🚫 <b>常見被剔除</b>：公司成立前的個人支出、與營業無關的私人消費、白單（無憑證）大額支出。</div>
+          <div class="lawtip">💡 <b>固定資產不能一次列費用</b>：8 萬元以上、耐用超過 2 年的設備要分年折舊（本系統「固定資產」頁登記一次即自動攤提）。8 萬以下可一次列費用。</div>
+          <div class="lawtip">💡 <b>虧損也要報</b>：依法申報且帳證齊全者，虧損可在未來 10 年內盈虧互抵。</div>
+        </div>
+        <div class="lawpane" id="law-faq" style="display:none">
+          <div class="sec-h"><h2>❓ 常見問題</h2></div>
+          <p class="lawq">Q1：請客戶吃飯有開三聯式發票，可以抵營業稅嗎？</p><div class="lawno">不行（§19 交際應酬），但可列交際費（注意限額）。</div>
+          <p class="lawq">Q2：老闆自己的車加油可以抵嗎？</p><div class="lawno">9 座以下自用小客車的油料維修一律不可扣抵；貨車、營業用車可以。</div>
+          <p class="lawq">Q3：買東西店家問「要不要打統編」？</p><div class="lawstep">公司要用的一律打統編！沒打統編就不能扣抵 5%，等於多付 5% 成本。</div>
+          <p class="lawq">Q4：拜拜的金紙供品呢？</p><div class="lawwarn">不能扣抵營業稅，但可列「雜項費用」抵營所稅。</div>
+          <p class="lawq">Q5：Claude／ChatGPT 這種國外訂閱怎麼報？</p><div class="lawtip">走 §36：401 第 74 欄填給付額（台幣扣款額），專營應稅免繳。本系統自動加總。</div>
+          <p class="lawq">Q6：發票開錯了怎麼辦？</p><div class="lawwarn">同期＋買方同意退回 → 作廢重開；已申報的期 → 開折讓單。系統銷項頁有 ⊘ 作廢與匯出。</div>
+          <p class="lawq">Q7：員工聚餐、三節禮品可以抵嗎？</p><div class="lawno">不可扣抵（酬勞員工），列「職工福利」費用（有限額）。</div>
+          <p class="lawq">Q8：這期完全沒生意，可以不報嗎？</p><div class="lawno">不行！0 申報也要報，不報會被罰。</div>
+          <p class="lawq">Q9：收據沒有統編可以列費用嗎？</p><div class="lawwarn">可以列帳（抵營所稅），但不能扣抵營業稅；大額盡量索取統編發票。</div>
+          <p class="lawq">Q10：負責人先用自己的錢墊怎麼記？</p><div class="lawstep">付款方式選「股東往來（負責人代墊）」；日後公司還款再記「借 股東往來／貸 銀行存款」。</div>
+        </div>
+        <div class="lawpane" id="law-sop" style="display:none">
+          <div class="sec-h"><h2>📋 每期 401 申報 SOP（照做就對）</h2></div>
+          <div class="lawstep"><b>Step 1（平時）</b>：發票隨到隨記——掃 QR／拍照／Gmail 自動歸集，「📥 待匯入」逐筆確認。</div>
+          <div class="lawstep"><b>Step 2（單數月月初）</b>：打開「稅務申報 → 401 試算」選上一期，核對：銷項、進項可扣抵、<b>74 欄國外勞務</b>。</div>
+          <div class="lawstep"><b>Step 3</b>：「匯出／備份」下載該期進、銷項 CSV 留存備查。</div>
+          <div class="lawstep"><b>Step 4</b>：登入財政部「營業稅網路申報系統」（免費），照試算數字填入申報、繳稅（或留抵）。</div>
+          <div class="lawstep"><b>Step 5</b>：申報完成把繳款書／申報書收執聯拍照，拍進系統存檔。</div>
+          <div class="lawwarn">⚠️ 期限：單數月 <b>15 日前</b>（1/3/5/7/9/11 月）。晚報會被加徵滯報金。</div>
+          <div class="lawtip">💡 提醒：溢付稅額（進項>銷項）預設「留抵次期」，本系統會自動帶到下期的 C 欄。</div>
+        </div>
+      </section>
+
       <!-- TAX -->
       <section class="view" id="v-tax">
         <div class="sec-h"><h2>401 營業稅試算</h2><span class="muted">一般稅額計算 · 每二月一期</span><span class="sp"></span>
           <label style="font-size:13px;color:var(--ink-2)">期別 <select id="taxPeriodSel" style="padding:6px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg);color:var(--ink)" onchange="taxPeriod=this.value;renderTax();"></select></label></div>
         <div class="grid" style="grid-template-columns:1.3fr .9fr;gap:16px" id="taxWrap"></div>
-        <div class="sec-h" style="margin-top:20px"><h2>歷期進銷彙總</h2><span class="muted">各期申報數一覽</span></div>
+        <div class="sec-h" style="margin-top:20px"><h2>歷期進銷彙總</h2><span class="muted">各期申報數一覽</span><span class="sp"></span>
+          <label style="font-size:12px;color:var(--ink-2)">起 <input type="month" id="ph_from" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px" onchange="renderTax()"></label>
+          <label style="font-size:12px;color:var(--ink-2)">迄 <input type="month" id="ph_to" style="padding:4px 6px;border:1px solid var(--border-strong);border-radius:6px;background:var(--bg);color:var(--ink);font-size:12px" onchange="renderTax()"></label></div>
         <div class="twrap"><div class="tscroll"><table><thead><tr><th>期別</th><th class="r">銷項銷售額</th><th class="r">銷項稅額</th><th class="r">進項可扣抵</th><th class="r">進項稅額</th><th class="r">國外勞務(74欄)</th><th class="r">應納(溢付)</th></tr></thead><tbody id="periodBody"></tbody></table></div></div>
         <div class="note" style="margin-top:16px"><b>免費申報路徑：</b>此金額可直接用財政部「營業稅網路申報系統」（免費）申報，或於<b>電子發票整合服務平台</b>核對。進項／銷項用「匯出」頁 CSV 對帳後上傳／鍵入，全程<b>不需付費</b>。</div>
       </section>
@@ -662,11 +741,12 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識"};
 const NAVGROUPS=[
   {g:"book",items:["dash","purchase","sale","petty","payreq","journal"]},
-  {g:"report",items:["voucher","ledger","fund","balance","pl","bs"]},
+  {g:"report",items:["voucher","ledger","fund","assets","balance","pl","bs"]},
   {g:"tax",items:["tax","export"]},
+  {g:"law",items:["law"]},
   {g:"setup",items:["settings","users","ops"]}];
 function groupOf(v){const g=NAVGROUPS.find(x=>x.items.indexOf(v)>=0);return g?g.g:"book";}
 function visibleItems(g){const grp=NAVGROUPS.find(x=>x.g===g);if(!grp)return [];
@@ -684,6 +764,7 @@ function renderSubtabs(g,cur){const el=$("#subtabs");if(!el)return;
     const badge=(v==="purchase")?'<span id="inboxBadge" style="display:none;margin-left:5px;background:var(--danger,#e5484d);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700"></span>':"";
     return '<button class="stab'+(v===cur?" on":"")+'" data-v="'+v+'">'+(TITLES[v]||v)+badge+'</button>';}).join("");
   try{updateInboxBadge();}catch(e){}}
+function lawTab(b){document.querySelectorAll('#v-law .stab').forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll('#v-law .lawpane').forEach(p2=>p2.style.display=(p2.id==="law-"+b.dataset.lp)?"":"none");}
 function goView(v){
   const g=groupOf(v);
   document.querySelectorAll("#nav button[data-g]").forEach(function(x){x.classList.toggle("on",x.dataset.g===g);});
@@ -780,7 +861,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
   renderJournalList();renderFund();renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);if(t)$("#topTrack").textContent=t.code;syncSale();}
 
@@ -849,7 +930,17 @@ function renderBalance(){const rows=balanceRows();const b=$("#balBody");
 
 function renderTax(){
   const sel=$("#taxPeriodSel");if(sel){const ps=allPeriods();const cur=taxPeriod||curPeriod();sel.innerHTML=ps.map(p=>`<option value="${p}"${p===cur?" selected":""}>${p}</option>`).join("");if(!taxPeriod)taxPeriod=cur;}
-  const pb=$("#periodBody");if(pb){pb.innerHTML=allPeriods().map(p=>{const t=totals(p);const owe=t.salesTax-t.inTaxDed;return `<tr${p===(taxPeriod||curPeriod())?' style="background:var(--surface)"':''}><td class="num">${p}</td><td class="r num">${fmt(t.salesNet)}</td><td class="r num">${fmt(t.salesTax)}</td><td class="r num">${fmt(db.purchase.filter(x=>inPeriod(x.date,p)&&x.ded).reduce((a,x)=>a+x.net,0))}</td><td class="r num">${fmt(t.inTaxDed)}</td><td class="r num">${fmt(t.s36)}</td><td class="r num" style="color:${owe>=0?'var(--warn)':'var(--good)'}">${fmt(Math.abs(owe))}${owe>=0?'':'(溢)'}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">尚無資料</td></tr>';}
+  const pb=$("#periodBody");if(pb){
+    const pf=($("#ph_from")||{}).value||"",pt=($("#ph_to")||{}).value||"";
+    const pNum=p=>{const y=+p.slice(0,3)+1911,m1=+p.slice(4,6);return y*100+m1;};
+    const mNum=v=>{if(!v)return null;return (+v.slice(0,4))*100+(+v.slice(5,7));};
+    const fN=mNum(pf),tN=mNum(pt);
+    let list=allPeriods().filter(p=>{const n=pNum(p),n2=n-(n%100)+(+String(n).slice(-2))+1;const lo=n,hi=n+1;return (!fN||hi>=fN)&&(!tN||lo<=tN);});
+    let agg={sn:0,st:0,dn:0,dt:0,s36:0,owe:0};
+    pb.innerHTML=list.map(p=>{const t=totals(p);const owe=t.salesTax-t.inTaxDed;return `<tr${p===(taxPeriod||curPeriod())?' style="background:var(--surface)"':''}><td class="num">${p}</td><td class="r num">${fmt(t.salesNet)}</td><td class="r num">${fmt(t.salesTax)}</td><td class="r num">${fmt(db.purchase.filter(x=>inPeriod(x.date,p)&&x.ded).reduce((a,x)=>a+x.net,0))}</td><td class="r num">${fmt(t.inTaxDed)}</td><td class="r num">${fmt(t.s36)}</td><td class="r num" style="color:${owe>=0?'var(--warn)':'var(--good)'}">${fmt(Math.abs(owe))}${owe>=0?'':'(溢)'}</td></tr>`;}).join("")||'<tr><td colspan="7" class="empty">此區間無資料</td></tr>';
+    if(list.length>1){list.forEach(p=>{const t2=totals(p);agg.sn+=t2.salesNet;agg.st+=t2.salesTax;agg.dn+=db.purchase.filter(x=>inPeriod(x.date,p)&&x.ded).reduce((a,x)=>a+x.net,0);agg.dt+=t2.inTaxDed;agg.s36+=t2.s36;agg.owe+=(t2.salesTax-t2.inTaxDed);});
+      pb.innerHTML+=`<tr style="font-weight:800;border-top:2px solid var(--border-strong)"><td>合計 ${list.length} 期</td><td class="r num">${fmt(agg.sn)}</td><td class="r num">${fmt(agg.st)}</td><td class="r num">${fmt(agg.dn)}</td><td class="r num">${fmt(agg.dt)}</td><td class="r num">${fmt(agg.s36)}</td><td class="r num">${fmt(Math.abs(agg.owe))}${agg.owe>=0?"":"(溢)"}</td></tr>`;}
+  }
   const t=totals(taxPeriod||curPeriod());const owe=t.payable>=0;
   $("#taxWrap").innerHTML=`
     <div class="card"><table style="font-size:14px"><tbody>
@@ -907,6 +998,64 @@ function voidSale(id){
   alert("已標記作廢：發票號碼保留、不列入銷售額/401。\n\n下一步：銷項頁『⬆ 匯出作廢上傳檔』產生 CAN 檔，上傳財政部完成存證作廢。");
 }
 
+/* ===== 固定資產與自動折舊(直線法,取得次月起按月提列) ===== */
+function asMonthly(a){const m=Math.max(1,(+a.years||5)*12);return Math.round(((+a.cost||0)-(+a.salvage||0))/m);}
+function ymAdd(ym,n){let y=+ym.slice(0,4),m=+ym.slice(5,7)+n;while(m>12){m-=12;y++;}while(m<1){m+=12;y--;}return y+"-"+String(m).padStart(2,"0");}
+function ymNow(){const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0");}
+function runDepreciation(manual){
+  if(typeof myRole!=="undefined"&&myRole==="viewer")return;
+  let made=0;
+  (db.assets||[]).forEach(a=>{
+    if(!a.date||!(+a.cost))return;
+    const startYm=ymAdd(a.date.slice(0,7),1);           // 次月起
+    const months=Math.max(1,(+a.years||5)*12);
+    const endYm=ymAdd(startYm,months-1);
+    const now=ymNow();
+    let cur=a.lastDep?ymAdd(a.lastDep,1):startYm;
+    let guard=0;
+    while(cur<=now&&cur<=endYm&&guard<600){
+      guard++;
+      const idx=(function(){let y0=+startYm.slice(0,4),m0=+startYm.slice(5,7),y1=+cur.slice(0,4),m1=+cur.slice(5,7);return (y1-y0)*12+(m1-m0);})();
+      let amt=asMonthly(a);
+      if(idx===months-1){const dep=(+a.cost||0)-(+a.salvage||0);amt=dep-asMonthly(a)*(months-1);}   // 末期補尾差
+      if(amt>0){
+        if(!Array.isArray(db.journal))db.journal=[];
+        db.journal.push({id:uid(),date:cur+"-28",memo:"折舊-"+(a.name||"資產")+"("+cur+")",lines:[{acct:a.depAcct||"折舊費用",debit:amt,credit:0},{acct:"累計折舊",debit:0,credit:amt}],proj:""});
+        made++;
+      }
+      a.lastDep=cur;cur=ymAdd(cur,1);
+    }
+  });
+  if(made){save();renderAssets();}
+  if(manual)alert(made?("✅ 已提列 "+made+" 筆折舊分錄（見傳票／手動分錄）。"):"目前沒有需要提列的月份。");
+  return made;
+}
+function fillAsAcct(){const s2=$("#as_acct");if(!s2)return;const cur=s2.value;const list=accountsByCat("資產")||[];s2.innerHTML=[...list].filter(a=>a!=="累計折舊").map(a=>`<option${/設備|運輸/.test(a)?"":""}>${esc(a)}</option>`).join("");if(cur)s2.value=cur;else s2.value="生財設備";}
+function asDepTotal(a){const startYm=a.date?ymAdd(a.date.slice(0,7),1):null;if(!startYm||!a.lastDep)return 0;
+  let y0=+startYm.slice(0,4),m0=+startYm.slice(5,7),y1=+a.lastDep.slice(0,4),m1=+a.lastDep.slice(5,7);
+  const n=Math.max(0,(y1-y0)*12+(m1-m0)+1);const months=Math.max(1,(+a.years||5)*12);
+  if(n>=months)return (+a.cost||0)-(+a.salvage||0);
+  return asMonthly(a)*n;}
+function renderAssets(){
+  const el=$("#asList");if(!el)return;
+  const rows=db.assets||[];
+  el.innerHTML=rows.length?('<div class="twrap"><div class="tscroll"><table><thead><tr><th>資產</th><th>取得日</th><th class="r">成本</th><th class="r">月折舊</th><th class="r">累計已提</th><th class="r">帳面淨額</th><th>提列至</th><th></th></tr></thead><tbody>'+
+    rows.map(a=>{const dep=asDepTotal(a);const nb=(+a.cost||0)-dep;const done=nb<=(+a.salvage||0);
+      return `<tr${done?' style="opacity:.6"':''}><td>${esc(a.name)}${done?' <span class="tag">已提滿</span>':''}<br><span style="color:var(--ink-3);font-size:11px">${esc(a.acct||"")}·${a.years}年</span></td><td class="num">${esc(a.date||"")}</td><td class="r num">${fmt(a.cost)}</td><td class="r num">${fmt(asMonthly(a))}</td><td class="r num">${fmt(dep)}</td><td class="r num">${fmt(nb)}</td><td class="num">${esc(a.lastDep||"—")}</td><td class="r"><button class="del" onclick="delAsset('${a.id}')" title="刪除">✕</button></td></tr>`;}).join("")+
+    '</tbody></table></div></div>'):'<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無固定資產。買車、電腦、設備等在上方登記一次，之後每月自動提折舊。</div>';
+}
+function delAsset(id){if(!confirm("刪除此資產？（已提列的折舊分錄不會刪除）"))return;db.assets=(db.assets||[]).filter(a=>a.id!==id);save();renderAssets();}
+(function(){
+  const f=$("#asForm");if(f)f.addEventListener("submit",e=>{e.preventDefault();
+    if(!Array.isArray(db.assets))db.assets=[];
+    const cost=Math.round(+$("#as_cost").value||0);if(!cost){alert("成本必填。");return;}
+    db.assets.push({id:uid(),name:$("#as_name").value.trim(),date:$("#as_date").value,cost,salvage:Math.round(+$("#as_salvage").value||0),years:+$("#as_years").value||5,acct:$("#as_acct").value||"生財設備",depAcct:"折舊費用",lastDep:""});
+    e.target.reset();fillAsAcct();save();renderAssets();
+    const n=runDepreciation(false);
+    alert("✅ 已登記。"+(n?("已自動補提列 "+n+" 個月的折舊。"):"將從取得次月起每月自動提列折舊。"));});
+  const upd=()=>{const c=+$("#as_cost").value||0,sv=+$("#as_salvage").value||0,y=+$("#as_years").value||5;const e=$("#as_monthly");if(e)e.value=c?fmt(Math.round((c-sv)/(y*12))):"";};
+  ["as_cost","as_salvage","as_years"].forEach(id=>{const e=$("#"+id);if(e){e.addEventListener("input",upd);e.addEventListener("change",upd);}});
+})();
 /* ===== 請款單(簽核流程) ===== */
 let _prPhotoKey="";
 async function prPhoto(inp){
@@ -1108,8 +1257,10 @@ function addJLine(acct="",d="",c=""){const row=jLineRow();$("#jLines").appendChi
 function resetJLines(){$("#jLines").innerHTML="";addJLine();addJLine();computeJBal();}
 function computeJBal(){let d=0,c=0;document.querySelectorAll("#jLines .jline").forEach(r=>{d+=+r.querySelector(".jl-d").value||0;c+=+r.querySelector(".jl-c").value||0;});
   const diff=Math.round(d-c);$("#jBal").innerHTML=`借 <span class="num">${fmt(d)}</span>　貸 <span class="num">${fmt(c)}</span>　`+(diff===0&&d>0?'<span class="ok">✓ 平衡</span>':`差額 <span class="bad num">${fmt(Math.abs(diff))}</span>`);return {d,c,diff};}
-function initJournal(){const ps=$("#j_preset");ps.innerHTML=`<option value="">— 選填 —</option>`+PRESETS.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join("");
-  ps.addEventListener("change",()=>{if(ps.value==="")return;const p=PRESETS[+ps.value];$("#j_memo").value=p.memo;$("#jLines").innerHTML="";p.lines.forEach(l=>addJLine(l.acct));computeJBal();ps.value="";const f=document.querySelector("#jLines .jl-d");if(f)f.focus();});
+function initJournal(){const ps=$("#j_preset");
+  window.fillJPreset=function(){const cur=ps.value;ps.innerHTML=`<option value="">— 選填 —</option>`+PRESETS.map((p,i)=>`<option value="${i}">${esc(p.name)}</option>`).join("")+((db.jtpl||[]).length?`<optgroup label="⭐ 我的範本">`+(db.jtpl||[]).map((p,i)=>`<option value="c${i}">${esc(p.name)}</option>`).join("")+`</optgroup>`:"");if(cur)ps.value=cur;};
+  fillJPreset();
+  ps.addEventListener("change",()=>{if(ps.value==="")return;const p=String(ps.value).startsWith("c")?(db.jtpl||[])[+String(ps.value).slice(1)]:PRESETS[+ps.value];if(!p)return;$("#j_memo").value=p.memo;$("#jLines").innerHTML="";p.lines.forEach(l=>addJLine(l.acct));computeJBal();ps.value="";const f=document.querySelector("#jLines .jl-d");if(f)f.focus();});
   $("#jAddLine").addEventListener("click",()=>{addJLine();computeJBal();});
   $("#jLines").addEventListener("input",computeJBal);
   $("#jLines").addEventListener("change",e=>{const t=e.target;if(t.classList.contains("jl-cat")){fillNameSel(t.closest(".jline").querySelector(".jl-acct"),t.value);}else if(t.classList.contains("jl-acct")&&t.value==="__custom"){nameSelCustom(t.closest(".jline").querySelector(".jl-cat"),t);}computeJBal();});
@@ -1125,6 +1276,19 @@ $("#jForm").addEventListener("submit",e=>{e.preventDefault();const lines=[];
   if(editJid){const i=db.journal.findIndex(x=>x.id===editJid);if(i>=0)db.journal[i]={id:editJid,date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""};editJid=null;const b=$("#jSubmitBtn");if(b)b.textContent="＋ 新增分錄";}
   else db.journal.push({id:uid(),date:$("#j_date").value,memo:$("#j_memo").value.trim(),lines,proj:($("#j_proj")||{}).value||""});
   $("#j_memo").value="";resetJLines();save();});
+function saveJTpl(){
+  const lines=[];document.querySelectorAll("#jLines .jline").forEach(r=>{const a=r.querySelector(".jl-acct").value.trim();const d=+r.querySelector(".jl-d").value||0;const c=+r.querySelector(".jl-c").value||0;if(a)lines.push(d||!c?{acct:a}:{acct:a});});
+  if(lines.length<2){alert("請先在下方填好至少兩列科目，再存成範本。");return;}
+  const name=prompt("範本名稱：",$("#j_memo").value||"");if(!name)return;
+  if(!Array.isArray(db.jtpl))db.jtpl=[];
+  db.jtpl.push({name:name.slice(0,20),memo:$("#j_memo").value||name,lines});
+  save();if(typeof fillJPreset==="function")fillJPreset();
+  alert("⭐ 已存入「我的範本」，下次從常用範本直接選。");}
+function manageJTpl(){
+  const t=db.jtpl||[];if(!t.length){alert("尚無自訂範本。填好分錄後按「⭐ 存成範本」。");return;}
+  const pick=prompt("我的範本（輸入編號刪除，取消離開）：\n"+t.map((x,i)=>(i+1)+"."+x.name).join("\n"),"");
+  if(pick===null)return;const i=(+pick||0)-1;
+  if(t[i]&&confirm("刪除範本「"+t[i].name+"」？")){t.splice(i,1);save();if(typeof fillJPreset==="function")fillJPreset();}}
 function delJournal(id){if(!confirm("刪除這筆手動分錄？"))return;db.journal=db.journal.filter(j=>j.id!==id);save();}
 function renderJournalList(){const el=$("#jList");if(!el)return;
   if(!db.journal.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無手動分錄。用上方表單或「常用範本」新增。</div>`;return;}
@@ -1297,7 +1461,7 @@ function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRe
 const SB_URL="https://kikozhpgfxktpijxvlqh.supabase.co";
 const SB_KEY="sb_publishable_9nOQkvzuIUYZ21sZWpcJ2Q_PO266L49";
 let sb=null,sbUser=null,sbTimer=null,sbChan=null,lastRemoteTs=0;
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],deleted:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],deleted:[]});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
@@ -1426,6 +1590,8 @@ const TBL={
  customers:{t:"customers",to:o=>({uni:o.uni||null,name:o.name||null,addr:o.addr||null,contact:o.contact||null,phone:o.phone||null,email:o.email||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,uni:r.uni||"",name:r.name||"",addr:r.addr||"",contact:r.contact||"",phone:r.phone||"",email:r.email||"",note:r.note||""})},
  projects:{t:"projects",to:o=>({name:o.name||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||""})},
+ assets:{t:"assets",to:o=>({name:o.name||null,date:o.date||null,cost:+o.cost||0,salvage:+o.salvage||0,years:+o.years||5,acct:o.acct||null,dep_acct:o.depAcct||"折舊費用",last_dep:o.lastDep||null}),
+  from:r=>({id:r.legacy_id||r.id,name:r.name||"",date:r.date||"",cost:+r.cost||0,salvage:+r.salvage||0,years:+r.years||5,acct:r.acct||"",depAcct:r.dep_acct||"折舊費用",lastDep:r.last_dep||""})},
  payreq:{t:"pay_requests",to:o=>({date:o.date||null,applicant:o.applicant||null,payee:o.payee||null,amount:+o.amount||0,reason:o.reason||null,acct:o.acct||null,photo_key:o.photoKey||null,status:o.status||"pending",reject_reason:o.rejectReason||null,approved_by:o.approvedBy||null,pay_from:o.payFrom||null}),
   from:r=>({id:r.legacy_id||r.id,date:r.date||"",applicant:r.applicant||"",payee:r.payee||"",amount:+r.amount||0,reason:r.reason||"",acct:r.acct||"",photoKey:r.photo_key||"",status:r.status||"pending",rejectReason:r.reject_reason||"",approvedBy:r.approved_by||"",payFrom:r.pay_from||"",dbid:r.id})},
  accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
@@ -1519,6 +1685,7 @@ async function dailyAutoBackup(){
     const key=LS+"_dailyBk";
     if(localStorage.getItem(key)===todayStr())return;
     if(dataScore(db)<=0)return;
+    try{runDepreciation(false);}catch(e){}
     lastSnapTs=0;
     await snapshotPush();
     try{if(typeof writeBackup==="function")await writeBackup();}catch(e){}
@@ -1631,12 +1798,14 @@ function initAcctPickers(){const oc=$("#ob_cat"),oa=$("#ob_acct");
     oc.addEventListener("change",()=>fillNameSel(oa,oc.value));
     oa.addEventListener("change",()=>{if(oa.value==="__custom")nameSelCustom(oc,oa);});}
   fillCatSel($("#ac_cat"),"");}
+let _acTab="資產";
 function renderAcList(){const el=$("#acList");if(!el)return;
-  el.innerHTML=CATS.map(cat=>{const items=accountsByCat(cat);if(!items.length)return "";
-    return `<div class="ledblk"><div class="lh"><span>${cat}</span><span class="bal">${items.length} 個科目</span></div><div class="twrap"><div class="tscroll"><table><tbody>`+
-      items.map(a=>{const cs=(db.accountsCustom||[]).some(o=>o.name===a);
-        return `<tr><td>${esc(a)}${cs?' <span class="tag">自訂</span>':''}</td><td class="r">${cs?`<button class="del" onclick="delCustomAcct('${esc(a)}')">✕</button>`:''}</td></tr>`;}).join("")+
-      `</tbody></table></div></div></div>`;}).join("");}
+  const tabs='<div class="settabs" style="margin-bottom:12px">'+CATS.map(c=>`<button class="stab${c===_acTab?" on":""}" onclick="_acTab='${c}';renderAcList()">${c}<span style="opacity:.55;font-size:11px;margin-left:4px">${accountsByCat(c).length}</span></button>`).join("")+"</div>";
+  const items=accountsByCat(_acTab);
+  el.innerHTML=tabs+`<div class="twrap"><div class="tscroll"><table><thead><tr><th>${_acTab}類科目</th><th></th></tr></thead><tbody>`+
+    (items.length?items.map(a=>{const cs=(db.accountsCustom||[]).some(o=>o.name===a);
+      return `<tr><td>${esc(a)}${cs?' <span class="tag">自訂</span>':''}</td><td class="r">${cs?`<button class="del" onclick="delCustomAcct('${esc(a)}')">✕</button>`:''}</td></tr>`;}).join(""):'<tr><td colspan="2" class="empty">此類尚無科目</td></tr>')+
+    `</tbody></table></div></div>`;}
 function delCustomAcct(name){if(!confirm("刪除自訂科目「"+name+"」？（已入帳的分錄不受影響）"))return;db.accountsCustom=(db.accountsCustom||[]).filter(o=>o.name!==name);save();}
 (function(){const acf=$("#acForm");if(!acf)return;acf.addEventListener("submit",e=>{e.preventDefault();
   const name=$("#ac_name").value.trim(),cat=$("#ac_cat").value;
