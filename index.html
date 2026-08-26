@@ -598,6 +598,15 @@
       <!-- USERS 使用者管理 -->
       <section class="view" id="v-users">
         <div class="sec-h"><h2>使用者管理</h2><span class="muted">員工用自己的 email＋密碼登入；你在這裡開通功能</span></div>
+        <div class="card" style="margin-bottom:14px">
+          <h3 style="font-size:15px">👁 視角模擬（看看別人眼中的系統）</h3>
+          <p style="font-size:13px;color:var(--ink-2);margin:6px 0 10px">想知道客戶或員工登入後會看到什麼？按下面按鈕直接切換視角，看完按「結束預覽」回來。</p>
+          <div class="actions" style="margin:0">
+            <button class="btn sm" type="button" onclick="simulateRole('viewer')">以「唯讀／客戶」視角預覽</button>
+            <button class="btn ghost sm" type="button" onclick="simulateRole('staff')">以「記帳員」視角預覽</button>
+          </div>
+          <p style="font-size:12px;color:var(--ink-3);margin:8px 0 0">唯讀視角：什麼都改不了（跟客戶看到的一樣）。記帳員視角：仍是你本人的帳，若在預覽中修改會真的存檔。</p>
+        </div>
         <div class="note" style="margin-bottom:12px">流程：① 你在下方加員工 email、選角色、勾功能 → ② 員工到登入頁按「員工註冊新帳號」用<b>同一 email</b> 設自己的密碼 → ③ 員工登入後即依權限使用本帳。<b>密碼由員工自設，你我都不經手。</b></div>
         <form class="form" id="memForm">
           <div class="frow">
@@ -715,11 +724,11 @@
 
       <!-- EXPORT -->
       <section class="view" id="v-export">
-        <div class="sec-h"><h2>匯出／備份</h2><span class="muted">供上傳國稅局平台核對，或存回會計資料夾</span><span class="sp"></span><a class="btn ghost sm" href="/guide.html" target="_blank" style="text-decoration:none">📖 使用說明書</a></div>
+        <div class="sec-h"><h2>匯出／備份</h2><span class="muted">進、銷項 CSV 供國稅局申報核對；備份檔下載保存</span><span class="sp"></span><a class="btn ghost sm" href="/guide.html" target="_blank" style="text-decoration:none">📖 使用說明書</a></div>
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">🛡 備份健康檢查</h3>
-              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">三層保護：雲端主資料 → 雲端歷史版本 → 異地備份（本機檔案／GitHub）</p></div>
+              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">三層保護：雲端資料庫 → 雲端歷史版本 → 您電腦裡的備份檔</p></div>
             <button class="btn sm" onclick="renderBackupHealth()">重新檢查</button>
           </div>
           <div id="bkHealth" style="margin-top:12px"></div>
@@ -742,7 +751,7 @@
               <button class="btn ghost sm" id="bkDisable" style="display:none" onclick="disableAutoBackup()">停用</button>
             </div>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">選一次備份檔位置（建議存到「會計」資料夾），之後<b>每次變更自動覆寫更新</b>。需用 Chrome / Edge；Safari 請用下方手動「下載備份」。</p>
+          <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">按「啟用自動備份…」會跳出<b>儲存視窗</b>：在視窗裡<b>先選要放的資料夾、再按「存檔」</b>，就完成設定；之後<b>每次變更自動覆寫更新</b>，不必再管它。需用 Chrome / Edge；Safari 請用下方手動「下載備份」。</p>
         </div>
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
           <div class="card"><h3 style="font-size:15px">進項明細 CSV</h3><p style="font-size:13px;color:var(--ink-2)">財政部進項憑證欄位，供 401 匯入／核對。</p><button class="btn sm" onclick="exportCSV('purchase')">下載進項.csv</button></div>
@@ -781,9 +790,9 @@ const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:
 const NAVGROUPS=[
   {g:"book",items:["dash","purchase","sale","petty","payreq","recur","journal"]},
   {g:"report",items:["voucher","ledger","fund","assets","balance","pl","bs"]},
-  {g:"tax",items:["tax","export"]},
+  {g:"tax",items:["tax"]},
   {g:"law",items:["law"]},
-  {g:"setup",items:["settings","users","ops"]}];
+  {g:"setup",items:["settings","export","users","ops"]}];
 function groupOf(v){const g=NAVGROUPS.find(x=>x.items.indexOf(v)>=0);return g?g.g:"book";}
 function visibleItems(g){const grp=NAVGROUPS.find(x=>x.g===g);if(!grp)return [];
   return grp.items.filter(function(v){
@@ -1299,12 +1308,27 @@ function restorePresync(){const r=localStorage.getItem(LS+"_presync");if(!r){ale
   db=Object.assign({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]},o);
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));
   localStorage.setItem(LS,JSON.stringify(db));renderAll();cloudSaveDebounced();alert("已還原到同步前版本。");}
-function clearAll(){
+async function reauthDanger(title){
+  if(sb&&sbUser){
+    const am=sbUser.app_metadata||{};const provs=am.providers||(am.provider?[am.provider]:[]);
+    if(provs.indexOf("email")>=0){
+      const pw=prompt(title+"\n\n🔐 為確認是您本人操作，請輸入「登入密碼」：");
+      if(pw===null)return false;
+      try{const {error}=await sb.auth.signInWithPassword({email:sbUser.email,password:pw});
+        if(error){alert("密碼不正確，已取消，未刪除任何資料。");return false;}
+        return true;
+      }catch(e){alert("驗證失敗，已取消。");return false;}
+    }
+  }
+  const ans=prompt(title+"\n\n確定要刪除，請輸入「刪除」二字：");
+  if(ans!=="刪除"){alert("已取消，未刪除任何資料。");return false;}
+  return true;}
+async function clearAll(){
   try{backupJSON();}catch(e){}
-  const ans=prompt("⚠️ 這會清空本期「進項、銷項、留抵」。\n已自動下載一份備份檔到你的下載資料夾。\n\n確定要刪除，請輸入「刪除」二字：");
-  if(ans!=="刪除"){alert("已取消，未刪除任何資料。");return;}
+  if(!(await reauthDanger("⚠️ 危險操作：清空本期「進項、銷項、留抵」。\n已先自動下載一份備份檔到你的下載資料夾。")))return;
+  if(!confirm("最後確認：真的要清空本期進項、銷項嗎？\n（清空後仍可從『雲端歷史版本』或剛下載的備份檔還原）"))return;
   db.purchase=[];db.sale=[];db.prevCredit=0;save();
-  alert("已清空。若要復原：匯出／備份 → 還原檔案 → 選剛下載的備份檔。");}
+  alert("已清空。若要復原：設定管理 → 匯出／備份 → 還原。");}
 
 /* ===== 手動分錄 · 期初餘額 · 報表引擎 ===== */
 if(!Array.isArray(db.journal))db.journal=[]; if(!Array.isArray(db.opening))db.opening=[];
@@ -1542,23 +1566,23 @@ function warnIfNoBackup(){
   const b=$("#loginWarn");if(!b)return;
   const box=document.createElement("div");
   box.style.cssText="background:#fde68a;color:#78350f;border:1px solid #f59e0b;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600";
-  box.innerHTML='🛡 你的帳本目前<b>沒有異地備份</b>（只存在雲端一處）。建議到「匯出／備份」啟用自動備份。 <button class="btn sm" style="margin-left:8px" onclick="document.querySelector(\'#nav button[data-v=&quot;export&quot;]\').click();this.parentNode.remove();">前往設定</button> <button class="btn ghost sm" onclick="this.parentNode.remove()">稍後</button>';
+  box.innerHTML='🛡 建議在自己電腦也留一份備份檔（設定一次、之後全自動）。到「設定管理 → 匯出／備份」啟用。 <button class="btn sm" style="margin-left:8px" onclick="document.querySelector(\'#nav button[data-v=&quot;export&quot;]\').click();this.parentNode.remove();">前往設定</button> <button class="btn ghost sm" onclick="this.parentNode.remove()">稍後</button>';
   b.parentNode.insertBefore(box,b.nextSibling);}
 function backupAgeDays(){const last=localStorage.getItem(LS+"_bk");if(!last)return null;return (Date.now()-Date.parse(last))/86400000;}
 function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   const row=(icon,title,desc,col)=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border)"><span style="font-size:16px;line-height:1.3">${icon}</span><div><div style="font-weight:600;font-size:13.5px;color:${col||'var(--ink)'}">${title}</div><div style="font-size:12.5px;color:var(--ink-2)">${desc}</div></div></div>`;
   let h="";
-  h+= sbUser ? row("✅","① 雲端主資料 — 已連線同步","登入 "+esc(sbUser.email||"")+"，每次存檔即時上傳")
-             : row("⚠️","① 雲端主資料 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
+  h+= sbUser ? row("✅","① 雲端資料庫 — 同步中","以帳號 "+esc(sbUser.email||"")+" 登入，每次存檔即時加密同步至雲端資料庫（僅您的帳號可存取，不會寄到信箱）")
+             : row("⚠️","① 雲端資料庫 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
   const dk=localStorage.getItem(LS+"_dailyBk")===todayStr();
   h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本，共 60 版可還原")
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
-  if(!bkHandle && age===null) h+=row("❌","③ 異地備份 — 尚未啟用","<b>風險：帳本只存在雲端一處</b>。請點下方『啟用自動備份…』選一個備份檔位置（建議存到「記帳系統」資料夾，會隨 GitHub 一起異地保存）","var(--danger)");
-  else if(age===null) h+=row("⚠️","③ 異地備份 — 已設定但尚未寫入","請改一筆資料觸發，或點『重新啟用』授權","var(--warn)");
-  else if(age>3) h+=row("⚠️","③ 異地備份 — 已 "+Math.floor(age)+" 天沒更新","請點下方『重新啟用』重新授權，讓自動備份繼續","var(--warn)");
-  else h+=row("✅","③ 異地備份 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
-  h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表你的帳本同時存在「雲端 + 雲端多版本 + 異地檔案」三個地方。</div>`;
+  if(!bkHandle && age===null) h+=row("❌","③ 電腦備份檔 — 尚未啟用","<b>建議多留一份在自己電腦</b>：按右邊按鈕 → 跳出儲存視窗 → <b>先選資料夾、再按存檔</b>，設定一次就好，之後每次變更自動更新。 <button class=\"btn sm\" style=\"margin-top:6px\" onclick=\"enableAutoBackup()\">立即啟用電腦備份</button>","var(--danger)");
+  else if(age===null) h+=row("⚠️","③ 電腦備份檔 — 已設定但尚未寫入","請改一筆資料觸發，或點『重新啟用』授權","var(--warn)");
+  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","請點下方『重新啟用』重新授權，讓自動備份繼續","var(--warn)");
+  else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
+  h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表您的帳本同時保存在「雲端資料庫＋60 個歷史版本＋您的電腦」三個地方，任何一處故障都不會遺失。</div>`;
   el.innerHTML=h;}
 function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRegrant"),di=$("#bkDisable");if(!st)return;
   const last=localStorage.getItem(LS+"_bk");const lastTxt=last?new Date(last).toLocaleString("zh-TW"):"—";
@@ -1580,6 +1604,26 @@ function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEac
 function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
 /* ===== 多人帳號：成員解析 + 功能權限 ===== */
 let bookOwnerId=null,myRole="owner",myFeatures=null;
+/* ---- 角色視角模擬（僅切換畫面權限；模擬唯讀時系統一樣擋存檔）---- */
+let simRole=null,_realRole=null,_realFeatures=null;
+function simulateRole(r){
+  if(r){
+    if(simRole===null){if(!(myRole==="owner"||myRole==="admin"))return;_realRole=myRole;_realFeatures=myFeatures;}
+    simRole=r;myRole=r;myFeatures=null;
+  }else{
+    if(simRole===null)return;
+    myRole=_realRole;myFeatures=_realFeatures;simRole=null;
+  }
+  let bar=document.getElementById("simBar");
+  if(simRole){
+    const nm=simRole==="viewer"?"唯讀／客戶":"記帳員";
+    if(!bar){bar=document.createElement("div");bar.id="simBar";bar.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;background:#0A1628;color:#fff;padding:9px 16px;font-size:13.5px;text-align:center";document.body.appendChild(bar);document.body.style.paddingTop="42px";}
+    bar.innerHTML='👁 目前以「<b>'+nm+'</b>」視角預覽——你看到的就是這個角色看到的畫面。 <button class="btn sm" style="margin-left:10px" onclick="simulateRole(null)">結束預覽，回到老闆視角</button>';
+  }else if(bar){bar.remove();document.body.style.paddingTop="";}
+  try{applyFeatureGate();}catch(e){}
+  try{renderAll();}catch(e){}
+  try{goView("dash");}catch(e){}
+}
 const PAGE_KEYS=[["purchase","進項憑證"],["sale","銷項憑證"],["voucher","傳票"],["journal","手動分錄"],["ledger","分類帳"],["fund","資金／銀行簿"],["petty","零用金"],["balance","餘額表"],["pl","損益表"],["bs","資產負債表"],["tax","401 試算"],["export","匯出／備份"]];
 async function resolveMembership(user){
   bookOwnerId=user.id;myRole="owner";myFeatures=null;
