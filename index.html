@@ -1825,8 +1825,32 @@ async function attachReceiptPhoto(inp){
   try{const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
     if(error){alert("上傳失敗："+error.message);return;}
     const nn=$("#p_note");if(nn)nn.value=((nn.value?nn.value+";":"")+"📎"+key).slice(0,100);
-    alert("✅ 憑證照片已上傳（"+Math.round(blob.size/1024)+"KB）。送出這筆進項後可從備註開啟。");
+    aiRecognizeReceipt(blob).catch(()=>{});
+    alert("✅ 憑證照片已上傳（"+Math.round(blob.size/1024)+"KB）。AI 辨識中，稍後自動帶入欄位…");
   }catch(e){alert("上傳失敗："+e.message);}
+}
+async function aiRecognizeReceipt(blob){
+  try{
+    const {data:{session}}=await sb.auth.getSession();
+    if(!session)return;
+    const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.readAsDataURL(blob);});
+    const resp=await fetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image:b64,mime:"image/jpeg"})});
+    const j=await resp.json();
+    if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc((j&&j.error)||"辨識失敗，請手動填寫");}return;}
+    const d=j.data;const setIf=(id,v)=>{const e=$("#"+id);if(e&&!e.value&&v)e.value=v;};
+    setIf("p_date",d["日期"]);setIf("p_name",d["賣方名稱"]);setIf("p_uni",d["賣方統編"]);setIf("p_item",d["品名摘要"]);
+    const total=+String(d["總計"]||"").replace(/[^\d.]/g,"")||0;
+    let net=+String(d["未稅金額"]||"").replace(/[^\d.]/g,"")||0;
+    let tax=+String(d["稅額"]||"").replace(/[^\d.]/g,"")||0;
+    if(!net&&total){net=Math.round(total/1.05);tax=total-net;}
+    if(net&&!$("#p_net").value){$("#p_net").value=net;$("#p_tax").value=tax;}
+    const inv=(d["發票號碼"]||"").trim();
+    if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);}
+    const myUni=(db.company&&db.company.uni)||"";
+    if($("#p_ded"))$("#p_ded").value=(inv&&myUni&&(d["買方統編"]||"")===myUni)?"1":"0";
+    if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
+    const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI 已自動帶入（"+esc(d["賣方名稱"]||"")+" "+fmt(total||net+tax)+"），<b>請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
+  }catch(e){console.warn("aiRecognizeReceipt",e);}
 }
 async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗："+e.message);}}
 
