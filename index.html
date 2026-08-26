@@ -376,7 +376,7 @@
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld" id="rc_acctWrap"><label>費用科目</label><select id="rc_acct"></select></div>
-            <div class="fld" id="rc_creditWrap"><label>貸方（先掛帳選應付）</label><select id="rc_credit"></select></div>
+            <div class="fld" id="rc_creditWrap"><label>記帳方式（錢怎麼付）</label><select id="rc_credit"></select></div>
             <div class="fld" style="grid-column:span 2;align-self:end"><span id="rc_hint" style="font-size:12.5px;color:var(--ink-3)"></span></div>
           </div>
           <div class="actions"><button class="btn" type="submit">＋ 建立週期</button>
@@ -1030,12 +1030,16 @@ function voidSale(id){
 
 /* ===== 週期憑證(固定支出自動切傳票/固定收入提醒開票) ===== */
 function rcKindHint(){const k=($("#rc_kind")||{}).value||"expense";const h=$("#rc_hint"),aw=$("#rc_acctWrap"),cw=$("#rc_creditWrap");
-  if(k==="expense"){if(aw)aw.style.display="";if(cw)cw.style.display="";if(h)h.textContent="每月自動產生分錄：借 費用科目／貸 下方貸方科目。";}
+  if(k==="expense"){if(aw)aw.style.display="";if(cw)cw.style.display="";if(h)h.innerHTML="每月自動切傳票。<b>記帳方式</b>：選「應付帳款」＝先掛帳、付款日用範本〈支付應付帳款〉沖銷（正規）；選銀行/現金＝一步到位（省事）。兩種都合規。";}
   else{if(aw)aw.style.display="none";if(cw)cw.style.display="none";if(h)h.textContent="到期時在總覽與銷項頁提醒你開發票（不自動記帳，避免與發票重複）。";}}
 function fillRcSelects(){
   const d=$("#rc_day");if(d&&!d.options.length){d.innerHTML=Array.from({length:28},(_,i)=>`<option${i===0?" selected":""}>${i+1}</option>`).join("");}
   const a=$("#rc_acct");if(a){const cur=a.value;a.innerHTML=(accountsByCat("費用")||[]).map(x=>`<option>${esc(x)}</option>`).join("");if(cur)a.value=cur;}
-  const c=$("#rc_credit");if(c){const cur=c.value;const banks=(typeof bankNames==="function")?bankNames():[];const opts=["應付帳款",...banks,"銀行存款","現金","股東往來"].filter((v,i,x)=>x.indexOf(v)===i);c.innerHTML=opts.map(x=>`<option>${esc(x)}</option>`).join("");if(cur&&opts.includes(cur))c.value=cur;}
+  const c=$("#rc_credit");if(c){const cur=c.value;const banks=(typeof bankNames==="function")?bankNames():[];
+    const LBL={"應付帳款":"先掛帳（正規權責制）：費用當月成立、付款日再沖銷","現金":"現金直接付（發生即付）","股東往來":"老闆代墊（之後公司還款）"};
+    const opts=["應付帳款",...banks,"銀行存款","現金","股東往來"].filter((v,i,x)=>x.indexOf(v)===i);
+    c.innerHTML=opts.map(x=>`<option value="${esc(x)}">${esc(x)}${LBL[x]?("｜"+LBL[x]):(x.indexOf("銀行")===0||x.indexOf("銀行存款-")===0?"｜銀行直接扣（發生即付）":"")}</option>`).join("");
+    if(cur&&opts.includes(cur))c.value=cur;}
   if(typeof fillProjSel==="function")fillProjSel($("#rc_proj"));
   rcKindHint();}
 function rcActiveIn(r,ym){if(r.startYm&&ym<r.startYm)return false;if(r.endYm&&ym>r.endYm)return false;return true;}
