@@ -142,4 +142,44 @@ footer{color:#8a857a;font-size:12px;text-align:center;margin-top:44px}
 <p>試用 30 天免費，之後方案見 <a href="/pricing.html">方案與定價</a>。</p>
 
 <footer>卓信雲端會計 · <a href="/pricing.html">方案</a> · <a href="/privacy.html">隱私權</a> · <a href="/terms.html">條款</a> · service@zhuohsin.com</footer>
-</main></body></html>
+</main><style>
+#gtabs{position:sticky;top:0;z-index:50;background:#faf8f4;padding:10px 0 8px;display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid #e3ded4;margin-bottom:6px}
+#gtabs button{border:1px solid #cfd8d2;background:#fff;border-radius:999px;padding:6px 13px;font-size:13.5px;cursor:pointer;font-family:inherit;color:#26312c}
+#gtabs button.on{background:#1f7a5c;color:#fff;border-color:#1f7a5c;font-weight:700}
+.gsec{display:none}.gsec.on{display:block}
+</style>
+<script>
+(function(){
+  var main=document.querySelector("main")||document.body;
+  var h2s=[].slice.call(main.querySelectorAll("h2"));
+  if(!h2s.length)return;
+  var toc=main.querySelector(".toc");if(toc)toc.style.display="none";
+  var secs=[];
+  h2s.forEach(function(h){
+    var d=document.createElement("div");d.className="gsec";d.dataset.aid=h.id||"";
+    h.parentNode.insertBefore(d,h);
+    var n=h;
+    while(n){var nx=n.nextSibling;d.appendChild(n);if(nx&&nx.nodeType===1&&nx.tagName==="H2")break;n=nx;}
+    secs.push(d);
+  });
+  var bar=document.createElement("div");bar.id="gtabs";
+  function label(txt){txt=txt.replace(/（.*?）/g,"").trim();return txt.length>11?txt.slice(0,11)+"…":txt;}
+  secs.forEach(function(d,i){
+    var b=document.createElement("button");b.textContent=label(h2s[i].textContent);
+    b.onclick=function(){show(i);window.scrollTo(0,0);};bar.appendChild(b);d._btn=b;
+  });
+  function show(i){secs.forEach(function(d,k){d.classList.toggle("on",k===i);d._btn.classList.toggle("on",k===i);});}
+  main.insertBefore(bar,main.firstChild.nextSibling?secs[0]:secs[0]);
+  main.insertBefore(bar,secs[0]);
+  document.addEventListener("click",function(e){
+    var a=e.target.closest&&e.target.closest('a[href^="#"]');if(!a)return;
+    var id=a.getAttribute("href").slice(1);
+    var idx=secs.findIndex(function(d){return d.dataset.aid===id||d.querySelector("#"+CSS.escape(id));});
+    if(idx>=0){e.preventDefault();show(idx);window.scrollTo(0,0);}
+  });
+  var hid=(location.hash||"").slice(1);
+  var start=hid?secs.findIndex(function(d){return d.dataset.aid===hid||(hid&&d.querySelector("#"+CSS.escape(hid)));}):0;
+  show(start>=0?start:0);
+})();
+</script>
+</body></html>

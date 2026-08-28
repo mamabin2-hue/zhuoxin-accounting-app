@@ -186,7 +186,7 @@
       <button class="btn ghost sm" id="lg_reg">註冊新公司（免費試用30天）</button>
     </div>
     <div class="msg" id="lg_msg"></div>
-    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請告知管理者協助重設 · <a href="/guide.html" target="_blank" style="color:var(--accent-ink)">📖 使用說明書</a></p>
+    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請告知管理者協助重設 · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
   </div>
 </div>
 <div class="app">
@@ -607,6 +607,11 @@
           </div>
           <p style="font-size:12px;color:var(--ink-3);margin:8px 0 0">唯讀視角：什麼都改不了（跟客戶看到的一樣）。記帳員視角：以「全功能」示意，實際員工只會看到你勾選開通的功能；且預覽中仍是你本人的帳，修改會真的存檔。</p>
         </div>
+        <div class="actions" style="margin:0 0 12px">
+          <button class="btn ghost sm" type="button" onclick="memTplCSV()">⬇ 下載匯入範本</button>
+          <label class="btn ghost sm" style="display:inline-block">⬆ 匯入名單<input type="file" accept=".csv,.txt" style="display:none" onchange="importMembers(this)"></label>
+          <span style="font-size:12px;color:var(--ink-3);align-self:center">人多用匯入（下載範本→填好→匯入），人少直接在下方逐筆新增，兩種都可以。</span>
+        </div>
         <div class="note" style="margin-bottom:12px">流程：① 你在下方加員工 email、選角色、勾功能 → ② 員工到登入頁按「員工註冊新帳號」用<b>同一 email</b> 設自己的密碼 → ③ 員工登入後即依權限使用本帳。<b>密碼由員工自設，你我都不經手。</b></div>
         <form class="form" id="memForm">
           <div class="frow">
@@ -724,7 +729,14 @@
 
       <!-- EXPORT -->
       <section class="view" id="v-export">
-        <div class="sec-h"><h2>匯出／備份</h2><span class="muted">進、銷項 CSV 供國稅局申報核對；備份檔下載保存</span><span class="sp"></span><a class="btn ghost sm" href="/guide.html" target="_blank" style="text-decoration:none">📖 使用說明書</a></div>
+        <div class="sec-h"><h2>匯出／備份</h2><span class="muted">分頁籤收納，點上方切換</span><span class="sp"></span><a class="btn ghost sm" href="/guide.html" target="_blank" onclick="return openGuide(this)" style="text-decoration:none">📖 使用說明書</a></div>
+        <div class="settabs" style="margin-bottom:14px">
+          <button class="stab on" data-ep="bk" onclick="expTab(this)">🛡 備份總覽</button>
+          <button class="stab" data-ep="snap" onclick="expTab(this)">☁ 歷史版本</button>
+          <button class="stab" data-ep="csv" onclick="expTab(this)">📄 匯出 CSV</button>
+          <button class="stab" data-ep="restore" onclick="expTab(this)">⟲ 還原／危險操作</button>
+        </div>
+        <div class="exppane" id="exp-bk">
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">🛡 備份健康檢查</h3>
@@ -733,15 +745,7 @@
           </div>
           <div id="bkHealth" style="margin-top:12px"></div>
         </div>
-        <div class="card" style="margin-bottom:14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
-            <div><h3 style="font-size:15px">☁︎ 雲端歷史版本（即時備份）</h3>
-              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">登入後每次存檔自動在雲端存一份，保留最近 60 版，可隨時還原到任一時間點。</p></div>
-            <button class="btn sm" onclick="loadSnapshots()">載入版本列表</button>
-          </div>
-          <div id="snapList" style="margin-top:12px"></div>
-        </div>
-        <div class="card" style="margin-bottom:14px">
+        <div class="card">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">🔄 自動備份</h3>
               <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0" id="bkStatus">未啟用</p></div>
@@ -751,25 +755,52 @@
               <button class="btn ghost sm" id="bkDisable" style="display:none" onclick="disableAutoBackup()">停用</button>
             </div>
           </div>
-          <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">按「啟用自動備份…」會跳出<b>儲存視窗</b>：在視窗裡<b>先選要放的資料夾、再按「存檔」</b>，就完成設定；之後<b>每次變更自動覆寫更新</b>，不必再管它。需用 Chrome / Edge；Safari 請用下方手動「下載備份」。</p>
+          <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">按「啟用自動備份…」會跳出<b>儲存視窗</b>：<b>先選要放的資料夾、再按「存檔」</b>即完成；之後每次變更自動覆寫更新。需用 Chrome / Edge；Safari 請到「還原／危險操作」用手動「下載備份」。</p>
         </div>
+        </div>
+        <div class="exppane" id="exp-snap" style="display:none">
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div><h3 style="font-size:15px">☁︎ 雲端歷史版本（即時備份）</h3>
+              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">每次存檔自動留一版，保留最近 60 版；不小心改錯，挑一個時間點按「還原」即可。</p></div>
+            <button class="btn sm" onclick="loadSnapshots()">載入版本列表</button>
+          </div>
+          <div id="snapList" style="margin-top:12px"></div>
+        </div>
+        </div>
+        <div class="exppane" id="exp-csv" style="display:none">
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
           <div class="card"><h3 style="font-size:15px">進項明細 CSV</h3><p style="font-size:13px;color:var(--ink-2)">財政部進項憑證欄位，供 401 匯入／核對。</p><button class="btn sm" onclick="exportCSV('purchase')">下載進項.csv</button></div>
           <div class="card"><h3 style="font-size:15px">銷項明細 CSV</h3><p style="font-size:13px;color:var(--ink-2)">銷項憑證，字軌逐號列出。</p><button class="btn sm" onclick="exportCSV('sale')">下載銷項.csv</button></div>
           <div class="card"><h3 style="font-size:15px">傳票 CSV</h3><p style="font-size:13px;color:var(--ink-2)">全部借貸分錄。</p><button class="btn sm" onclick="exportVoucherCSV()">下載傳票.csv</button></div>
           <div class="card"><h3 style="font-size:15px">餘額表 CSV</h3><p style="font-size:13px;color:var(--ink-2)">科目餘額試算表。</p><button class="btn sm" onclick="exportBalanceCSV()">下載餘額表.csv</button></div>
+        </div>
+        </div>
+        <div class="exppane" id="exp-restore" style="display:none">
+        <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr));margin-bottom:14px">
           <div class="card"><h3 style="font-size:15px">完整備份 JSON</h3><p style="font-size:13px;color:var(--ink-2)">全部資料備份，換裝置可還原。</p><button class="btn sm" onclick="backupJSON()">下載備份</button>
             <label class="btn ghost sm" style="display:inline-block;margin-left:8px">還原檔案<input type="file" accept=".json" style="display:none" onchange="restoreJSON(this)"></label></div>
           <div class="card"><h3 style="font-size:15px">⟲ 還原上次同步前</h3><p style="font-size:13px;color:var(--ink-2)">若資料被雲端同步蓋掉，一鍵救回覆蓋前的版本。</p><button class="btn sm" onclick="restorePresync()">還原上次同步前資料</button></div>
         </div>
         <div class="sec-h"><h2>危險操作</h2></div>
         <button class="btn ghost sm" style="color:var(--danger)" onclick="clearAll()">清空本期所有資料</button>
+        <p style="font-size:12px;color:var(--ink-3);margin:8px 0 0">清空需重新驗證密碼，且會先自動下載備份，事後仍可由歷史版本還原。</p>
+        </div>
       </section>
 
     </div>
   </div>
 </div>
 
+<div id="guideModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(10,22,40,.55)">
+  <div style="position:absolute;inset:4% 4%;background:var(--surface,#fff);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border,#ddd)">
+      <b style="font-size:15px">📖 使用說明書</b>
+      <button class="btn sm" onclick="closeGuide()">✕ 關閉</button>
+    </div>
+    <iframe id="guideFrame" style="flex:1;border:0;width:100%"></iframe>
+  </div>
+</div>
 <script>
 "use strict";
 const LS="zhuoxin_acc_115_4";
@@ -809,6 +840,9 @@ function renderSubtabs(g,cur){const el=$("#subtabs");if(!el)return;
     const badge=(v==="purchase")?'<span id="inboxBadge" style="display:none;margin-left:5px;background:var(--danger,#e5484d);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700"></span>':"";
     return '<button class="stab'+(v===cur?" on":"")+'" data-v="'+v+'">'+(TITLES[v]||v)+badge+'</button>';}).join("");
   try{updateInboxBadge();}catch(e){}}
+function openGuide(a){try{const f=document.getElementById("guideFrame");if(!f.src)f.src="/guide.html";document.getElementById("guideModal").style.display="";return false;}catch(e){return true;}}
+function closeGuide(){document.getElementById("guideModal").style.display="none";}
+function expTab(b){document.querySelectorAll('#v-export .stab').forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll('#v-export .exppane').forEach(p2=>p2.style.display=(p2.id==="exp-"+b.dataset.ep)?"":"none");}
 function lawTab(b){document.querySelectorAll('#v-law .stab').forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll('#v-law .lawpane').forEach(p2=>p2.style.display=(p2.id==="law-"+b.dataset.lp)?"":"none");}
 function goView(v){
   const g=groupOf(v);
@@ -1936,6 +1970,40 @@ $("#lg_reg").addEventListener("click",async()=>{
   $("#mem_email").value="";document.querySelectorAll("#mem_feats .memfeat").forEach(c=>c.checked=false);loadMembers();
   alert("已新增成員。請通知對方用此 email 到登入頁『員工註冊新帳號』設定密碼，登入後即依權限生效。");
 });})();
+/* ---- 成員批次匯入 ---- */
+function memTplCSV(){
+  const names=PAGE_KEYS.map(p=>p[1]).join("、");
+  const csv="\uFEFFemail,角色,功能\nstaff1@example.com,記帳員,進項憑證;銷項憑證;傳票\nmanager@example.com,管理員,全部\nclient@example.com,唯讀,全部\n\n說明,,\n角色可填：管理員 / 記帳員 / 唯讀,,\n功能用分號隔開；填「全部」代表全部功能,,\n可用功能："+names+",,\n";
+  const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));a.download="成員匯入範本.csv";a.click();}
+async function importMembers(inp){
+  const file=inp.files&&inp.files[0];inp.value="";if(!file)return;
+  if(!sb||!sbUser){alert("請先登入。");return;}
+  const text=await file.text();
+  const ROLE={"管理員":"admin","admin":"admin","記帳員":"staff","staff":"staff","唯讀":"viewer","viewer":"viewer","客戶":"viewer"};
+  const N2K={};PAGE_KEYS.forEach(p=>{N2K[p[1]]=p[0];N2K[p[0]]=p[0];});
+  let exist=new Set();
+  try{const {data}=await sb.from("members").select("email").eq("owner_id",bookOwnerId||sbUser.id);(data||[]).forEach(r=>exist.add((r.email||"").toLowerCase()));}catch(e){}
+  let ok=0,skip=[],fail=[];
+  const lines=text.split(/\r?\n/).slice(1);
+  for(const ln of lines){
+    if(!ln.trim())continue;
+    const cols=ln.split(/[,，\t]/).map(x=>x.trim().replace(/^"|"$/g,""));
+    const email=(cols[0]||"").toLowerCase();
+    if(!email||email.indexOf("@")<0)continue;
+    if(exist.has(email)){skip.push(email+"（已存在）");continue;}
+    const role=ROLE[cols[1]]||"staff";
+    let features=[];
+    const fs=(cols[2]||"").trim();
+    if(role!=="admin"){
+      if(!fs||fs==="全部")features=PAGE_KEYS.map(p=>p[0]);
+      else features=fs.split(/[;；、/]/).map(x=>N2K[x.trim()]).filter(Boolean);
+      if(!features.length)features=PAGE_KEYS.map(p=>p[0]);
+    }
+    const {error}=await sb.from("members").insert({owner_id:bookOwnerId||sbUser.id,email,role,features,status:"active"});
+    if(error)fail.push(email+"："+error.message);else{ok++;exist.add(email);}
+  }
+  loadMembers();
+  alert("✅ 匯入完成：新增 "+ok+" 人。"+(skip.length?"\n略過："+skip.join("、"):"")+(fail.length?"\n失敗：\n"+fail.join("\n"):"")+"\n\n請通知新成員用自己的 email 到登入頁「員工註冊新帳號」設密碼。");}
 
 /* ===== 科目大類/自訂 + 設定頁 ===== */
 const CATS=["資產","負債","權益","收入","成本","費用"];
