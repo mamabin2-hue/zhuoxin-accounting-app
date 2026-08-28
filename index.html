@@ -1990,6 +1990,7 @@ async function importMembers(inp){
     const cols=ln.split(/[,，\t]/).map(x=>x.trim().replace(/^"|"$/g,""));
     const email=(cols[0]||"").toLowerCase();
     if(!email||email.indexOf("@")<0)continue;
+    if(email.endsWith("@example.com")){skip.push(email+"（範本示範列，請改成真實 email）");continue;}
     if(exist.has(email)){skip.push(email+"（已存在）");continue;}
     const role=ROLE[cols[1]]||"staff";
     let features=[];
