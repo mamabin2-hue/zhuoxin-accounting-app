@@ -806,7 +806,14 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 <script>
 "use strict";
 const LS="zhuoxin_acc_115_4";
-if(localStorage.getItem(LS+"_hasCloud")==="1"){document.body.classList.add("locked");}
+(function(){try{
+  if(localStorage.getItem(LS+"_hasCloud")!=="1"){
+    var mark=localStorage.getItem(LS+"_dailyBk")||localStorage.getItem(LS+"_cloudUid");
+    if(!mark){for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>=0){mark="1";break;}}}
+    if(mark)localStorage.setItem(LS+"_hasCloud","1");
+  }
+  if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");
+}catch(e){}})();
 const DEFAULT_TRACKS=[{period:"115/07~115/08",ps:11507,pe:11508,category:"一般稅額計算",code:"DV",start:4296550,end:4296599}];
 const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -1750,6 +1757,16 @@ function initCloud(){
 }
 async function onSignedIn(user){
   if(sbUser&&sbUser.id===user.id)return;sbUser=user;setCloud("sync");
+  try{
+    const prevUid=localStorage.getItem(LS+"_cloudUid");
+    if(prevUid&&prevUid!==user.id){
+      // 這台的本機快取屬於別的帳號：收進該帳號專屬保管區，換成全新空帳，避免資料流入新帳號
+      try{localStorage.setItem(LS+"_stash_"+prevUid,localStorage.getItem(LS)||"");}catch(e){}
+      adopt(DBDEF());
+      try{localStorage.removeItem(LS+"_presync");}catch(e){}
+    }
+    localStorage.setItem(LS+"_cloudUid",user.id);
+  }catch(e){}
   localStorage.setItem(LS+"_hasCloud","1");document.body.classList.remove("locked");
   closeLogin();
   try{
