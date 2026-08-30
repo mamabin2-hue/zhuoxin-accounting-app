@@ -1748,7 +1748,7 @@ function setCloud(state,msg){
   else if(state==="err"){cloudDot("err","同步錯誤");if(msg)console.warn("雲端:",msg);}
   else if(state==="nolib"){cloudDot("","雲端(離線)");}
   else cloudDot("","登入雲端");
-  const lw=$("#loginWarn");if(lw)lw.style.display=(state==="in"||state==="sync")?"none":"";}
+  const lw=$("#loginWarn");if(lw)lw.style.display=(state==="out"||state==="nolib")?"":"none";}
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
@@ -1762,6 +1762,11 @@ async function onSignedIn(user){
     if(prevUid&&prevUid!==user.id){
       // 這台的本機快取屬於別的帳號：收進該帳號專屬保管區，換成全新空帳，避免資料流入新帳號
       try{localStorage.setItem(LS+"_stash_"+prevUid,localStorage.getItem(LS)||"");}catch(e){}
+      adopt(DBDEF());
+      try{localStorage.removeItem(LS+"_presync");}catch(e){}
+    }else if(!prevUid&&dataScore(db)>0&&localStorage.getItem(LS+"_pendingReg")!=="1"){
+      // 來歷不明的舊快取（防護上線前留下）：不確定屬於誰，一律收進保管區改讀雲端，避免流入登入者帳本
+      try{localStorage.setItem(LS+"_stash_unknown",localStorage.getItem(LS)||"");}catch(e){}
       adopt(DBDEF());
       try{localStorage.removeItem(LS+"_presync");}catch(e){}
     }
