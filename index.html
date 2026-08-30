@@ -366,8 +366,8 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <form class="form" id="rcForm">
           <div class="frow">
             <div class="fld"><label>型態</label><select id="rc_kind" onchange="rcKindHint()"><option value="expense">固定支出（自動切傳票）</option><option value="income">固定收入（到期提醒開票）</option></select></div>
-            <div class="fld"><label>名稱</label><input id="rc_name" placeholder="例：辦公室房租、源穩月費" required></div>
-            <div class="fld"><label>對象（房東/客戶）</label><input id="rc_party" placeholder="例：王房東、源穩寵食"></div>
+            <div class="fld"><label>名稱</label><input id="rc_name" placeholder="例：辦公室房租、客戶月費" required></div>
+            <div class="fld"><label>對象（房東/客戶）</label><input id="rc_party" placeholder="例：房東、某某客戶公司"></div>
             <div class="fld"><label>每月金額</label><input type="number" id="rc_amount" inputmode="numeric" step="1" required></div>
           </div>
           <div class="frow" style="margin-top:12px">
@@ -678,7 +678,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         </div>
         <div class="setpane" id="set-proj">
         <div class="sec-h"><h2>專案／成本中心</h2><span class="muted">部門、客戶類別或專案；交易可歸屬，損益可分別看</span></div>
-        <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：源穩專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit" id="pjSubmitBtn">＋ 新增</button></div></div></form>
+        <form class="form" id="pjForm"><div class="frow"><div class="fld" style="grid-column:span 3"><label>名稱</label><input id="pj_name" placeholder="例：A客戶專案、行政部、顧問業務"></div><div class="fld" style="justify-content:flex-end"><button class="btn sm" type="submit" id="pjSubmitBtn">＋ 新增</button></div></div></form>
         <div id="pjList" style="margin-top:12px;margin-bottom:6px"></div>
         </div>
         <div class="setpane" id="set-vendor">
@@ -1055,7 +1055,7 @@ function eiSan(v,max){return String(v==null?"":v).replace(/[<>%&!$,\r\n]/g,"").s
 function exportEinvoiceBTB(mode){
   mode=(mode==="void")?"void":"issue";
   const co=db.company||{};
-  const sUni=(co.uni||"62098963"),sName=(co.name||"卓信人資整合有限公司"),sAddr=(co.addr||"台南市安南區府安路七街24號"),sTel=(co.tel||co.phone||"");
+  const sUni=(co.uni||""),sName=(co.name||""),sAddr=(co.addr||""),sTel=(co.tel||co.phone||"");
   const all=db.sale||[];
   const hasUni=s=>/^\d{8}$/.test((s.uni||"").trim());
   const rows=all.filter(s=>hasUni(s)&&(mode==="void"?s.void:!s.void));
@@ -1893,7 +1893,7 @@ function tableSyncDebounced(){clearTimeout(_syncTimer);setCloud("sync");_syncTim
 
 async function cloudPush(){
   if(!sb||!sbUser)return;setCloud("sync");const ts=new Date().toISOString();
-  const {error}=await sb.from("books").upsert({user_id:bookOwnerId||sbUser.id,uni:(db.company&&db.company.uni)||"62098963",data:db,updated_at:ts});
+  const {error}=await sb.from("books").upsert({user_id:bookOwnerId||sbUser.id,uni:(db.company&&db.company.uni)||"",data:db,updated_at:ts});
   if(error){setCloud("err",error.message);}else{lastRemoteTs=Date.parse(ts);setCloud("in");snapshotPush();}
 }
 function todayStr(){const t=new Date();return t.getFullYear()+"-"+String(t.getMonth()+1).padStart(2,"0")+"-"+String(t.getDate()).padStart(2,"0");}
@@ -2143,7 +2143,7 @@ function judgeDeductible(){
   if(type==="二聯式收銀機")return uni?{r:"可扣抵",c:"ok",m:"收銀機二聯式且收執聯載有統編，可彙總扣抵。"}:{r:"不可扣抵",c:"bad",m:"二聯式無統編、無扣抵聯，不得扣抵。"};
   if(type==="海關代徵")return{r:"可扣抵",c:"ok",m:"海關代徵營業稅繳納證扣抵聯可扣抵（供本業用）。"};
   if(type==="載具")return{r:"不可扣抵",c:"bad",m:"個人載具未載公司統編不得扣抵；請改開卓信統編發票。"};
-  if(type==="三聯式/電子計算機"||type==="電子發票")return uni?{r:"可扣抵",c:"ok",m:"合法扣抵憑證（§33）。請確認發票載明卓信統編 62098963 且含 5% 營業稅。"}:{r:"不可扣抵",c:"bad",m:"無賣方統編，非合法扣抵憑證（§19 I①）。"};
+  if(type==="三聯式/電子計算機"||type==="電子發票")return uni?{r:"可扣抵",c:"ok",m:"合法扣抵憑證（§33）。請確認發票載明貴公司統編且含 5% 營業稅。"}:{r:"不可扣抵",c:"bad",m:"無賣方統編，非合法扣抵憑證（§19 I①）。"};
   return{r:"不可扣抵",c:"bad",m:"未取得§33合法扣抵憑證或無統編，不得扣抵。"};
 }
 function judgeExpense(){const personal=$("#p_personal")&&$("#p_personal").checked;
@@ -2233,7 +2233,7 @@ async function scanInvoiceQR(){
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
           try{const g=await fetch("https://company.g0v.ronny.tw/api/show/"+r.seller).then(x=>x.json());const nm=g&&g.data&&(g.data["公司名稱"]||g.data["名稱"]);if(nm&&$("#p_name"))$("#p_name").value=String(nm).slice(0,60);}catch(_){}
-          alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer==="62098963"?"符合":"＝"+r.buyer+"，請確認")+"。");
+          alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer===((db.company&&db.company.uni)||"")?"符合":"＝"+r.buyer+"，請確認")+"。");
           return;}}
     }catch(_){ }
     requestAnimationFrame(tick);};
