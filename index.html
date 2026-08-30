@@ -1981,7 +1981,7 @@ $("#lg_reg").addEventListener("click",async()=>{
   const {error}=await sb.auth.signUp({email,password:pw});
   if(error){lgMsg(/not allowed/i.test(error.message)?"註冊失敗：目前註冊功能尚未開放，請聯絡卓信協助開通。":"註冊失敗："+error.message);return;}
   localStorage.setItem(LS+"_pendingReg","1");
-  lgMsg("✅ 帳號已建立！若收到驗證信請先點擊確認，再回來登入即自動開通 30 天試用。",true);
+  lgMsg("✅ 帳號已建立！請到信箱收「驗證信」（寄件者顯示 Supabase Auth，是本系統使用的國際雲端資料庫服務商，請放心）→ 點信中連結確認 → 回來按「登入」即開通 30 天試用。",true);
 });
 (function(){const mf=$("#memForm");if(mf)mf.addEventListener("submit",async e=>{e.preventDefault();
   if(!sb||!sbUser){alert("請先登入。");return;}
