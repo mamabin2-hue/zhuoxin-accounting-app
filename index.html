@@ -906,7 +906,7 @@ const _ps=$("#pSample");if(_ps)_ps.addEventListener("click",()=>{$("#p_date").va
 
 /* sale */
 $("#s_date").addEventListener("input",syncSale);$("#s_net").addEventListener("input",updateSaleAmt);
-function syncSale(){const t=trackForDate($("#s_date").value);if(!t){$("#s_no").value="—";$("#s_trkHint").textContent="尚無字軌，請先於上方加入配號。";return;}
+function syncSale(){const t=trackForDate($("#s_date").value);if(!t||!t.code){$("#s_no").value="—";$("#s_trkHint").textContent="尚無字軌，請先於上方加入配號。";return;}
   const seq=nextSeq(t);$("#s_no").value=seq>t.end?"（本期字軌已用完）":invStr(t.code,seq);
   $("#s_trkHint").textContent=`期別 ${t.period}｜字軌 ${t.code}｜下一張 ${seq<=t.end?invStr(t.code,seq):"—"}（剩 ${Math.max(0,t.end-seq+1)} 號）`;}
 $("#sForm").addEventListener("submit",e=>{e.preventDefault();
