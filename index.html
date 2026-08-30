@@ -149,6 +149,8 @@
 </head>
 <body>
 <style>
+body.locked .app{display:none!important}
+body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 .ovl{position:fixed;inset:0;background:rgba(20,15,10,.5);display:none;align-items:center;justify-content:center;z-index:60;padding:20px}
 .ovl.on{display:flex}
 .modal{background:var(--surface);border:1px solid var(--border-strong);border-radius:16px;max-width:410px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
@@ -178,7 +180,7 @@
 <div class="ovl" id="loginOvl">
   <div class="modal">
     <h3>☁︎ 登入雲端同步</h3>
-    <p class="sub">請以帳號密碼登入才能使用；登入後手機與電腦同一本帳、即時同步。</p>
+    <p class="sub">請以帳號密碼登入才能使用；登入後手機與電腦同一本帳、即時同步。<br>為保護資料，登入逾期後帳本內容一律隱藏，重新登入即恢復。</p>
     <div class="fld"><label>Email</label><input id="lg_email" type="email" autocomplete="username" placeholder="your@email.com"></div>
     <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="你的 Supabase 密碼"></div>
     <div class="actions" style="margin-top:6px">
@@ -804,6 +806,7 @@
 <script>
 "use strict";
 const LS="zhuoxin_acc_115_4";
+if(localStorage.getItem(LS+"_hasCloud")==="1"){document.body.classList.add("locked");}
 const DEFAULT_TRACKS=[{period:"115/07~115/08",ps:11507,pe:11508,category:"一般稅額計算",code:"DV",start:4296550,end:4296599}];
 const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -1742,11 +1745,12 @@ function setCloud(state,msg){
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
-  sb.auth.getSession().then(({data})=>{if(data&&data.session){onSignedIn(data.session.user);}else{setCloud("out");try{openLogin();}catch(e){}}});
+  sb.auth.getSession().then(({data})=>{if(data&&data.session){onSignedIn(data.session.user);}else{setCloud("out");if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");try{openLogin();}catch(e){}}});
   sb.auth.onAuthStateChange((_e,s)=>{s?onSignedIn(s.user):onSignedOut();});
 }
 async function onSignedIn(user){
   if(sbUser&&sbUser.id===user.id)return;sbUser=user;setCloud("sync");
+  localStorage.setItem(LS+"_hasCloud","1");document.body.classList.remove("locked");
   closeLogin();
   try{
     await resolveMembership(user);
@@ -1765,7 +1769,8 @@ async function onSignedIn(user){
     subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}try{dailyAutoBackup();}catch(e){}
   }catch(e){setCloud("err",e.message);}
 }
-function onSignedOut(){sbUser=null;if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
+function onSignedOut(){sbUser=null;if(localStorage.getItem(LS+"_hasCloud")==="1"){document.body.classList.add("locked");try{openLogin();}catch(e){}}
+  if(sbChan){try{sb.removeChannel(sbChan);}catch(e){}sbChan=null;}inboxItems=[];try{renderInbox();}catch(e){}setCloud("out");}
 /* ===== 階段3:正規資料表同步層(逐筆讀寫,流量降99%;失敗自動降級回books) ===== */
 let bookOrgId=null,_lastSync=null,useTables=false,_syncTimer=null,_lastBlobPush=0,_lastSyncAt=0,_sBusy=false;
 const TBL={
@@ -1957,7 +1962,7 @@ $("#lg_reg").addEventListener("click",async()=>{
   if(!email||!pw||pw.length<6){lgMsg("請輸入 email 與至少 6 碼密碼後再按註冊。");return;}
   lgMsg("建立帳號中…",true);
   const {error}=await sb.auth.signUp({email,password:pw});
-  if(error){lgMsg("註冊失敗："+error.message);return;}
+  if(error){lgMsg(/not allowed/i.test(error.message)?"註冊失敗：目前註冊功能尚未開放，請聯絡卓信協助開通。":"註冊失敗："+error.message);return;}
   localStorage.setItem(LS+"_pendingReg","1");
   lgMsg("✅ 帳號已建立！若收到驗證信請先點擊確認，再回來登入即自動開通 30 天試用。",true);
 });
