@@ -202,6 +202,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
       <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
+    <div id="orgSwitchWrap" style="display:none;padding:12px 14px 4px"><label style="font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:4px">🏢 公司切換（需驗證）</label><select id="orgSwitch" onchange="switchOrg(this)" style="width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border)"></select></div>
     <div class="foot">一般稅額計算 · 401 試算<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
 
@@ -1777,6 +1778,15 @@ async function onSignedIn(user){
   try{
     await resolveMembership(user);
     await resolveOrg();
+    try{
+      if(_orgResolveFailed)throw 0;   // 這次解析失敗:不動本機資料,維持上次紀錄
+      const bk=localStorage.getItem(LS+"_bookKey");const cur=bookOrgId||("u:"+bookOwnerId);
+      if(bk&&bk!==cur&&dataScore(db)>0){
+        try{localStorage.setItem(LS+"_stash_book_"+String(bk).replace(/[^A-Za-z0-9:-]/g,""),localStorage.getItem(LS)||"");}catch(e){}
+        adopt(DBDEF());try{localStorage.removeItem(LS+"_presync");}catch(e){}
+      }
+      localStorage.setItem(LS+"_bookKey",cur);
+    }catch(e){}
     if(bookOrgId&&await loadFromTables()){
       subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}try{dailyAutoBackup();}catch(e){}
       setCloud("in");return;
@@ -1820,15 +1830,51 @@ const TBL={
  accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
  opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
 };
-async function resolveOrg(){bookOrgId=null;if(!sb||!sbUser)return;
-  try{let {data}=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active").limit(1).maybeSingle();
-    if(!data&&localStorage.getItem(LS+"_pendingReg")){
+let myOrgs=[],_orgResolveFailed=false;
+async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;if(!sb||!sbUser){_orgResolveFailed=true;return;}
+  try{const q0=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");
+    if(q0.error){_orgResolveFailed=true;console.warn("resolveOrg query",q0.error);return;}
+    let rows=q0.data||[];
+    if(!rows.length&&localStorage.getItem(LS+"_pendingReg")){
       try{const r=await sb.rpc("create_org",{org_name:(sbUser.email||"我的公司").split("@")[0]+" 的帳本"});
         if(r&&r.error&&String(r.error.message||"").indexOf("already")>=0)localStorage.removeItem(LS+"_pendingReg");
-        if(r&&!r.error){localStorage.removeItem(LS+"_pendingReg");const q=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active").limit(1).maybeSingle();data=q.data;}
+        if(r&&!r.error){localStorage.removeItem(LS+"_pendingReg");const q=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");rows=q.data||[];}
       }catch(e){console.warn("create_org",e);}}
-    if(data&&data.org_id){bookOrgId=data.org_id;myRole=data.role||myRole;myFeatures=(data.role==="owner"||data.role==="admin")?null:(data.features&&data.features.length?data.features:myFeatures);}
-  }catch(e){console.warn("resolveOrg",e);}}
+    if(!rows.length)return;
+    const names={};
+    try{const ids=rows.map(r=>r.org_id);const q=await sb.from("orgs").select("id,name").in("id",ids);(q.data||[]).forEach(o=>{names[o.id]=o.name;});}catch(e){}
+    myOrgs=rows.map(r=>({org_id:r.org_id,role:r.role||"staff",features:r.features||[],name:names[r.org_id]||((r.role==="owner")?"我的帳本":"受邀帳本")}));
+    const pickKey=LS+"_orgPick_"+sbUser.id;const pick=localStorage.getItem(pickKey);
+    let chosen=myOrgs.find(o=>o.org_id===pick);
+    if(!chosen)chosen=myOrgs.find(o=>o.role==="owner")||myOrgs[0];   // 預設進「自己的」帳本，不再隨機
+    bookOrgId=chosen.org_id;myRole=chosen.role||myRole;
+    myFeatures=(chosen.role==="owner"||chosen.role==="admin")?null:(chosen.features&&chosen.features.length?chosen.features:myFeatures);
+    if(chosen.role==="owner")bookOwnerId=sbUser.id;
+    try{localStorage.setItem(pickKey,chosen.org_id);}catch(e){}
+    try{renderOrgSwitcher();}catch(e){}
+  }catch(e){_orgResolveFailed=true;console.warn("resolveOrg",e);}}
+function roleLabel(r){return r==="owner"?"我的":(r==="admin"?"受邀·管理員":r==="viewer"?"受邀·唯讀":"受邀·記帳員");}
+function renderOrgSwitcher(){const w=$("#orgSwitchWrap"),sel=$("#orgSwitch");if(!w||!sel)return;
+  if(!myOrgs||myOrgs.length<2){w.style.display="none";return;}
+  w.style.display="";
+  sel.innerHTML=myOrgs.map(o=>`<option value="${esc(o.org_id)}"${o.org_id===bookOrgId?" selected":""}>${esc(o.name)}（${roleLabel(o.role)}）</option>`).join("");}
+async function reauthSwitch(name){
+  if(sb&&sbUser){const am=sbUser.app_metadata||{};const provs=am.providers||(am.provider?[am.provider]:[]);
+    if(provs.indexOf("email")>=0){
+      const pw=prompt("🔐 切換到「"+name+"」前，請輸入登入密碼驗證身分：");
+      if(pw===null)return false;
+      try{const {error}=await sb.auth.signInWithPassword({email:sbUser.email,password:pw});
+        if(error){alert("密碼不正確，未切換。");return false;}
+        return true;
+      }catch(e){alert("驗證失敗，未切換。");return false;}
+    }}
+  return confirm("確定切換到「"+name+"」帳本？");}
+async function switchOrg(sel){
+  const target=sel.value;if(!target||target===bookOrgId)return;
+  const o=(myOrgs||[]).find(x=>x.org_id===target);
+  if(!(await reauthSwitch(o?o.name:"另一家公司"))){sel.value=bookOrgId;return;}
+  try{localStorage.setItem(LS+"_orgPick_"+sbUser.id,target);}catch(e){}
+  location.reload();}
 async function loadFromTables(){
   if(!sb||!bookOrgId)return false;
   if(_sBusy){setTimeout(loadFromTables,1200);return true;}
