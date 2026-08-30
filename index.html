@@ -1765,7 +1765,8 @@ async function onSignedIn(user){
       try{localStorage.setItem(LS+"_stash_"+prevUid,localStorage.getItem(LS)||"");}catch(e){}
       adopt(DBDEF());
       try{localStorage.removeItem(LS+"_presync");}catch(e){}
-    }else if(!prevUid&&dataScore(db)>0&&localStorage.getItem(LS+"_pendingReg")!=="1"){
+    }else if(!prevUid&&dataScore(db)>0&&localStorage.getItem(LS+"_pendingReg")==="1"){_keepLocalOnce=true;
+    }else if(!prevUid&&dataScore(db)>0){
       // 來歷不明的舊快取（防護上線前留下）：不確定屬於誰，一律收進保管區改讀雲端，避免流入登入者帳本
       try{localStorage.setItem(LS+"_stash_unknown",localStorage.getItem(LS)||"");}catch(e){}
       adopt(DBDEF());
@@ -1781,11 +1782,11 @@ async function onSignedIn(user){
     try{
       if(_orgResolveFailed)throw 0;   // 這次解析失敗:不動本機資料,維持上次紀錄
       const bk=localStorage.getItem(LS+"_bookKey");const cur=bookOrgId||("u:"+bookOwnerId);
-      if(bk&&bk!==cur&&dataScore(db)>0){
+      if(!_keepLocalOnce&&bk!==cur&&dataScore(db)>0){
         try{localStorage.setItem(LS+"_stash_book_"+String(bk).replace(/[^A-Za-z0-9:-]/g,""),localStorage.getItem(LS)||"");}catch(e){}
         adopt(DBDEF());try{localStorage.removeItem(LS+"_presync");}catch(e){}
       }
-      localStorage.setItem(LS+"_bookKey",cur);
+      localStorage.setItem(LS+"_bookKey",cur);_keepLocalOnce=false;
     }catch(e){}
     if(bookOrgId&&await loadFromTables()){
       subscribeRealtime();loadInbox();subscribeInbox();applyFeatureGate();try{maybeShowSetup();}catch(e){}try{renderBackupHealth();warnIfNoBackup();}catch(e){}try{dailyAutoBackup();}catch(e){}
@@ -1830,7 +1831,7 @@ const TBL={
  accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
  opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
 };
-let myOrgs=[],_orgResolveFailed=false;
+let myOrgs=[],_orgResolveFailed=false,_keepLocalOnce=false;
 async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;if(!sb||!sbUser){_orgResolveFailed=true;return;}
   try{const q0=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");
     if(q0.error){_orgResolveFailed=true;console.warn("resolveOrg query",q0.error);return;}
