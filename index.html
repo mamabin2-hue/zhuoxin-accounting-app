@@ -179,7 +179,7 @@
   <div class="modal">
     <h3>☁︎ 登入雲端同步</h3>
     <p class="sub">請以帳號密碼登入才能使用；登入後手機與電腦同一本帳、即時同步。</p>
-    <div class="fld"><label>Email</label><input id="lg_email" type="email" autocomplete="username" placeholder="zhuohsin@gmail.com"></div>
+    <div class="fld"><label>Email</label><input id="lg_email" type="email" autocomplete="username" placeholder="your@email.com"></div>
     <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="你的 Supabase 密碼"></div>
     <div class="actions" style="margin-top:6px">
       <button class="btn" id="lg_login">登入</button>
@@ -1939,7 +1939,7 @@ function subscribeRealtime(){
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
-function openLogin(){$("#lg_email").value=$("#lg_email").value||"zhuohsin@gmail.com";$("#loginOvl").classList.add("on");}
+function openLogin(){$("#loginOvl").classList.add("on");}
 function closeLogin(){$("#loginOvl").classList.remove("on");}
 function lgMsg(t,ok){const m=$("#lg_msg");m.textContent=t;m.style.color=ok?"var(--good)":"var(--danger)";}
 $("#cloudBtn").addEventListener("click",()=>{ if(sbUser){ if(confirm("目前已登入雲端（"+(sbUser.email||"")+"）。要登出嗎？（登出後改用本機資料）"))sb.auth.signOut(); } else openLogin(); });
