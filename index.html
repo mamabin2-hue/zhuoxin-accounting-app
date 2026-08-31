@@ -186,6 +186,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div class="actions" style="margin-top:6px">
       <button class="btn" id="lg_login">登入</button>
       <button class="btn ghost sm" id="lg_reg">註冊新公司（免費試用30天）</button>
+      <button class="btn ghost sm" type="button" id="lg_trial" onclick="startTrial()">先試用看看（免註冊）</button>
     </div>
     <div class="msg" id="lg_msg"></div>
     <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請告知管理者協助重設 · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
@@ -813,7 +814,7 @@ const LS="zhuoxin_acc_115_4";
     if(!mark){for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>=0){mark="1";break;}}}
     if(mark)localStorage.setItem(LS+"_hasCloud","1");
   }
-  if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");
+  if(localStorage.getItem(LS+"_hasCloud")==="1"||localStorage.getItem(LS+"_trial")!=="1")document.body.classList.add("locked");
 }catch(e){}})();
 const DEFAULT_TRACKS=[{period:"115/07~115/08",ps:11507,pe:11508,category:"一般稅額計算",code:"DV",start:4296550,end:4296599}];
 const fmt=n=>Math.round(n).toLocaleString("en-US");
@@ -2013,7 +2014,12 @@ function subscribeRealtime(){
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
-function openLogin(){$("#loginOvl").classList.add("on");}
+function openLogin(){$("#loginOvl").classList.add("on");
+  try{const tb=$("#lg_trial");if(tb)tb.style.display=(localStorage.getItem(LS+"_hasCloud")==="1")?"none":"";}catch(e){}}
+function startTrial(){
+  if(localStorage.getItem(LS+"_hasCloud")==="1"){alert("此裝置曾登入過雲端帳號，為保護資料請直接登入。");return;}
+  try{localStorage.setItem(LS+"_trial","1");}catch(e){}
+  document.body.classList.remove("locked");closeLogin();}
 function closeLogin(){$("#loginOvl").classList.remove("on");}
 function lgMsg(t,ok){const m=$("#lg_msg");m.textContent=t;m.style.color=ok?"var(--good)":"var(--danger)";}
 $("#cloudBtn").addEventListener("click",()=>{ if(sbUser){ if(confirm("目前已登入雲端（"+(sbUser.email||"")+"）。要登出嗎？（登出後改用本機資料）"))sb.auth.signOut(); } else openLogin(); });
