@@ -825,7 +825,8 @@ let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],account
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   if(!db.tracks||!db.tracks.length)db.tracks=JSON.parse(JSON.stringify(DEFAULT_TRACKS));}
-function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法修改資料。");try{loadFromTables();}catch(e){}return;}localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBackup();cloudSaveDebounced();}
+function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法修改資料。");try{loadFromTables();}catch(e){}return;}
+  if(typeof _orgExpired!=="undefined"&&_orgExpired){alert("此公司帳本的試用已到期：資料保留、可查看與匯出，但暫停新增／修改。請至「方案與定價」續用（每家公司分別計費）。");try{loadFromTables();}catch(e){}return;}localStorage.setItem(LS,JSON.stringify(db));renderAll();autoBackup();cloudSaveDebounced();}
 load();
 
 /* nav */
@@ -1844,22 +1845,50 @@ async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;if(
       }catch(e){console.warn("create_org",e);}}
     if(!rows.length)return;
     const names={};
-    try{const ids=rows.map(r=>r.org_id);const q=await sb.from("orgs").select("id,name").in("id",ids);(q.data||[]).forEach(o=>{names[o.id]=o.name;});}catch(e){}
-    myOrgs=rows.map(r=>({org_id:r.org_id,role:r.role||"staff",features:r.features||[],name:names[r.org_id]||((r.role==="owner")?"我的帳本":"受邀帳本")}));
+    try{const ids=rows.map(r=>r.org_id);const q=await sb.from("orgs").select("id,name,plan,status,trial_end").in("id",ids);(q.data||[]).forEach(o=>{names[o.id]=o;});}catch(e){}
+    myOrgs=rows.map(r=>{const o=names[r.org_id]||{};
+      return {org_id:r.org_id,role:r.role||"staff",features:r.features||[],
+        name:o.name||((r.role==="owner")?"我的帳本":"受邀帳本"),
+        plan:o.plan||"",status:o.status||"active",trialEnd:o.trial_end||""};});
     const pickKey=LS+"_orgPick_"+sbUser.id;const pick=localStorage.getItem(pickKey);
     let chosen=myOrgs.find(o=>o.org_id===pick);
     if(!chosen)chosen=myOrgs.find(o=>o.role==="owner")||myOrgs[0];   // 預設進「自己的」帳本，不再隨機
     bookOrgId=chosen.org_id;myRole=chosen.role||myRole;
     myFeatures=(chosen.role==="owner"||chosen.role==="admin")?null:(chosen.features&&chosen.features.length?chosen.features:myFeatures);
     if(chosen.role==="owner")bookOwnerId=sbUser.id;
+    try{
+      const today=todayStr();
+      _orgExpired=(chosen.status&&chosen.status!=="active")||(chosen.plan==="trial"&&chosen.trialEnd&&chosen.trialEnd<today);
+      _orgBillNote=orgBillLabel(chosen);
+      renderBillWarn(chosen);
+    }catch(e){}
     try{localStorage.setItem(pickKey,chosen.org_id);}catch(e){}
     try{renderOrgSwitcher();}catch(e){}
   }catch(e){_orgResolveFailed=true;console.warn("resolveOrg",e);}}
+let _orgExpired=false,_orgBillNote="";
 function roleLabel(r){return r==="owner"?"我的":(r==="admin"?"受邀·管理員":r==="viewer"?"受邀·唯讀":"受邀·記帳員");}
+function orgBillLabel(o){
+  if(!o)return "";
+  if(o.status&&o.status!=="active")return "已停用";
+  if(o.plan==="trial"){if(o.trialEnd&&o.trialEnd<todayStr())return "試用到期";
+    return o.trialEnd?("試用至"+o.trialEnd.slice(5).replace("-","/")):"試用中";}
+  return o.plan?"付費版":"";}
+function renderBillWarn(o){
+  let el=document.getElementById("billWarn");
+  const lw=$("#loginWarn");if(!lw)return;
+  if(!el){el=document.createElement("div");el.id="billWarn";el.style.cssText="display:none;background:#fdeaea;color:#7a1f1f;border:1px solid #d64545;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600";lw.parentNode.insertBefore(el,lw.nextSibling);}
+  if(_orgExpired){
+    el.innerHTML='⏳ 「'+esc(o.name||"本公司")+'」的免費試用已到期：資料完整保留、可查看與匯出，但暫停新增記帳。續用請參考 <a href="/pricing.html" target="_blank" style="color:#b02a2a">方案與定價</a>（每家公司帳本分別計費），完成後由專人開通。';
+    el.style.display="";
+  }else if(o&&o.plan==="trial"&&o.trialEnd){
+    const days=Math.ceil((Date.parse(o.trialEnd)-Date.now())/86400000);
+    if(days<=7){el.innerHTML='⏰ 「'+esc(o.name||"本公司")+'」試用剩 <b>'+days+'</b> 天（至 '+esc(o.trialEnd)+'）。續用請看 <a href="/pricing.html" target="_blank" style="color:#7a5b1f">方案與定價</a>；每家公司帳本分別計費。';el.style.background="#fdf3d7";el.style.color="#7a5b1f";el.style.borderColor="#e9a23b";el.style.display="";}
+    else el.style.display="none";
+  }else el.style.display="none";}
 function renderOrgSwitcher(){const w=$("#orgSwitchWrap"),sel=$("#orgSwitch");if(!w||!sel)return;
   if(!myOrgs||myOrgs.length<2){w.style.display="none";return;}
   w.style.display="";
-  sel.innerHTML=myOrgs.map(o=>`<option value="${esc(o.org_id)}"${o.org_id===bookOrgId?" selected":""}>${esc(o.name)}（${roleLabel(o.role)}）</option>`).join("");}
+  sel.innerHTML=myOrgs.map(o=>{const b=orgBillLabel(o);return `<option value="${esc(o.org_id)}"${o.org_id===bookOrgId?" selected":""}>${esc(o.name)}（${roleLabel(o.role)}${b?("·"+b):""}）</option>`;}).join("");}
 async function reauthSwitch(name){
   if(sb&&sbUser){const am=sbUser.app_metadata||{};const provs=am.providers||(am.provider?[am.provider]:[]);
     if(provs.indexOf("email")>=0){
