@@ -163,17 +163,19 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </style>
 <div class="ovl" id="setupOvl">
   <div class="modal" style="max-width:520px">
-    <h3>🚀 開帳精靈</h3>
-    <p class="sub">歡迎使用！照這 3 步完成開帳，就能開始記帳。</p>
-    <div style="font-size:13px;color:var(--ink-2);line-height:2.1">
-      <b>① 公司資料</b>：統編、名稱、地址、開帳日（存證發票／報表會用）<br>
-      <b>② 銀行帳戶</b>：到「設定 → 銀行帳戶」加你的往來銀行<br>
-      <b>③ 字軌配號</b>：到「銷項憑證」頁貼上國稅局配號信自動解析<br>
-      <span style="color:var(--ink-3)">期初餘額可稍後到「資產負債表 → 期初餘額設定」補。</span>
+    <h3>🚀 新手導引 · 5 步上手</h3>
+    <p class="sub">歡迎使用卓信雲端會計！點下面每一步直接前往，照著做就會記帳。</p>
+    <div id="onbSteps" style="display:flex;flex-direction:column;gap:8px;margin:6px 0 4px">
+      <button class="btn ghost" style="text-align:left;justify-content:flex-start" onclick="onbGo('settings','set')"><b>①</b>　填公司資料（統編、名稱、開帳日）</button>
+      <button class="btn ghost" style="text-align:left;justify-content:flex-start" onclick="onbGo('settings','bank')"><b>②</b>　加銀行帳戶</button>
+      <button class="btn ghost" style="text-align:left;justify-content:flex-start" onclick="onbGo('sale')"><b>③</b>　貼上國稅局字軌配號（銷項頁自動解析）</button>
+      <button class="btn ghost" style="text-align:left;justify-content:flex-start" onclick="onbGo('purchase')"><b>④</b>　記第一筆進項（可掃電子發票 QR）</button>
+      <button class="btn ghost" style="text-align:left;justify-content:flex-start" onclick="onbGo('pl')"><b>⑤</b>　看報表（損益／資產負債自動生成）</button>
     </div>
-    <div class="actions" style="margin-top:14px">
-      <button class="btn" id="setupGo">先填公司資料</button>
-      <button class="btn ghost sm" id="setupSkip">略過（稍後自己設）</button>
+    <p style="font-size:12px;color:var(--ink-3);margin:6px 0 0">完整教學在右上「📖 使用說明書」；有問題點右下「💬 問題回報」。</p>
+    <div class="actions" style="margin-top:12px">
+      <button class="btn" id="setupGo">開始（先填公司資料）</button>
+      <button class="btn ghost sm" id="setupSkip">略過</button>
     </div>
   </div>
 </div>
@@ -607,6 +609,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <section class="view" id="v-ops">
         <div class="sec-h"><h2>營運後台</h2><span class="muted">全部客戶、用量與開通控管（只有你看得到）</span><span class="sp"></span><button class="btn ghost sm" onclick="loadOps()">重新整理</button></div>
         <div class="grid kpis" id="opsKpis" style="margin-bottom:14px"></div>
+        <input id="opsSearch" oninput="opsFilter()" placeholder="🔍 搜尋公司名稱／統編…" style="width:100%;max-width:320px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
         <div id="opsList"></div>
         <div class="note" style="margin-top:14px"><b>控管機制：</b>新註冊自動 30 天試用；到期未開通轉唯讀。收到匯款後按「開通付費」。停權立即擋寫入（資料保留 90 天後才清）。單月憑證 >2000 張標 ⚠️，客戶達 80 家請升級 Supabase Pro。</div>
       </section>
@@ -1805,9 +1808,17 @@ async function loadOps(){
       (rows.length?rows.map(r=>{
         const hot=(+r.doc_count>2000);
         return `<tr${hot?' style="background:#fde68a33"':''}><td>${esc(r.name||"—")}<br><span style="color:var(--ink-3);font-size:11px">${esc(r.uni||"")}</span></td><td>${esc(r.plan)}</td><td>${r.status==="active"?'<span class="tag">啟用</span>':'<span class="tag no">'+esc(r.status)+'</span>'}</td><td class="r num">${r.member_count}</td><td class="r num">${r.doc_count}${hot?" ⚠️":""}</td><td class="num" style="font-size:11px">${(r.created_at||"").slice(0,10)}</td><td class="r" style="white-space:nowrap">
-          <button class="btn ghost sm" onclick="opsSet('${r.id}','plan','basic')">開通付費</button>
+          <button class="btn ghost sm" onclick="opsPlanPick('${r.id}')">開通付費</button>
           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="7" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}}
+function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
+  document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
+async function opsPlanPick(id){
+  var pick=prompt("開通哪個方案？\n1 = 基本（年繳 5,990）\n2 = 標準（年繳 9,990）\n3 = 進階（年繳 19,900）\n（早鳥/自訂價：直接照收到的金額開通，方案僅影響顯示）","2");
+  if(pick===null)return;
+  var map={"1":"basic","2":"standard","3":"pro"};var plan=map[String(pick).trim()]||"basic";
+  await opsSet(id,"plan",plan);
+}
 async function opsSet(id,field,val){
   if(!confirm((field==="plan"?"開通為付費方案？":"變更狀態為 "+val+"？")))return;
   const {error}=await sb.rpc("ops_set_org",{oid:id,f:field,v:val});
@@ -2552,6 +2563,11 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
 /* ===== 公司資料 + 開帳精靈 ===== */
 function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
+function onbGo(view,settab){try{var o=document.getElementById("setupOvl");if(o)o.classList.remove("on");}catch(e){}
+  try{goView(view);}catch(e){}
+  if(view==="settings"&&settab){setTimeout(function(){var b=document.querySelector('#v-settings .stab[data-p="'+settab+'"]');if(b)b.click();},120);}
+}
+function reopenOnboard(){var o=document.getElementById("setupOvl");if(o)o.classList.add("on");}
 function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owner")return;const co=db.company||{};if(!co.name&&!db.setupSkipped&&dataScore(db)===0){const o=$("#setupOvl");if(o)o.classList.add("on");}}
 (function(){
   const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
