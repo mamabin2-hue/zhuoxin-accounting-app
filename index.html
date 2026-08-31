@@ -1834,7 +1834,7 @@ const TBL={
  opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
 };
 let myOrgs=[],_orgResolveFailed=false,_keepLocalOnce=false;
-async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;if(!sb||!sbUser){_orgResolveFailed=true;return;}
+async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;_orgExpired=false;_orgBillNote="";try{const bw=document.getElementById("billWarn");if(bw)bw.style.display="none";}catch(e){}if(!sb||!sbUser){_orgResolveFailed=true;return;}
   try{const q0=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");
     if(q0.error){_orgResolveFailed=true;console.warn("resolveOrg query",q0.error);return;}
     let rows=q0.data||[];
@@ -1878,7 +1878,7 @@ function renderBillWarn(o){
   const lw=$("#loginWarn");if(!lw)return;
   if(!el){el=document.createElement("div");el.id="billWarn";el.style.cssText="display:none;background:#fdeaea;color:#7a1f1f;border:1px solid #d64545;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;font-weight:600";lw.parentNode.insertBefore(el,lw.nextSibling);}
   if(_orgExpired){
-    el.innerHTML='⏳ 「'+esc(o.name||"本公司")+'」的免費試用已到期：資料完整保留、可查看與匯出，但暫停新增記帳。續用請參考 <a href="/pricing.html" target="_blank" style="color:#b02a2a">方案與定價</a>（每家公司帳本分別計費），完成後由專人開通。';
+    el.style.background="#fdeaea";el.style.color="#7a1f1f";el.style.borderColor="#d64545";el.innerHTML='⏳ 「'+esc(o.name||"本公司")+'」的免費試用已到期：資料完整保留、可查看與匯出，但暫停新增記帳。續用請參考 <a href="/pricing.html" target="_blank" style="color:#b02a2a">方案與定價</a>（每家公司帳本分別計費），完成後由專人開通。';
     el.style.display="";
   }else if(o&&o.plan==="trial"&&o.trialEnd){
     const days=Math.ceil((Date.parse(o.trialEnd)-Date.now())/86400000);
@@ -1985,8 +1985,8 @@ async function dailyAutoBackup(){
     const key=LS+"_dailyBk";
     if(localStorage.getItem(key)===todayStr())return;
     if(dataScore(db)<=0)return;
-    try{runDepreciation(false);}catch(e){}
-    try{runRecurring(false);renderIncomeDue();}catch(e){}
+    if(!(typeof _orgExpired!=="undefined"&&_orgExpired)){try{runDepreciation(false);}catch(e){}
+    try{runRecurring(false);renderIncomeDue();}catch(e){}}
     lastSnapTs=0;
     await snapshotPush();
     try{if(typeof writeBackup==="function")await writeBackup();}catch(e){}
