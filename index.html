@@ -204,6 +204,10 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
     <div id="orgSwitchWrap" style="display:none;padding:12px 14px 4px"><label style="font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:4px">🏢 公司切換（需驗證）</label><select id="orgSwitch" onchange="switchOrg(this)" style="width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border)"></select></div>
+    <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
+      <button class="btn ghost sm" style="width:100%;margin-bottom:6px" onclick="doLogout()">🚪 登出</button>
+      <a href="https://www.zhuohsin.com" target="_blank" style="font-size:12px;color:var(--ink-3);text-decoration:none">🏠 卓信官網</a>
+    </div>
     <div class="foot">一般稅額計算 · 401 試算<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
   </aside>
 
@@ -212,7 +216,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <h1 id="topTitle">總覽</h1>
       <div class="period">
         <span class="pill">期別 <b class="num">115/07–08</b></span>
-        <span class="pill">字軌 <b class="num" id="topTrack">DV</b></span>
+        <span class="pill" style="cursor:pointer" title="點我管理發票字軌" onclick="goView('sale')">字軌 <b class="num" id="topTrack">DV</b></span>
         <button class="theme-btn" id="cloudBtn" title="雲端同步">☁︎ 雲端</button>
         <button class="theme-btn" id="themeBtn">◐ 主題</button>
       </div>
@@ -1754,6 +1758,7 @@ function setCloud(state,msg){
   const lw=$("#loginWarn");if(lw)lw.style.display=(state==="out"||state==="nolib")?"":"none";}
 /* ===== 閒置自動登出（財務系統資安：無操作 20 分鐘自動登出，防公用/遺失裝置被人接手）===== */
 const IDLE_MIN=20; let _idleTimer=null,_idleWarnTimer=null;
+function markActive(){try{localStorage.setItem(LS+"_lastActive",String(Date.now()));}catch(e){}}
 async function idleLogout(){
   try{if(sb&&sbUser)await sb.auth.signOut();}catch(e){}
   try{localStorage.removeItem(LS+"_trial");}catch(e){}
@@ -1762,6 +1767,7 @@ async function idleLogout(){
 }
 function resetIdle(){
   if(typeof sbUser==="undefined"||!sbUser)return;   // 只在登入狀態計時
+  markActive();
   clearTimeout(_idleTimer);clearTimeout(_idleWarnTimer);
   _idleWarnTimer=setTimeout(function(){try{var b=document.getElementById("idleWarn");if(!b){b=document.createElement("div");b.id="idleWarn";b.style.cssText="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)";document.body.appendChild(b);}b.textContent="⏳ 閒置過久，1 分鐘後將自動登出（動一下畫面即可繼續）";}catch(e){}},(IDLE_MIN-1)*60000);
   _idleTimer=setTimeout(idleLogout,IDLE_MIN*60000);
@@ -1770,7 +1776,10 @@ function resetIdle(){
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
-  sb.auth.getSession().then(({data})=>{if(data&&data.session){onSignedIn(data.session.user);}else{setCloud("out");if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");try{openLogin();}catch(e){}}});
+  sb.auth.getSession().then(async ({data})=>{if(data&&data.session){
+    const la=+(localStorage.getItem(LS+"_lastActive")||0);
+    if(la&&(Date.now()-la)>IDLE_MIN*60000){try{await sb.auth.signOut();}catch(e){}document.body.classList.add("locked");try{openLogin();}catch(e){}setCloud("out");try{alert("為保護資料，距上次使用已超過 "+IDLE_MIN+" 分鐘，請重新登入。");}catch(e){}return;}
+    onSignedIn(data.session.user);}else{setCloud("out");if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");try{openLogin();}catch(e){}}});
   sb.auth.onAuthStateChange((_e,s)=>{s?onSignedIn(s.user):onSignedOut();});
 }
 async function onSignedIn(user){
@@ -1793,7 +1802,7 @@ async function onSignedIn(user){
   }catch(e){}
   localStorage.setItem(LS+"_hasCloud","1");
   try{lgMsg("登入成功，載入中…",true);}catch(e){}
-  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();try{resetIdle();}catch(e){}};
+  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();try{resetIdle();}catch(e){}try{var ab=document.getElementById("acctBox");if(ab)ab.style.display="";}catch(e){}};
   try{
     await resolveMembership(user);
     await resolveOrg();
@@ -2059,6 +2068,7 @@ function subscribeRealtime(){
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
+async function doLogout(){if(!sbUser){openLogin();return;}if(!confirm("要登出「"+(sbUser.email||"")+"」嗎？"))return;try{await sb.auth.signOut();}catch(e){}try{localStorage.removeItem(LS+"_trial");}catch(e){}location.reload();}
 function openLogin(){$("#loginOvl").classList.add("on");
   try{const tb=$("#lg_trial");if(tb)tb.style.display=(localStorage.getItem(LS+"_hasCloud")==="1")?"none":"";}catch(e){}}
 function startTrial(){
