@@ -220,8 +220,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <span class="pill">期別 <b class="num" id="topPeriod">—</b></span>
         <span class="pill" style="cursor:pointer" title="點我管理發票字軌" onclick="goView('sale')">字軌 <b class="num" id="topTrack">DV</b></span>
         <button class="theme-btn" id="cloudBtn" title="雲端同步">☁︎ 雲端</button>
-        <button class="theme-btn" id="modeBtn" onclick="toggleSimpleMode()" title="簡易模式：只顯示日常記帳與主要報表">▦ 完整</button>
-        <button class="theme-btn" id="themeBtn">◐ 主題</button>
+                <button class="theme-btn" id="themeBtn">◐ 主題</button>
       </div>
     </div>
     <div class="content">
@@ -396,12 +395,12 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <div class="sec-h"><h2>週期清單</h2></div>
         <div id="rcList"></div>
         <div class="note" style="margin-top:12px">
-          <b>🙋 怎麼選「記帳方式」？（超白話）</b><br>
-          ・<b>錢當月就會付</b>（例：房租每月 1 號銀行自動扣）→ 選 <b>銀行存款</b>，系統一次記完，最省事。<br>
+          <b>🙋 記帳方式怎麼選？</b><br>
+          ・<b>錢當月就會付</b>（例：房租每月 1 號銀行自動扣）→ 選 <b>銀行存款</b>，系統一次記完即可。<br>
           ・<b>先欠著、之後才付</b>（例：月底結、次月 5 號才匯款）→ 選 <b>應付帳款</b>＝先記「我欠人家錢」，同時提醒你去銀行<b>預約轉帳</b>；真的付款那天，到「手動分錄」選範本〈支付應付帳款（沖銷）〉記一筆就結清。<br>
-          ・<b>不確定選哪個？</b>選「銀行存款」就對了，兩種在稅務上都合規。<br>
+          ・<b>不確定選哪個？</b>建議選「銀行存款」，兩種在稅務上都合規。<br>
           <b>📌 三個實例：</b>房租(當月扣款)→銀行存款｜大額顧問費(次月付)→應付帳款｜客戶月費(收錢的)→選「固定收入」型，到期系統提醒你開發票、一鍵帶入。<br>
-          <b>⚠️ 一個地雷別踩：</b>會收到「統一發票」的固定支出（例：電信費、網路費）<b>不要</b>設自動切傳票——等發票寄來登在「進項」即可，否則同一筆會記兩次。週期憑證適合<b>沒有發票</b>的固定支出（房租、勞健保、薪資、利息）。</div>
+          <b>⚠️ 特別注意：</b>會收到「統一發票」的固定支出（例：電信費、網路費）<b>不要</b>設自動切傳票——等發票寄來登在「進項」即可，否則同一筆會記兩次。週期憑證適合<b>沒有發票</b>的固定支出（房租、勞健保、薪資、利息）。</div>
       </section>
 
       <!-- PAYREQ 請款單 -->
@@ -878,17 +877,8 @@ const NAVGROUPS=[
   {g:"law",items:["law"]},
   {g:"setup",items:["settings","export","users","ops"]}];
 function groupOf(v){const g=NAVGROUPS.find(x=>x.items.indexOf(v)>=0);return g?g.g:"book";}
-const SIMPLE_HIDE=["petty","payreq","recur","journal","voucher","ledger","fund","assets","balance"];
-function isSimpleMode(){try{return localStorage.getItem(LS+"_simple")==="1";}catch(e){return false;}}
-function toggleSimpleMode(){
-  try{localStorage.setItem(LS+"_simple",isSimpleMode()?"0":"1");}catch(e){}
-  const b=document.getElementById("modeBtn");if(b)b.textContent=isSimpleMode()?"◱ 簡易":"▦ 完整";
-  try{applyFeatureGate();}catch(e){}
-  alert(isSimpleMode()?"已切換為【簡易模式】：只顯示日常記帳與主要報表（零用金、請款、週期、手動分錄、明細帳表先收起來）。隨時可切回完整。":"已切換為【完整模式】：全部功能都顯示。");
-}
 function visibleItems(g){const grp=NAVGROUPS.find(x=>x.g===g);if(!grp)return [];
   return grp.items.filter(function(v){
-    if(isSimpleMode()&&SIMPLE_HIDE.indexOf(v)>=0)return false;
     if(v==="users")return (typeof myRole!=="undefined")&&(myRole==="owner"||myRole==="admin");
     if(v==="ops")return (typeof sbUser!=="undefined")&&sbUser&&sbUser.id==="a7e4d95c-beed-4cdc-9351-bdd2a3ff4530";
     if(typeof myFeatures!=="undefined"&&myFeatures)return v==="dash"||myFeatures.indexOf(v)>=0;
@@ -1714,7 +1704,7 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   const age=backupAgeDays();
   if(!bkHandle && age===null) h+=row("❌","③ 電腦備份檔 — 尚未啟用","<b>建議多留一份在自己電腦</b>：按右邊按鈕 → 跳出儲存視窗 → <b>先選資料夾、再按存檔</b>，設定一次就好，之後每次變更自動更新。 <button class=\"btn sm\" style=\"margin-top:6px\" onclick=\"enableAutoBackup()\">立即啟用電腦備份</button>","var(--danger)");
   else if(age===null) h+=row("⚠️","③ 電腦備份檔 — 已設定但尚未寫入","若剛跳出權限詢問請按「允許」；或點『重新啟用』後改一筆資料觸發","var(--warn)");
-  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","多半是瀏覽器重開後權限被暫停：跳出詢問時按「允許」（勾「每次造訪時允許」最省事），或點『重新啟用』","var(--warn)");
+  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","多半是瀏覽器重開後權限被暫停：跳出詢問時按「允許」（勾選「每次造訪時允許」即可），或點『重新啟用』","var(--warn)");
   else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
   h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表您的帳本同時保存在「雲端資料庫＋60 個歷史版本＋您的電腦」三個地方，任何一處故障都不會遺失。</div>`;
   el.innerHTML=h;}
@@ -1874,7 +1864,6 @@ function resetIdle(){
   _idleWarnTimer=setTimeout(function(){try{var b=document.getElementById("idleWarn");if(!b){b=document.createElement("div");b.id="idleWarn";b.style.cssText="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)";document.body.appendChild(b);}b.textContent="⏳ 閒置過久，1 分鐘後將自動登出（動一下畫面即可繼續）";}catch(e){}},(IDLE_MIN-1)*60000);
   _idleTimer=setTimeout(idleLogout,IDLE_MIN*60000);
 }
-(function(){try{var b=document.getElementById("modeBtn");if(b&&isSimpleMode())b.textContent="◱ 簡易";}catch(e){}})();
 (function(){["click","keydown","mousemove","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){var w=document.getElementById("idleWarn");if(w)w.remove();resetIdle();},{passive:true});});})();
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
