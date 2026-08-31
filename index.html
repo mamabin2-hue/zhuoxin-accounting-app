@@ -219,6 +219,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <span class="pill">期別 <b class="num">115/07–08</b></span>
         <span class="pill" style="cursor:pointer" title="點我管理發票字軌" onclick="goView('sale')">字軌 <b class="num" id="topTrack">DV</b></span>
         <button class="theme-btn" id="cloudBtn" title="雲端同步">☁︎ 雲端</button>
+        <button class="theme-btn" id="modeBtn" onclick="toggleSimpleMode()" title="簡易模式：只顯示日常記帳與主要報表">▦ 完整</button>
         <button class="theme-btn" id="themeBtn">◐ 主題</button>
       </div>
     </div>
@@ -873,8 +874,17 @@ const NAVGROUPS=[
   {g:"law",items:["law"]},
   {g:"setup",items:["settings","export","users","ops"]}];
 function groupOf(v){const g=NAVGROUPS.find(x=>x.items.indexOf(v)>=0);return g?g.g:"book";}
+const SIMPLE_HIDE=["petty","payreq","recur","journal","voucher","ledger","fund","assets","balance"];
+function isSimpleMode(){try{return localStorage.getItem(LS+"_simple")==="1";}catch(e){return false;}}
+function toggleSimpleMode(){
+  try{localStorage.setItem(LS+"_simple",isSimpleMode()?"0":"1");}catch(e){}
+  const b=document.getElementById("modeBtn");if(b)b.textContent=isSimpleMode()?"◱ 簡易":"▦ 完整";
+  try{applyFeatureGate();}catch(e){}
+  alert(isSimpleMode()?"已切換為【簡易模式】：只顯示日常記帳與主要報表（零用金、請款、週期、手動分錄、明細帳表先收起來）。隨時可切回完整。":"已切換為【完整模式】：全部功能都顯示。");
+}
 function visibleItems(g){const grp=NAVGROUPS.find(x=>x.g===g);if(!grp)return [];
   return grp.items.filter(function(v){
+    if(isSimpleMode()&&SIMPLE_HIDE.indexOf(v)>=0)return false;
     if(v==="users")return (typeof myRole!=="undefined")&&(myRole==="owner"||myRole==="admin");
     if(v==="ops")return (typeof sbUser!=="undefined")&&sbUser&&sbUser.id==="a7e4d95c-beed-4cdc-9351-bdd2a3ff4530";
     if(typeof myFeatures!=="undefined"&&myFeatures)return v==="dash"||myFeatures.indexOf(v)>=0;
@@ -1849,6 +1859,7 @@ function resetIdle(){
   _idleWarnTimer=setTimeout(function(){try{var b=document.getElementById("idleWarn");if(!b){b=document.createElement("div");b.id="idleWarn";b.style.cssText="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)";document.body.appendChild(b);}b.textContent="⏳ 閒置過久，1 分鐘後將自動登出（動一下畫面即可繼續）";}catch(e){}},(IDLE_MIN-1)*60000);
   _idleTimer=setTimeout(idleLogout,IDLE_MIN*60000);
 }
+(function(){try{var b=document.getElementById("modeBtn");if(b&&isSimpleMode())b.textContent="◱ 簡易";}catch(e){}})();
 (function(){["click","keydown","mousemove","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){var w=document.getElementById("idleWarn");if(w)w.remove();resetIdle();},{passive:true});});})();
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
