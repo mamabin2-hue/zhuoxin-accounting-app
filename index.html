@@ -612,6 +612,8 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <div class="grid kpis" id="opsKpis" style="margin-bottom:14px"></div>
         <input id="opsSearch" oninput="opsFilter()" placeholder="🔍 搜尋公司名稱／統編…" style="width:100%;max-width:320px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
         <div id="opsList"></div>
+        <div class="sec-h" style="margin-top:22px"><h2 style="font-size:16px">客戶回報</h2><span class="muted">問題回報／建議（最新 50 筆）</span></div>
+        <div id="opsFb"></div>
         <div class="note" style="margin-top:14px"><b>控管機制：</b>新註冊自動 30 天試用；到期未開通轉唯讀。收到匯款後按「開通付費」。停權立即擋寫入（資料保留 90 天後才清）。單月憑證 >2000 張標 ⚠️，客戶達 80 家請升級 Supabase Pro。</div>
       </section>
 
@@ -1826,7 +1828,13 @@ async function loadOps(){
         return `<tr${hot?' style="background:#fde68a33"':''}><td>${esc(r.name||"—")}<br><span style="color:var(--ink-3);font-size:11px">${esc(r.uni||"")}</span></td><td>${esc(r.plan)}</td><td>${r.status==="active"?'<span class="tag">啟用</span>':'<span class="tag no">'+esc(r.status)+'</span>'}</td><td class="r num">${r.member_count}</td><td class="r num">${r.doc_count}${hot?" ⚠️":""}</td><td class="num" style="font-size:11px">${(r.created_at||"").slice(0,10)}</td><td class="r" style="white-space:nowrap">
           <button class="btn ghost sm" onclick="opsPlanPick('${r.id}')">開通付費</button>
           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="7" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
-  }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}}
+  }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
+  try{const fb=await sb.from("feedback").select("created_at,email,page,message,image").order("created_at",{ascending:false}).limit(50);
+    const fbox=$("#opsFb");
+    if(fbox&&!fb.error){const fr=fb.data||[];
+      fbox.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th>Email</th><th>頁面</th><th>內容</th><th>照片</th></tr></thead><tbody>'+(fr.length?fr.map(f=>`<tr><td class="num" style="font-size:11px;white-space:nowrap">${new Date(f.created_at).toLocaleString("zh-TW",{hour12:false}).slice(0,16)}</td><td style="font-size:12px">${esc(f.email||"")}</td><td style="font-size:12px">${esc(TITLES[(f.page||"").replace("v-","")]||f.page||"")}</td><td style="font-size:12px;max-width:380px;white-space:pre-wrap">${esc(f.message||"")}</td><td>${f.image?`<img src="${f.image}" style="max-height:56px;border-radius:6px;cursor:zoom-in" onclick="fbView(this.src)">`:"—"}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無回報</td></tr>')+'</tbody></table></div></div>';}
+  }catch(e){}}
+function fbView(src){var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();}}
 function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
   document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
 async function opsPlanPick(id){
