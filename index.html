@@ -208,7 +208,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button class="btn ghost sm" style="width:100%;margin-bottom:6px" onclick="doLogout()">🚪 登出</button>
       <a href="https://www.zhuohsin.com" target="_blank" style="font-size:12px;color:var(--ink-3);text-decoration:none">🏠 卓信官網</a>
     </div>
-    <div class="foot">一般稅額計算 · 401 試算<br>資料存於本機瀏覽器<br>© 卓信 · 115年第4期</div>
+    <div class="foot">一般稅額計算 · 401 試算<br>資料存於本機瀏覽器<br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -669,6 +669,16 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
             <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：台南市安南區府安路七街24號"></div>
             <div class="fld"><label>電話</label><input id="co_tel" placeholder="06-xxxxxxxx"></div>
           </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld" style="grid-column:span 2"><label>公司 Logo（顯示在左上角，選填）</label>
+              <div style="display:flex;align-items:center;gap:10px">
+                <img id="co_logoPreview" style="max-height:40px;max-width:120px;display:none;border:1px solid var(--border);border-radius:8px;padding:2px">
+                <label class="btn ghost sm" style="display:inline-block">📷 上傳／更換<input type="file" accept="image/*" style="display:none" onchange="uploadLogo(this)"></label>
+                <button type="button" class="btn ghost sm" onclick="removeLogo()">移除</button>
+                <span id="co_logoTag" style="font-size:12px;color:var(--ink-3)"></span>
+              </div>
+            </div>
+          </div>
           <div class="actions"><button class="btn sm" type="submit">儲存公司資料</button></div>
         </form>
         </div>
@@ -814,6 +824,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">💬 問題回報 / 建議</b><button class="btn ghost sm" onclick="closeFeedback()">✕</button></div>
     <p style="font-size:12.5px;color:var(--ink-3);margin:0 0 10px">遇到問題、怪怪的地方、或想要的功能都可以寫，我們會收到並改進。</p>
     <textarea id="fb_msg" rows="5" style="width:100%;font-size:14px;padding:10px;border:1px solid var(--border);border-radius:10px;resize:vertical" placeholder="例如：切換公司後報表打不開、希望能匯出 Excel…"></textarea>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:10px"><label class="btn ghost sm" style="display:inline-block">📷 附截圖／照片<input type="file" accept="image/*" style="display:none" onchange="fbPhoto(this)"></label><img id="fb_photoPreview" style="max-height:46px;display:none;border:1px solid var(--border);border-radius:6px"><span id="fb_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div>
     <div class="msg" id="fb_hint" style="font-size:12.5px;margin-top:6px"></div>
     <div class="actions" style="margin-top:10px"><button class="btn" onclick="sendFeedback()">送出</button><span style="font-size:11.5px;color:var(--ink-3);align-self:center">送出後由卓信收到；急事請直接聯繫卓信</span></div>
   </div>
@@ -1736,6 +1747,15 @@ async function resolveMembership(user){
   }catch(e){console.warn("membership",e);}
 }
 const ZX_ORG="00000000-0000-4000-8000-000000000001";
+function blobToDataURL(b){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=()=>rej(r.error);r.readAsDataURL(b);});}
+async function uploadLogo(inp){const f=inp.files&&inp.files[0];if(!f)return;inp.value="";
+  const tag=document.getElementById("co_logoTag");
+  try{const blob=await compressImage(f,240,0.85);const url=await blobToDataURL(blob);
+    if(!db.company)db.company={};db.company.logo=url;save();applyBrand();
+    const pv=document.getElementById("co_logoPreview");if(pv){pv.src=url;pv.style.display="";}
+    if(tag){tag.style.color="var(--good)";tag.textContent="✓ 已更新（記得按儲存）";}
+  }catch(e){if(tag){tag.style.color="var(--danger)";tag.textContent="失敗："+e.message;}}}
+function removeLogo(){if(db.company)delete db.company.logo;save();applyBrand();const pv=document.getElementById("co_logoPreview");if(pv){pv.src="";pv.style.display="none";}const tag=document.getElementById("co_logoTag");if(tag){tag.style.color="var(--ink-3)";tag.textContent="已移除（記得按儲存）";}}
 function applyBrand(){
   try{
     const bt=$("#brandText");const mark=document.querySelector(".brand .mark");
@@ -1743,8 +1763,9 @@ function applyBrand(){
     const isZX=bookOrgId===ZX_ORG;
     if(isZX){bt.innerHTML="<b>卓信會計</b><span>記帳系統</span>";document.title="卓信雲端會計";return;}
     const nm=(db.company&&db.company.name)||(sbUser&&sbUser.email?sbUser.email.split("@")[0]+" 的帳本":"我的公司");
+    const logo=db.company&&db.company.logo;
     bt.innerHTML="<b>"+esc(nm.length>10?nm.slice(0,10):nm)+"</b><span>雲端記帳系統</span>";
-    if(mark){mark.innerHTML='<div style="width:34px;height:34px;border-radius:9px;background:var(--accent,#1f7a5c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px">'+esc(nm.slice(0,1))+"</div>";}
+    if(mark){mark.innerHTML=logo?('<img src="'+esc(logo)+'" style="width:34px;height:34px;border-radius:9px;object-fit:cover">'):('<div style="width:34px;height:34px;border-radius:9px;background:var(--accent,#1f7a5c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px">'+esc(nm.slice(0,1))+"</div>");}
     document.title=nm+"｜雲端記帳";
   }catch(e){}
 }
@@ -2114,7 +2135,10 @@ function subscribeRealtime(){
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
-function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";}}
+let _fbImage="";
+async function fbPhoto(inp){const f=inp.files&&inp.files[0];if(!f)return;inp.value="";const tag=document.getElementById("fb_photoTag");
+  try{const blob=await compressImage(f,1000,0.7);_fbImage=await blobToDataURL(blob);const pv=document.getElementById("fb_photoPreview");if(pv){pv.src=_fbImage;pv.style.display="";}if(tag){tag.style.color="var(--good)";tag.textContent="✓ 已附照片";}}catch(e){if(tag){tag.style.color="var(--danger)";tag.textContent="照片失敗："+e.message;}}}
+function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";_fbImage="";var pv=document.getElementById("fb_photoPreview");if(pv){pv.src="";pv.style.display="none";}var pt=document.getElementById("fb_photoTag");if(pt)pt.textContent="";}}
 function closeFeedback(){var m=document.getElementById("fbModal");if(m)m.style.display="none";}
 async function sendFeedback(){
   var t=document.getElementById("fb_msg"),h=document.getElementById("fb_hint");
@@ -2124,7 +2148,7 @@ async function sendFeedback(){
   try{
     if(sb&&sbUser){
       var page=(document.querySelector(".view.on")||{}).id||"";
-      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page});
+      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImage||null});
       if(error)throw error;
     }else{
       // 未登入:暫存本機,登入後可再送(或提示登入)
@@ -2527,7 +2551,7 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
 
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
 /* ===== 公司資料 + 開帳精靈 ===== */
-function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);}
+function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
 function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owner")return;const co=db.company||{};if(!co.name&&!db.setupSkipped&&dataScore(db)===0){const o=$("#setupOvl");if(o)o.classList.add("on");}}
 (function(){
   const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
