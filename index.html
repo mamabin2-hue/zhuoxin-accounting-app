@@ -418,6 +418,14 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <div class="actions"><button class="btn" type="submit">＋ 建立並送審</button><span class="muted" style="color:var(--ink-3);font-size:12.5px">送審後由老闆／管理員核准，核准後付款自動入帳</span></div>
         </form>
         <div class="sec-h"><h2>請款清單</h2><span class="muted sp" id="prSum"></span></div>
+        <div class="actions" style="margin:0 0 10px">
+          <button class="btn ghost sm" type="button" onclick="prCheckAll(true)">全選</button>
+          <button class="btn ghost sm" type="button" onclick="prCheckAll(false)">取消全選</button>
+          <button class="btn sm" type="button" onclick="prPaySlip()">🖨 產出支付明細</button>
+          <button class="btn sm" type="button" onclick="prLabels('label')">🏷 套印貼紙</button>
+          <button class="btn sm" type="button" onclick="prLabels('envelope')">✉ 套印小信封</button>
+          <span class="muted" style="font-size:12px;color:var(--ink-3);align-self:center">勾選要付款的請款單 → 產出批次支付明細；或套印廠商貼紙／付款袋小信封</span>
+        </div>
         <div id="prList"></div>
       </section>
 
@@ -1244,7 +1252,7 @@ function renderPayreq(){
   const el=$("#prList");if(!el)return;
   const rows=(db.payreq||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const sum=$("#prSum");if(sum){const pend=rows.filter(r=>r.status==="pending");sum.textContent=pend.length?("待審 "+pend.length+" 筆・合計 "+fmt(pend.reduce((a,r)=>a+(+r.amount||0),0))):"";}
-  el.innerHTML=rows.length?('<div class="twrap"><div class="tscroll"><table><thead><tr><th>日期</th><th>請款人</th><th>付款對象</th><th>事由</th><th class="r">金額</th><th>狀態</th><th></th></tr></thead><tbody>'+
+  el.innerHTML=rows.length?('<div class="twrap"><div class="tscroll"><table><thead><tr><th style="width:30px"></th><th>日期</th><th>請款人</th><th>付款對象</th><th>事由</th><th class="r">金額</th><th>狀態</th><th></th></tr></thead><tbody>'+
     rows.map(r=>{
       let ops="";
       if(r.status==="pending"&&canApprove())ops=`<button class="btn ghost sm" onclick="prAct('${r.id}','approve')">✔ 核准</button> <button class="btn ghost sm" onclick="prAct('${r.id}','reject')">✕ 退回</button>`;
@@ -1252,8 +1260,36 @@ function renderPayreq(){
       if(r.status==="pending"&&!canApprove()&&r.applicant===(sbUser&&sbUser.email))ops+=` <button class="del" onclick="delPayreq('${r.id}')" title="撤回">✕</button>`;
       const photo=r.photoKey?` <a href="#" onclick="openReceiptPhoto('${esc(r.photoKey)}');return false" style="color:var(--accent-ink);font-size:12px">📎</a>`:"";
       const extra=r.status==="rejected"&&r.rejectReason?`<br><span style="color:var(--danger);font-size:11px">退回：${esc(r.rejectReason)}</span>`:(r.status==="paid"&&r.payFrom?`<br><span style="color:var(--ink-3);font-size:11px">付自 ${esc(r.payFrom)}</span>`:(r.status==="approved"&&r.approvedBy?`<br><span style="color:var(--ink-3);font-size:11px">核准 ${esc(r.approvedBy)}</span>`:""));
-      return `<tr><td class="num">${esc(r.date||"—")}</td><td style="font-size:12.5px">${esc((r.applicant||"").split("@")[0])}</td><td>${esc(r.payee)}</td><td>${esc(r.reason)}${photo}${extra}</td><td class="r num">${fmt(r.amount)}</td><td>${prStatusPill(r.status)}</td><td class="r" style="white-space:nowrap">${ops}</td></tr>`;
+      return `<tr><td><input type="checkbox" class="prChk" value="${r.id}"></td><td class="num">${esc(r.date||"—")}</td><td style="font-size:12.5px">${esc((r.applicant||"").split("@")[0])}</td><td>${esc(r.payee)}</td><td>${esc(r.reason)}${photo}${extra}</td><td class="r num">${fmt(r.amount)}</td><td>${prStatusPill(r.status)}</td><td class="r" style="white-space:nowrap">${ops}</td></tr>`;
     }).join("")+'</tbody></table></div></div>'):'<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">尚無請款單。員工可在上方建立送審。</div>';
+}
+function prCheckAll(v){document.querySelectorAll("#prList .prChk").forEach(c=>c.checked=v);}
+function prSelected(){const ids=[...document.querySelectorAll("#prList .prChk:checked")].map(c=>c.value);const rows=(db.payreq||[]).filter(r=>ids.includes(r.id));if(!rows.length)alert("請先勾選要處理的請款單。");return rows;}
+function prCompany(){const co=db.company||{};return {name:co.name||"",uni:co.uni||"",addr:co.addr||"",tel:co.tel||co.phone||""};}
+function printHTML(title,inner){
+  const w=window.open("","_blank");
+  if(!w){alert("瀏覽器擋了列印視窗，請允許彈出視窗後再試。");return;}
+  w.document.write('<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><title>'+title+'</title><style>*{box-sizing:border-box}body{font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;margin:0;padding:18px;color:#1a1a1a}h1{font-size:18px;margin:0 0 4px}.sub{font-size:12px;color:#666;margin-bottom:12px}table{width:100%;border-collapse:collapse;font-size:13px}th,td{border:1px solid #bbb;padding:7px 9px;text-align:left}th{background:#f0f2f4}td.r,th.r{text-align:right}tfoot td{font-weight:700;background:#f7f9fb}.labels{display:flex;flex-wrap:wrap;gap:8px}.lbl{border:1px dashed #999;border-radius:8px;padding:10px 12px;width:calc(50% - 4px);min-height:78px}.env{width:100%;border:1px solid #ccc;border-radius:8px;padding:22px 26px;margin-bottom:12px;page-break-inside:avoid}.env .to{font-size:20px;font-weight:700;margin-bottom:6px}.env .amt{font-size:16px}.sign{margin-top:26px;display:flex;gap:40px;font-size:13px}.sign div{border-top:1px solid #333;padding-top:6px;min-width:150px;text-align:center}@media print{.noprint{display:none}}</style></head><body>'+inner+'<div class="noprint" style="margin-top:18px;text-align:center"><button onclick="window.print()" style="padding:9px 22px;font-size:14px;border:0;border-radius:8px;background:#1f7a5c;color:#fff;cursor:pointer">🖨 列印 / 存 PDF</button></div></body></html>');
+  w.document.close();
+}
+function prPaySlip(){
+  const rows=prSelected();if(!rows.length)return;
+  const co=prCompany();const total=rows.reduce((a,r)=>a+(+r.amount||0),0);
+  const body=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.date||"")}</td><td>${esc(r.payee)}</td><td>${esc(r.reason||"")}</td><td>${esc(r.acct||"")}</td><td class="r">${fmt(r.amount)}</td><td>${esc({pending:"待審",approved:"待付",paid:"已付",rejected:"退回"}[r.status]||"")}</td></tr>`).join("");
+  const inner=`<h1>${esc(co.name||"廠商支付款項明細")}</h1><div class="sub">${co.uni?"統編 "+esc(co.uni)+"　":""}製表日 ${todayStr()}　共 ${rows.length} 筆</div>`+
+    `<table><thead><tr><th>#</th><th>日期</th><th>付款對象</th><th>事由</th><th>科目</th><th class="r">金額</th><th>狀態</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="5" class="r">合計</td><td class="r">${fmt(total)}</td><td></td></tr></tfoot></table>`+
+    `<div class="sign"><div>經辦</div><div>會計</div><div>主管核准</div></div>`;
+  printHTML("廠商支付款項明細",inner);
+}
+function prLabels(mode){
+  const rows=prSelected();if(!rows.length)return;
+  if(mode==="envelope"){
+    const inner=rows.map(r=>`<div class="env"><div class="to">${esc(r.payee)}　收</div><div class="amt">付款金額：NT$ ${fmt(r.amount)}</div><div style="font-size:12px;color:#555;margin-top:4px">事由：${esc(r.reason||"")}　日期：${esc(r.date||todayStr())}</div></div>`).join("");
+    printHTML("付款小信封套印",inner);
+  }else{
+    const inner='<div class="labels">'+rows.map(r=>`<div class="lbl"><div style="font-size:15px;font-weight:700">${esc(r.payee)}</div><div style="font-size:14px;margin-top:4px">NT$ ${fmt(r.amount)}</div><div style="font-size:11px;color:#666;margin-top:4px">${esc(r.reason||"")}</div></div>`).join("")+'</div>';
+    printHTML("廠商貼紙套印",inner);
+  }
 }
 async function prAct(id,act){
   const r=(db.payreq||[]).find(x=>x.id===id);if(!r)return;
