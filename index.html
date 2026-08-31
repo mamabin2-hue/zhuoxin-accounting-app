@@ -189,6 +189,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button class="btn" id="lg_login">登入</button>
       <button class="btn ghost sm" id="lg_reg">註冊新公司（免費試用30天）</button>
       <button class="btn ghost sm" type="button" id="lg_trial" onclick="startTrial()">先試用看看（免註冊）</button>
+      <button class="btn ghost sm" type="button" onclick="forgotPassword()">忘記密碼？</button>
     </div>
     <div class="msg" id="lg_msg"></div>
     <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請告知管理者協助重設 · <a href="/pricing.html" style="color:var(--accent-ink)">🏠 方案與介紹</a> · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
@@ -844,6 +845,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 <script>
 "use strict";
 const LS="zhuoxin_acc_115_4";
+const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
 (function(){try{
   if(localStorage.getItem(LS+"_hasCloud")!=="1"){
     var mark=localStorage.getItem(LS+"_dailyBk")||localStorage.getItem(LS+"_cloudUid");
@@ -1890,7 +1892,9 @@ async function onSignedIn(user){
   }catch(e){}
   localStorage.setItem(LS+"_hasCloud","1");
   try{lgMsg("登入成功，載入中…",true);}catch(e){}
-  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();try{resetIdle();}catch(e){}try{var ab=document.getElementById("acctBox");if(ab)ab.style.display="";}catch(e){}};
+  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();try{resetIdle();}catch(e){}try{var ab=document.getElementById("acctBox");if(ab)ab.style.display="";}catch(e){}
+    if(_isRecovery){setTimeout(function(){try{goView("settings");var b=document.querySelector('#v-settings .stab[data-p="set"]');if(b)b.click();var pw=document.getElementById("np1")||document.querySelector('#v-settings input[type="password"]');if(pw)pw.focus();alert("🔐 請在「帳號安全」輸入新密碼（打兩次→按更新密碼），完成後之後就用新密碼登入。");}catch(e){}},400);}
+  };
   try{
     await resolveMembership(user);
     await resolveOrg();
@@ -2181,6 +2185,15 @@ async function sendFeedback(){
   }catch(e){if(h){h.style.color="var(--danger)";h.textContent="送出失敗："+((e&&e.message)||e);}}
 }
 async function doLogout(){if(!sbUser){openLogin();return;}if(!confirm("要登出「"+(sbUser.email||"")+"」嗎？"))return;try{await sb.auth.signOut();}catch(e){}try{localStorage.removeItem(LS+"_trial");}catch(e){}location.reload();}
+async function forgotPassword(){
+  if(!sb){lgMsg("雲端未連線。");return;}
+  const email=($("#lg_email").value||"").trim();
+  if(!email){lgMsg("請先在上方輸入你的 Email，再按「忘記密碼」。");return;}
+  lgMsg("寄送中…",true);
+  try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://acc.zhuohsin.com/"});
+    if(error)throw error;
+    lgMsg("✅ 重設連結已寄出！請到信箱（找不到請看垃圾信件匣）點連結，會回到本系統直接設定新密碼。",true);
+  }catch(e){lgMsg("寄送失敗："+((e&&e.message)||e));}}
 function openLogin(){$("#loginOvl").classList.add("on");
   try{const tb=$("#lg_trial");if(tb)tb.style.display=(localStorage.getItem(LS+"_hasCloud")==="1")?"none":"";}catch(e){}}
 function startTrial(){
