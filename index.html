@@ -1752,6 +1752,21 @@ function setCloud(state,msg){
   else if(state==="nolib"){cloudDot("","雲端(離線)");}
   else cloudDot("","登入雲端");
   const lw=$("#loginWarn");if(lw)lw.style.display=(state==="out"||state==="nolib")?"":"none";}
+/* ===== 閒置自動登出（財務系統資安：無操作 20 分鐘自動登出，防公用/遺失裝置被人接手）===== */
+const IDLE_MIN=20; let _idleTimer=null,_idleWarnTimer=null;
+async function idleLogout(){
+  try{if(sb&&sbUser)await sb.auth.signOut();}catch(e){}
+  try{localStorage.removeItem(LS+"_trial");}catch(e){}
+  try{alert("為保護資料，已閒置 "+IDLE_MIN+" 分鐘自動登出。請重新登入。");}catch(e){}
+  location.reload();
+}
+function resetIdle(){
+  if(typeof sbUser==="undefined"||!sbUser)return;   // 只在登入狀態計時
+  clearTimeout(_idleTimer);clearTimeout(_idleWarnTimer);
+  _idleWarnTimer=setTimeout(function(){try{var b=document.getElementById("idleWarn");if(!b){b=document.createElement("div");b.id="idleWarn";b.style.cssText="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)";document.body.appendChild(b);}b.textContent="⏳ 閒置過久，1 分鐘後將自動登出（動一下畫面即可繼續）";}catch(e){}},(IDLE_MIN-1)*60000);
+  _idleTimer=setTimeout(idleLogout,IDLE_MIN*60000);
+}
+(function(){["click","keydown","mousemove","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){var w=document.getElementById("idleWarn");if(w)w.remove();resetIdle();},{passive:true});});})();
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
@@ -1778,7 +1793,7 @@ async function onSignedIn(user){
   }catch(e){}
   localStorage.setItem(LS+"_hasCloud","1");
   try{lgMsg("登入成功，載入中…",true);}catch(e){}
-  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();};
+  const _reveal=()=>{try{applyBrand();}catch(e){}document.body.classList.remove("locked");closeLogin();try{resetIdle();}catch(e){}};
   try{
     await resolveMembership(user);
     await resolveOrg();
