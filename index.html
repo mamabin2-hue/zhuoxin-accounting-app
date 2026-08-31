@@ -808,6 +808,16 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
   </div>
 </div>
 
+<button id="fbBtn" onclick="openFeedback()" title="問題回報" style="position:fixed;right:16px;bottom:16px;z-index:9000;background:#0A1628;color:#fff;border:0;border-radius:24px;padding:10px 16px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">💬 問題回報</button>
+<div id="fbModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(10,22,40,.5);align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--surface,#fff);border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">💬 問題回報 / 建議</b><button class="btn ghost sm" onclick="closeFeedback()">✕</button></div>
+    <p style="font-size:12.5px;color:var(--ink-3);margin:0 0 10px">遇到問題、怪怪的地方、或想要的功能都可以寫，我們會收到並改進。</p>
+    <textarea id="fb_msg" rows="5" style="width:100%;font-size:14px;padding:10px;border:1px solid var(--border);border-radius:10px;resize:vertical" placeholder="例如：切換公司後報表打不開、希望能匯出 Excel…"></textarea>
+    <div class="msg" id="fb_hint" style="font-size:12.5px;margin-top:6px"></div>
+    <div class="actions" style="margin-top:10px"><button class="btn" onclick="sendFeedback()">送出</button><span style="font-size:11.5px;color:var(--ink-3);align-self:center">送出後由卓信收到；急事請直接聯繫卓信</span></div>
+  </div>
+</div>
 <div id="guideModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(10,22,40,.55)">
   <div style="position:absolute;inset:4% 4%;background:var(--surface,#fff);border-radius:14px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.35)">
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border,#ddd)">
@@ -2103,6 +2113,27 @@ function subscribeRealtime(){
   const oid=bookOwnerId||sbUser.id;sbChan=sb.channel("books-"+oid).on("postgres_changes",{event:"*",schema:"public",table:"books",filter:"user_id=eq."+oid},p=>{
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
+}
+function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";}}
+function closeFeedback(){var m=document.getElementById("fbModal");if(m)m.style.display="none";}
+async function sendFeedback(){
+  var t=document.getElementById("fb_msg"),h=document.getElementById("fb_hint");
+  var msg=(t&&t.value||"").trim();
+  if(msg.length<3){if(h){h.style.color="var(--danger)";h.textContent="請多寫幾個字描述問題。";}return;}
+  if(h){h.style.color="var(--ink-3)";h.textContent="送出中…";}
+  try{
+    if(sb&&sbUser){
+      var page=(document.querySelector(".view.on")||{}).id||"";
+      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page});
+      if(error)throw error;
+    }else{
+      // 未登入:暫存本機,登入後可再送(或提示登入)
+      throw new Error("尚未登入雲端，請先登入再回報。");
+    }
+    if(h){h.style.color="var(--good)";h.textContent="✅ 已送出，謝謝你的回報！";}
+    if(t)t.value="";
+    setTimeout(closeFeedback,1200);
+  }catch(e){if(h){h.style.color="var(--danger)";h.textContent="送出失敗："+((e&&e.message)||e);}}
 }
 async function doLogout(){if(!sbUser){openLogin();return;}if(!confirm("要登出「"+(sbUser.email||"")+"」嗎？"))return;try{await sb.auth.signOut();}catch(e){}try{localStorage.removeItem(LS+"_trial");}catch(e){}location.reload();}
 function openLogin(){$("#loginOvl").classList.add("on");
