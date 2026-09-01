@@ -1952,16 +1952,20 @@ const TBL={
  accountsCustom:{t:"accounts",to:o=>({name:o.name||o.acct||"",cat:o.cat||""}),from:r=>({id:r.legacy_id||r.id,name:r.name||"",cat:r.cat||""})},
  opening:{t:"openings",to:o=>({acct:o.acct||"",side:o.side||"",amount:+o.amount||0}),from:r=>({id:r.legacy_id||r.id,acct:r.acct||"",side:r.side||"",amount:+r.amount||0})}
 };
-let myOrgs=[],_orgResolveFailed=false,_keepLocalOnce=false;
+let myOrgs=[],_orgResolveFailed=false,_keepLocalOnce=false,_createOrgPromise=null;
 async function resolveOrg(){bookOrgId=null;myOrgs=[];_orgResolveFailed=false;_orgExpired=false;_orgBillNote="";try{const bw=document.getElementById("billWarn");if(bw)bw.style.display="none";}catch(e){}if(!sb||!sbUser){_orgResolveFailed=true;return;}
   try{const q0=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");
     if(q0.error){_orgResolveFailed=true;console.warn("resolveOrg query",q0.error);return;}
     let rows=q0.data||[];
     if(!rows.length&&localStorage.getItem(LS+"_pendingReg")){
-      try{const r=await sb.rpc("create_org",{org_name:(sbUser.email||"我的公司").split("@")[0]+" 的帳本"});
-        if(r&&r.error&&String(r.error.message||"").indexOf("already")>=0)localStorage.removeItem(LS+"_pendingReg");
-        if(r&&!r.error){localStorage.removeItem(LS+"_pendingReg");const q=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");rows=q.data||[];}
-      }catch(e){console.warn("create_org",e);}}
+      if(!_createOrgPromise)_createOrgPromise=(async()=>{try{
+        const chk=await sb.from("memberships").select("org_id").eq("user_id",sbUser.id).limit(1);
+        if((chk.data||[]).length){localStorage.removeItem(LS+"_pendingReg");return;}
+        const r=await sb.rpc("create_org",{org_name:(sbUser.email||"我的公司").split("@")[0]+" 的帳本"});
+        if(r&&(!r.error||String(r.error.message||"").indexOf("already")>=0))localStorage.removeItem(LS+"_pendingReg");
+      }catch(e){console.warn("create_org",e);}})();
+      await _createOrgPromise;
+      const q=await sb.from("memberships").select("org_id,role,features,status").eq("user_id",sbUser.id).eq("status","active");rows=q.data||[];}
     if(!rows.length)return;
     const names={};
     try{const ids=rows.map(r=>r.org_id);const q=await sb.from("orgs").select("id,name,plan,status,trial_end").in("id",ids);(q.data||[]).forEach(o=>{names[o.id]=o;});}catch(e){}
@@ -2195,7 +2199,7 @@ async function forgotPassword(){
   try{const {error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:"https://acc.zhuohsin.com/"});
     if(error)throw error;
     lgMsg("✅ 重設連結已寄出！請到信箱（找不到請看垃圾信件匣）點連結，會回到本系統直接設定新密碼。",true);
-  }catch(e){lgMsg("寄送失敗："+((e&&e.message)||e));}}
+  }catch(e){lgMsg("寄送失敗："+trAuthErr((e&&e.message)||e));}}
 function openLogin(){$("#loginOvl").classList.add("on");
   try{const tb=$("#lg_trial");if(tb)tb.style.display=(localStorage.getItem(LS+"_hasCloud")==="1")?"none":"";}catch(e){}}
 function startTrial(){
@@ -2203,6 +2207,15 @@ function startTrial(){
   try{localStorage.setItem(LS+"_trial","1");}catch(e){}
   document.body.classList.remove("locked");closeLogin();}
 function closeLogin(){$("#loginOvl").classList.remove("on");}
+function trAuthErr(m){m=String(m||"");
+  if(/Invalid login credentials/i.test(m))return "帳號或密碼錯誤，請再確認一次；忘記密碼可按「忘記密碼」重設。";
+  if(/Email not confirmed/i.test(m))return "這個 Email 尚未完成驗證：請先到信箱（含垃圾信件匣）點【卓信雲端會計】驗證信中的綠色按鈕，再回來登入。";
+  if(/already registered/i.test(m))return "這個 Email 已經註冊過，請直接登入；忘記密碼可按「忘記密碼」。";
+  if(/at least 6|password.*short/i.test(m))return "密碼至少需要 6 碼。";
+  if(/rate limit|security purposes/i.test(m))return "操作太頻繁，請稍等 1 分鐘再試。";
+  if(/unable to validate|invalid format|is invalid/i.test(m))return "Email 格式不正確，請再確認。";
+  if(/network|fetch/i.test(m))return "網路連線異常，請確認網路後再試。";
+  return m;}
 function lgMsg(t,ok){const m=$("#lg_msg");m.textContent=t;m.style.color=ok?"var(--good)":"var(--danger)";}
 $("#cloudBtn").addEventListener("click",async()=>{ if(sbUser){ if(confirm("要登出「"+(sbUser.email||"")+"」嗎？")){ try{await sb.auth.signOut();}catch(e){} try{localStorage.removeItem(LS+"_trial");}catch(e){} location.reload(); } } else openLogin(); });
 $("#lg_login").addEventListener("click",async()=>{
@@ -2210,7 +2223,7 @@ $("#lg_login").addEventListener("click",async()=>{
   const email=$("#lg_email").value.trim(),pw=$("#lg_pw").value;
   if(!email||!pw){lgMsg("請輸入 email 與密碼。");return;}
   lgMsg("登入中…",true);const {error}=await sb.auth.signInWithPassword({email,password:pw});
-  if(error)lgMsg("登入失敗："+error.message);else lgMsg("登入成功，同步中…",true);
+  if(error)lgMsg("登入失敗："+trAuthErr(error.message));else lgMsg("登入成功，同步中…",true);
 });
 $("#lg_pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("#lg_login").click();});
 $("#lg_reg").addEventListener("click",async()=>{
@@ -2219,7 +2232,7 @@ $("#lg_reg").addEventListener("click",async()=>{
   if(!email||!pw||pw.length<6){lgMsg("請輸入 email 與至少 6 碼密碼後再按註冊。");return;}
   lgMsg("建立帳號中…",true);
   const {error}=await sb.auth.signUp({email,password:pw});
-  if(error){lgMsg(/not allowed/i.test(error.message)?"註冊失敗：目前註冊功能尚未開放，請聯絡卓信協助開通。":"註冊失敗："+error.message);return;}
+  if(error){lgMsg(/not allowed/i.test(error.message)?"註冊失敗：目前註冊功能尚未開放，請聯絡卓信協助開通。":"註冊失敗："+trAuthErr(error.message));return;}
   localStorage.setItem(LS+"_pendingReg","1");
   lgMsg("✅ 帳號已建立！請到信箱收【卓信雲端會計】驗證信（找不到請看垃圾信件匣）→ 點信中按鈕完成驗證 → 回來按「登入」即開通 30 天試用。",true);
 });
