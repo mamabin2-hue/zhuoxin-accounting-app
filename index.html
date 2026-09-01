@@ -184,7 +184,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <h3>☁︎ 登入雲端同步</h3>
     <p class="sub">請以帳號密碼登入才能使用；登入後手機與電腦同一本帳、即時同步。<br>為保護資料，登入逾期後帳本內容一律隱藏，重新登入即恢復。</p>
     <div class="fld"><label>Email</label><input id="lg_email" type="email" autocomplete="username" placeholder="your@email.com"></div>
-    <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="你的 Supabase 密碼"></div>
+    <div class="fld"><label>密碼</label><input id="lg_pw" type="password" autocomplete="current-password" placeholder="輸入密碼"></div>
     <div class="actions" style="margin-top:6px">
       <button class="btn" id="lg_login">登入</button>
       <button class="btn ghost sm" id="lg_reg">註冊新公司（免費試用30天）</button>
@@ -192,7 +192,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button class="btn ghost sm" type="button" onclick="forgotPassword()">忘記密碼？</button>
     </div>
     <div class="msg" id="lg_msg"></div>
-    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼請告知管理者協助重設 · <a href="/pricing.html" style="color:var(--accent-ink)">🏠 方案與介紹</a> · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
+    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼可按上方按鈕自行重設 · <a href="/pricing.html" style="color:var(--accent-ink)">🏠 方案與介紹</a> · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
   </div>
 </div>
 <div class="app">
@@ -2221,7 +2221,7 @@ $("#lg_reg").addEventListener("click",async()=>{
   const {error}=await sb.auth.signUp({email,password:pw});
   if(error){lgMsg(/not allowed/i.test(error.message)?"註冊失敗：目前註冊功能尚未開放，請聯絡卓信協助開通。":"註冊失敗："+error.message);return;}
   localStorage.setItem(LS+"_pendingReg","1");
-  lgMsg("✅ 帳號已建立！請到信箱收「驗證信」（寄件者顯示 Supabase Auth，是本系統使用的國際雲端資料庫服務商，請放心）→ 點信中連結確認 → 回來按「登入」即開通 30 天試用。",true);
+  lgMsg("✅ 帳號已建立！請到信箱收【卓信雲端會計】驗證信（找不到請看垃圾信件匣）→ 點信中按鈕完成驗證 → 回來按「登入」即開通 30 天試用。",true);
 });
 (function(){const mf=$("#memForm");if(mf)mf.addEventListener("submit",async e=>{e.preventDefault();
   if(!sb||!sbUser){alert("請先登入。");return;}
