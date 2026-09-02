@@ -1807,17 +1807,26 @@ async function loadMembers(){
 async function loadOps(){
   const box=$("#opsList"),kp=$("#opsKpis");if(!box)return;
   box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">載入中…</p>';
-  try{const {data,error}=await sb.rpc("ops_orgs");
-    if(error){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗：'+esc(error.message)+'</p>';return;}
+  let data=null,error=null;
+  try{const r2=await sb.rpc("ops_orgs2");
+    if(!r2.error){data=r2.data;}else{const r1=await sb.rpc("ops_orgs");data=r1.data;error=r1.error;}
+  }catch(e){error=e;}
+  try{
+    if(error){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗：'+esc(error.message||error)+'</p>';return;}
     const rows=data||[];
     if(kp){const act=rows.filter(r=>r.status==="active").length,paid=rows.filter(r=>r.plan!=="trial").length;
       kp.innerHTML=`<div class="card kpi"><div class="lbl">客戶總數</div><div class="val num">${rows.length}</div></div><div class="card kpi"><div class="lbl">啟用中</div><div class="val num">${act}</div></div><div class="card kpi"><div class="lbl">付費客戶</div><div class="val num">${paid}</div></div><div class="card kpi"><div class="lbl">容量</div><div class="val num">${rows.length}/80</div><div class="sub">達80家升級Pro US$25/月</div></div>`;}
-    box.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th>方案</th><th>狀態</th><th class="r">成員</th><th class="r">憑證數</th><th>建立</th><th></th></tr></thead><tbody>'+
+    const planName={trial:"試用",basic:"基本",standard:"標準",pro:"進階"};
+    box.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th>擁有者 Email</th><th>方案</th><th>狀態</th><th>試用到期</th><th class="r">成員</th><th class="r">憑證數</th><th>建立</th><th></th></tr></thead><tbody>'+
       (rows.length?rows.map(r=>{
         const hot=(+r.doc_count>2000);
-        return `<tr${hot?' style="background:#fde68a33"':''}><td>${esc(r.name||"—")}<br><span style="color:var(--ink-3);font-size:11px">${esc(r.uni||"")}</span></td><td>${esc(r.plan)}</td><td>${r.status==="active"?'<span class="tag">啟用</span>':'<span class="tag no">'+esc(r.status)+'</span>'}</td><td class="r num">${r.member_count}</td><td class="r num">${r.doc_count}${hot?" ⚠️":""}</td><td class="num" style="font-size:11px">${(r.created_at||"").slice(0,10)}</td><td class="r" style="white-space:nowrap">
+        let trialTxt="—";
+        if(r.trial_end){const d=Math.ceil((new Date(r.trial_end)-new Date())/86400000);
+          trialTxt=(r.trial_end||"").slice(0,10)+(r.plan==="trial"?(d<0?' <span style="color:var(--danger)">已到期</span>':' <span style="color:'+(d<=7?'var(--warn)':'var(--ink-3)')+'">剩'+d+'天</span>'):"");}
+        return `<tr${hot?' style="background:#fde68a33"':''}><td>${esc(r.name||"—")}<br><span style="color:var(--ink-3);font-size:11px">${esc(r.uni||"")}</span></td><td style="font-size:12px">${esc(r.owner_email||"")}</td><td>${esc(planName[r.plan]||r.plan)}</td><td>${r.status==="active"?'<span class="tag">啟用</span>':'<span class="tag no">'+esc(r.status)+'</span>'}</td><td class="num" style="font-size:12px">${trialTxt}</td><td class="r num">${r.member_count}</td><td class="r num">${r.doc_count}${hot?" ⚠️":""}</td><td class="num" style="font-size:11px">${(r.created_at||"").slice(0,10)}</td><td class="r" style="white-space:nowrap">
           <button class="btn ghost sm" onclick="opsPlanPick('${r.id}')">開通付費</button>
-          <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="7" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
+          <button class="btn ghost sm" onclick="opsExtendTrial('${r.id}')">延長試用</button>
+          <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="9" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
   try{const fb=await sb.from("feedback").select("created_at,email,page,message,image").order("created_at",{ascending:false}).limit(50);
     const fbox=$("#opsFb");
@@ -1827,6 +1836,13 @@ async function loadOps(){
 function fbView(src){var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();}}
 function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
   document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
+async function opsExtendTrial(id){
+  var d=prompt("要延長幾天試用？（從今天或原到期日往後加）","30");
+  if(d===null)return;d=parseInt(d,10);
+  if(!d||d<1||d>365){alert("請輸入 1〜365 的天數。");return;}
+  try{const r=await sb.rpc("ops_extend_trial",{p_org:id,p_days:d});
+    if(r.error)throw r.error;alert("✅ 已延長 "+d+" 天。");loadOps();
+  }catch(e){alert("延長失敗："+((e&&e.message)||e));}}
 async function opsPlanPick(id){
   var pick=prompt("開通哪個方案？\n1 = 基本（年繳 5,990）\n2 = 標準（年繳 9,990）\n3 = 進階（年繳 19,900）\n（早鳥/自訂價：直接照收到的金額開通，方案僅影響顯示）","2");
   if(pick===null)return;
