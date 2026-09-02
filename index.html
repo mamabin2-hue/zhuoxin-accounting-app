@@ -1005,7 +1005,9 @@ function renderKpis(){const t=totals();const owe=t.payable>=0;
     <div class="card kpi hl"><div class="stripe ${owe?'warn':'good'}"></div><div class="lbl">${owe?'● 本期應納稅額':'● 本期溢付（留抵）'}</div>
       <div class="val num ${owe?'warn':'good'}">${fmt(Math.abs(t.payable))}<small> 元</small></div><div class="sub">${owe?'需繳納':'可留抵下期'}</div></div>
     <div class="card kpi"><div class="lbl">本期憑證張數</div><div class="val num">${db.purchase.filter(x=>inPeriod(x.date,curPeriod())).length+db.sale.filter(x=>inPeriod(x.date,curPeriod())).length}</div><div class="sub num">全部 進${db.purchase.length}·銷${db.sale.length}</div></div>`;
-  $("#dashNote").innerHTML=`目前試算：銷項稅額 <b class="num">${fmt(t.salesTax)}</b> − 進項可扣抵 <b class="num">${fmt(t.inTaxDed)}</b>`+(db.prevCredit?` − 上期留抵 <b class="num">${fmt(db.prevCredit)}</b>`:``)+` = <b class="num">${fmt(Math.abs(t.payable))}</b> 元 ${owe?'應納':'溢付'}。`;
+  const _curDocs=db.purchase.filter(x=>inPeriod(x.date,curPeriod())).length+db.sale.filter(x=>inPeriod(x.date,curPeriod())).length;
+  const _newPeriodNote=(_curDocs===0&&(db.purchase.length+db.sale.length)>0)?`<div style="margin-bottom:8px">📅 已進入新期別 <b class="num">${curPeriod()}</b>，本期尚未登錄憑證，上方數字從 0 開始；<b>先前期別的資料都完整保存</b>，到「稅務試算」選期別即可查看與申報。</div>`:"";
+  $("#dashNote").innerHTML=_newPeriodNote+`目前試算：銷項稅額 <b class="num">${fmt(t.salesTax)}</b> − 進項可扣抵 <b class="num">${fmt(t.inTaxDed)}</b>`+(db.prevCredit?` − 上期留抵 <b class="num">${fmt(db.prevCredit)}</b>`:``)+` = <b class="num">${fmt(Math.abs(t.payable))}</b> 元 ${owe?'應納':'溢付'}。`;
   $("#dashSplit").innerHTML=`
     <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期進項</div>${miniList(db.purchase.slice(-4).reverse(),p=>`${esc(p.name||p.item||'—')} · <span class="num">${fmt(p.net+p.tax)}</span>`,p=>`editPurchase('${p.id}')`)}</div>
     <div class="card"><div style="font-size:13px;color:var(--ink-2);font-weight:600">近期銷項</div>${miniList(db.sale.slice(-4).reverse(),s=>`${invStr(s.code,s.seq)} · <span class="num">${fmt(s.net+s.tax)}</span>`,s=>`editSale('${s.id}')`)}</div>`;}
