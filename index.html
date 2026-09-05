@@ -1070,7 +1070,9 @@ function renderBalance(){const rows=balanceRows();const b=$("#balBody");
 function renderTax(){
   const sel=$("#taxPeriodSel");if(sel){const ps=allPeriods();const cur=taxPeriod||curPeriod();sel.innerHTML=ps.map(p=>`<option value="${p}"${p===cur?" selected":""}>${p}</option>`).join("");if(!taxPeriod)taxPeriod=cur;}
   const pb=$("#periodBody");if(pb){
-    const pf=($("#ph_from")||{}).value||"",pt=($("#ph_to")||{}).value||"";
+    const pfEl=$("#ph_from"),ptEl=$("#ph_to");
+    if(pfEl&&ptEl&&!pfEl.value&&!ptEl.value){const _y=new Date().getFullYear();pfEl.value=_y+"-01";ptEl.value=_y+"-12";}
+    const pf=(pfEl||{}).value||"",pt=(ptEl||{}).value||"";
     const pNum=p=>{const y=+p.slice(0,3)+1911,m1=+p.slice(4,6);return y*100+m1;};
     const mNum=v=>{if(!v)return null;return (+v.slice(0,4))*100+(+v.slice(5,7));};
     const fN=mNum(pf),tN=mNum(pt);
