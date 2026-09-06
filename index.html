@@ -671,11 +671,11 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <form class="form" id="coForm">
           <div class="frow">
             <div class="fld"><label>統一編號</label><input id="co_uni" inputmode="numeric" placeholder="8 碼"></div>
-            <div class="fld" style="grid-column:span 2"><label>公司名稱</label><input id="co_name" placeholder="例：卓信人資整合有限公司"></div>
+            <div class="fld" style="grid-column:span 2"><label>公司名稱</label><input id="co_name" placeholder="例：○○有限公司"></div>
             <div class="fld"><label>開帳日</label><input type="date" id="co_open"></div>
           </div>
           <div class="frow" style="margin-top:12px">
-            <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：台南市安南區府安路七街24號"></div>
+            <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：臺北市中正區忠孝東路一段1號"></div>
             <div class="fld"><label>電話</label><input id="co_tel" placeholder="06-xxxxxxxx"></div>
           </div>
 
@@ -702,7 +702,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
             <div class="fld"><label>帳號</label><input id="bk_acct" inputmode="numeric" placeholder="銀行帳號"></div>
           </div>
           <div class="frow" style="margin-top:12px">
-            <div class="fld" style="grid-column:span 2"><label>戶名</label><input id="bk_owner" placeholder="例：卓信人資整合有限公司"></div>
+            <div class="fld" style="grid-column:span 2"><label>戶名</label><input id="bk_owner" placeholder="例：○○有限公司"></div>
             <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn sm" type="submit">＋ 新增銀行</button></div>
             <div class="fld" style="justify-content:flex-end;align-self:end"><button class="btn ghost sm" type="button" onclick="fillZhuohsinBank()">帶入卓信匯款資訊</button></div>
           </div>
@@ -770,17 +770,17 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         </div>
         <form class="form" id="filingForm">
           <div class="frow">
-            <div class="fld"><label>營利事業<b>稅籍編號</b> <span style="color:#d64545">*</span> <span class="muted" style="font-size:11px">9 碼</span></label><input id="fl_taxno" inputmode="numeric" maxlength="9" placeholder="例：710407213"></div>
-            <div class="fld"><label>所屬稽徵機關</label><input id="fl_office" placeholder="例：南區國稅局安南稽徵所"></div>
+            <div class="fld"><label>營利事業<b>稅籍編號</b> <span style="color:#d64545">*</span> <span class="muted" style="font-size:11px">9 碼</span></label><input id="fl_taxno" inputmode="numeric" maxlength="9" placeholder="9 碼，例：123456789"></div>
+            <div class="fld"><label>所屬稽徵機關</label><input id="fl_office" placeholder="例：○○國稅局○○稽徵所"></div>
             <div class="fld"><label>申報種類</label><select id="fl_kind"><option value="1">按期申報（每2月一期·401）</option><option value="2">按月申報（限零稅率適用）</option></select></div>
             <div class="fld"><label>總繳代號</label><select id="fl_group"><option value="1">單一機構報繳</option><option value="2">總機構彙總報繳</option><option value="3">各單位分別申報</option></select></div>
           </div>
           <div class="sec-h" style="margin-top:18px"><h3 style="font-size:15px">申報人資料</h3><span class="muted">401 申報書「申辦情形」欄；自行申報通常填負責人</span></div>
           <div class="frow">
             <div class="fld"><label>申報方式</label><select id="fl_agent"><option value="1">自行申報</option><option value="2">委託申報</option></select></div>
-            <div class="fld"><label>申報人姓名 <span style="color:#d64545">*</span></label><input id="fl_name" placeholder="例：陳文斌"></div>
+            <div class="fld"><label>申報人姓名 <span style="color:#d64545">*</span></label><input id="fl_name" placeholder="例：王小明"></div>
             <div class="fld"><label>身分證統一編號 <span style="color:#d64545">*</span></label><input id="fl_id" maxlength="10" placeholder="申報書必填"></div>
-            <div class="fld"><label>聯絡電話</label><input id="fl_tel" placeholder="例：0989-269822"></div>
+            <div class="fld"><label>聯絡電話</label><input id="fl_tel" placeholder="例：0912-345678"></div>
           </div>
           <div class="sec-h" style="margin-top:18px"><h3 style="font-size:15px">上傳認證</h3></div>
           <div class="frow">
@@ -1481,11 +1481,36 @@ function _mfInvFromNote(p){/* 進項發票號碼優先從 note 抓「發票XX123
 /* 權限判斷：未登入雲端＝單機自用一律可用；已登入則看管理者勾選的功能 */
 function canFeature(key){
   try{
-    if(typeof myFeatures==="undefined"||!myFeatures)return true;
-    if(!Array.isArray(myFeatures))return true;
-    if(!myFeatures.length)return true;
+    /* 未登入雲端＝單機自用，一律可用 */
+    if(typeof myFeatures==="undefined"||myFeatures===null)return true;
+    if(!Array.isArray(myFeatures))return false;      /* 型別異常→保守拒絕 */
+    if(!myFeatures.length)return false;              /* 已登入但未勾任何功能→拒絕（避免預設全開）*/
     return myFeatures.indexOf(key)>=0;
-  }catch(e){return true;}
+  }catch(e){return false;}                            /* 例外→保守拒絕 */
+}
+/* 身分證統一編號檢查（含檢查碼驗算，避免打錯一碼到申報時才發現）*/
+function validTWID(id){
+  id=String(id||"").trim().toUpperCase();
+  if(!/^[A-Z][12]\d{8}$/.test(id))return false;
+  var map="ABCDEFGHJKLMNPQRSTUVXYWZIO";
+  var i=map.indexOf(id[0]); if(i<0)return false;
+  var n=i+10, sum=Math.floor(n/10)+(n%10)*9;
+  for(var k=1;k<=8;k++) sum+=Number(id[k])*(9-k);
+  sum+=Number(id[9]);
+  return sum%10===0;
+}
+/* 統一編號檢查（財政部演算法，含第7碼為7的特例）*/
+function validTWUni(u){
+  u=String(u||"").replace(/\D/g,"");
+  if(!/^\d{8}$/.test(u))return false;
+  var w=[1,2,1,2,1,2,4,1], sum=0, d7=false;
+  for(var i=0;i<8;i++){
+    var p=Number(u[i])*w[i], t=Math.floor(p/10)+(p%10);
+    if(i===6&&Number(u[i])===7)d7=true;
+    sum+=t;
+  }
+  if(sum%5===0)return true;
+  return d7 && (sum+1)%5===0;
 }
 /* ===== 報稅設定（401 電子申報）===== */
 function renderFiling(){
@@ -1494,16 +1519,25 @@ function renderFiling(){
   set("fl_taxno",f.taxNo);set("fl_office",f.office);set("fl_kind",f.kind||"1");set("fl_group",f.group||"1");
   set("fl_agent",f.agent||"1");set("fl_name",f.name);set("fl_id",f.id);set("fl_tel",f.tel||(db.company&&db.company.tel));
   set("fl_cert",f.cert||"pwd");set("fl_credit",f.prevCredit||"");
+  /* 身分證字號屬個資：僅擁有者／管理者可見，且預設遮罩 */
+  var _canSeeId=(typeof myRole==="undefined")||myRole===null||myRole==="owner"||myRole==="admin";
+  var _idEl=$("#fl_id");
+  if(_idEl){
+    if(!_canSeeId){ _idEl.value=""; _idEl.placeholder="（此欄僅擁有者／管理者可檢視）"; _idEl.disabled=true; }
+    else { _idEl.disabled=false; if(document.activeElement!==_idEl) _idEl.value=(f.id||""); }
+  }
   renderFilingCheck();
 }
 function filingReady(){
   var f=(db.filing||{}),co=(db.company||{}),miss=[];
-  if(!/^\d{8}$/.test((co.uni||"").replace(/\D/g,"")))miss.push("公司資料：統一編號（8碼）");
+  if(!validTWUni(co.uni))miss.push("公司資料：統一編號（8碼且需通過檢查碼驗算）");
   if(!(co.name||"").trim())miss.push("公司資料：公司名稱");
   if(!(co.addr||"").trim())miss.push("公司資料：營業地址");
-  if(!/^\d{9}$/.test((f.taxNo||"").replace(/\D/g,"")))miss.push("報稅設定：稅籍編號（9碼）");
+  if(!/^\d{9}$/.test((f.taxNo||"").replace(/\D/g,"")))miss.push("報稅設定：稅籍編號（9碼數字）");
   if(!(f.name||"").trim())miss.push("報稅設定：申報人姓名");
-  if(!(f.id||"").trim())miss.push("報稅設定：申報人身分證統一編號");
+  var _id=(f.id||"").trim().toUpperCase();
+  if(!_id)miss.push("報稅設定：申報人身分證統一編號");
+  else if(!validTWID(_id))miss.push("報稅設定：申報人身分證統一編號格式有誤（應為 1 英文字母＋1或2＋8 位數字，例 A123456789）");
   return miss;
 }
 function renderFilingCheck(){
@@ -1898,7 +1932,7 @@ function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===fal
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
 function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEach(x=>{if(!x)return;const k=(x.id!=null)?x.id:JSON.stringify(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out;}
-function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.tracks=dedupeTracks(out.tracks);out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
+function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.tracks=dedupeTracks(out.tracks);out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if(!out.filing&&Lc.filing)out.filing=Lc.filing;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
 /* ===== 多人帳號：成員解析 + 功能權限 ===== */
 let bookOwnerId=null,myRole="owner",myFeatures=null;
 /* ---- 角色視角模擬（僅切換畫面權限；模擬唯讀時系統一樣擋存檔）---- */
@@ -2233,7 +2267,9 @@ async function loadFromTables(){
     const nd=DBDEF();
     keys.forEach((k,i)=>{nd[k]=(rs[i].data||[]).map(TBL[k].from);});
     const st=rs[keys.length].data;
-    if(st){nd.prevCredit=+st.prev_credit||0;nd.pettyCfg={amount:+st.petty_amount||0,keeper:st.petty_keeper||""};nd.settings={autoAddVendor:st.auto_add_vendor!==false};}
+    if(st){nd.prevCredit=+st.prev_credit||0;nd.pettyCfg={amount:+st.petty_amount||0,keeper:st.petty_keeper||""};nd.settings={autoAddVendor:st.auto_add_vendor!==false};if(st.filing_json){try{nd.filing=(typeof st.filing_json==="string")?JSON.parse(st.filing_json):st.filing_json;}catch(e){}}}
+    /* 表同步模式若後端尚無 filing 欄位，保留本機既有報稅設定，避免使用者反覆重打 */
+    if(!nd.filing&&db&&db.filing)nd.filing=db.filing;
     nd.tracks=(rs[keys.length+1].data||[]).map(r=>({period:r.period,ps:+r.ps||0,pe:+r.pe||0,category:r.category||"",code:r.code||"",start:+r.start_no||0,end:+r.end_no||0}));
     nd.tracks=dedupeTracks(nd.tracks||[]);
     const org=rs[keys.length+2].data;
@@ -2274,7 +2310,11 @@ async function syncDiff(){
     }
     const pc=prev.pettyCfg||{},cc=cur.pettyCfg||{};
     if((+cur.prevCredit||0)!==(+prev.prevCredit||0)||JSON.stringify(cc)!==JSON.stringify(pc)||JSON.stringify(cur.settings||{})!==JSON.stringify(prev.settings||{})){
-      const {error}=await sb.from("org_settings").upsert({org_id:bookOrgId,prev_credit:+cur.prevCredit||0,petty_amount:+(cc.amount)||0,petty_keeper:cc.keeper||null,auto_add_vendor:!(cur.settings&&cur.settings.autoAddVendor===false),updated_at:new Date().toISOString()});if(error)throw error;}
+      const _base={org_id:bookOrgId,prev_credit:+cur.prevCredit||0,petty_amount:+(cc.amount)||0,petty_keeper:cc.keeper||null,auto_add_vendor:!(cur.settings&&cur.settings.autoAddVendor===false),updated_at:new Date().toISOString()};
+      let {error}=await sb.from("org_settings").upsert(Object.assign({},_base,{filing_json:cur.filing||null}));
+      if(error){ /* 後端尚未新增 filing_json 欄位時退回舊格式，報稅設定改由本機保留 */
+        const r2=await sb.from("org_settings").upsert(_base); if(r2.error)throw r2.error; }
+      }
     if(cur.company&&JSON.stringify(cur.company)!==JSON.stringify(prev.company||{})){
       {const orr=await sb.from("orgs").update({name:cur.company.name||null,uni:cur.company.uni||null,addr:cur.company.addr||null,tel:cur.company.tel||null,open_date:cur.company.openDate||null}).eq("id",bookOrgId);if(orr.error)throw orr.error;}}
     _lastSync=JSON.parse(JSON.stringify(cur));_lastSyncAt=Date.now();_sBusy=false;
@@ -2805,7 +2845,8 @@ function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owne
     db.filing.group=$("#fl_group").value;
     db.filing.agent=$("#fl_agent").value;
     db.filing.name=($("#fl_name").value||"").trim();
-    db.filing.id=($("#fl_id").value||"").trim().toUpperCase();
+    var _r=(typeof myRole==="undefined")?null:myRole;
+    if(_r===null||_r==="owner"||_r==="admin"){ db.filing.id=($("#fl_id").value||"").trim().toUpperCase(); }
     db.filing.tel=($("#fl_tel").value||"").trim();
     db.filing.cert=$("#fl_cert").value;
     db.filing.prevCredit=($("#fl_credit").value||"").replace(/\D/g,"");
