@@ -1473,11 +1473,18 @@ function exportCSV(kind){const _P=taxPeriod||curPeriod();if(kind==="purchase"){c
    空白未使用：課稅別填 D、買方統編留空；連號彙總時買方統編欄改放「發票訖號」，第81位放彙加註記 A  */
 function _mfPad(v,n){v=String(v==null?"":v);return v.length>=n?v.slice(0,n):v+" ".repeat(n-v.length);}
 function _mfNum(v,n){v=String(Math.round(Math.abs(Number(v)||0)));return v.length>=n?v.slice(-n):"0".repeat(n-v.length)+v;}
-function _mfYM(d){/* 2026-08-11 -> 11508 */ if(!d)return "     ";var y=parseInt(d.slice(0,4),10)-1911,m=d.slice(5,7);return String(y)+m;}
+function _mfYM(d){/* 2026-08-11 -> 11508 */ if(!d)return "     ";var y=parseInt(d.slice(0,4),10)-1911,m=d.slice(5,7);return String(y).padStart(3,"0")+m;}
 function _mfInvSplit(no){/* CQ71691662 -> {code:"CQ",seq:"71691662"} */ no=String(no||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase();
   var m=no.match(/^([A-Z]{2})(\d{8})$/); return m?{code:m[1],seq:m[2]}:{code:"",seq:""};}
-function _mfInvFromNote(p){/* 進項發票號碼優先從 note 抓「發票XX12345678」，其次 invNo 欄 */
-  var t=(p.invNo||"")+" "+(p.note||"");var m=t.match(/([A-Z]{2}\d{8})/i);return m?m[1].toUpperCase():"";}
+function _mfInvFromNote(p){/* 進項發票號碼來源，只認明確欄位，寧可漏抓也不誤抓型號/合約號 */
+  /* 1) 專用欄位 invNo（最可信）*/
+  var iv=String(p.invNo||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase();
+  if(/^[A-Z]{2}\d{8}$/.test(iv))return iv;
+  /* 2) 備註中緊鄰「發票」二字者 */
+  var m=String(p.note||"").match(/發票\s*(?:號碼)?\s*[:：]?\s*([A-Za-z]{2}\d{8})(?!\d)/);
+  if(m)return m[1].toUpperCase();
+  /* 3) 其餘一律不猜（型號 MQ12345678、合約 XY20260101 都符合外觀，猜錯會申報到別人的發票）*/
+  return "";}
 /* 權限判斷：未登入雲端＝單機自用一律可用；已登入則看管理者勾選的功能 */
 function canFeature(key){
   try{
@@ -1530,6 +1537,12 @@ function renderFiling(){
 }
 function filingReady(){
   var f=(db.filing||{}),co=(db.company||{}),miss=[];
+  /* 本期字軌未設定 → 空白未使用發票會整批漏報（屬漏報違章），必須擋 */
+  try{
+    var _P=(typeof taxPeriod!=="undefined"&&taxPeriod)?taxPeriod:(typeof curPeriod==="function"?curPeriod():null);
+    if(_P&&Array.isArray(db.tracks)&&!db.tracks.some(function(t){return trackInPeriod(t,_P);}))
+      miss.push("本期（"+_P+"）尚未設定發票字軌 — 沒有字軌就無法申報「空白未使用發票」，屬漏報。請到銷項憑證頁貼上國稅局配號通知。");
+  }catch(e){}
   if(!validTWUni(co.uni))miss.push("公司資料：統一編號（8碼且需通過檢查碼驗算）");
   if(!(co.name||"").trim())miss.push("公司資料：公司名稱");
   if(!(co.addr||"").trim())miss.push("公司資料：營業地址");
@@ -1557,21 +1570,34 @@ function exportTaxMedia(){
   var taxNo=(fl.taxNo||"").replace(/\D/g,""), uni=(co.uni||"").replace(/\D/g,"");
   var P=taxPeriod||curPeriod(), lines=[], seq=0, warn=[];
   // ---- 進項（只取可扣抵、非國外勞務；國外勞務走401第74欄不進媒體檔）----
-  db.purchase.filter(function(p){return inPeriod(p.date,P)&&p.ded&&!p.s36;})
+  (db.purchase||[]).filter(function(p){return inPeriod(p.date,P)&&p.ded&&!p.s36;})
     .map(function(p){var iv=_mfInvSplit(_mfInvFromNote(p));return {p:p,k:(iv.code||"zz")+(iv.seq||"")};})
     .sort(function(x,y){return x.k.localeCompare(y.k);})
     .map(function(o){return o.p;}).forEach(function(p){
     var inv=_mfInvSplit(_mfInvFromNote(p));
     if(!inv.code){warn.push("進項 "+p.date+" "+(p.name||"")+"：找不到發票號碼（需 2 碼字軌＋8 碼數字），已略過");return;}
+    var _su=(p.uni||"").replace(/\D/g,"");
+    if(_su.length!==8){warn.push("進項 "+p.date+" "+(p.name||"")+" "+inv.code+inv.seq+"：賣方統編為「"+(p.uni||"(空白)")+"」不是 8 碼，已略過（可扣抵進項必須有正確統編）");return;}
+    if(p.type&&!/電子發票|三聯式|電子計算機/.test(p.type)){
+      warn.push("進項 "+p.date+" "+(p.name||"")+" "+inv.code+inv.seq+"：憑證類別為「"+p.type+"」，本功能一律以格式代號 25（三聯式收銀機／一般稅額電子發票）匯出。海關代徵、二聯式收銀機等屬不同格式代號，請確認後於報稅軟體手動調整。");
+    }
     seq++;
     lines.push("25"+taxNo+_mfNum(seq,7)+_mfYM(p.date)
-      +_mfPad(uni,8)+_mfPad((p.uni||"").replace(/\D/g,""),8)+inv.code+inv.seq
+      +_mfPad(uni,8)+_su+inv.code+inv.seq
       +_mfNum(p.net,12)+"1"+_mfNum(p.tax,10)+(p.cat==="資產(設備)"?"2":"1")+" ".repeat(8));
   });
   // ---- 銷項：已開立 + 空白未使用，一律依「字軌+發票號碼」排序後輸出（與國稅局轉出檔一致）----
-  var sales=db.sale.filter(function(s){return !s.void&&inPeriod(s.date,P);});
-  var used={}; sales.forEach(function(s){used[s.code+"|"+s.seq]=1;});
-  var _pr=periodRange(P); var ymDefault=sales.length?_mfYM(sales[0].date):(_pr?String(_pr.pe):"     ");
+  var allSales=(db.sale||[]);
+  var sales=allSales.filter(function(s){return !s.void&&inPeriod(s.date,P);});
+  /* used 必須涵蓋「所有」已使用過的號碼（含期外、含作廢），否則會把已開立的票誤報成空白未使用 */
+  var used={}; allSales.forEach(function(s){used[s.code+"|"+s.seq]=1;});
+  var voided=allSales.filter(function(s){return s.void&&inPeriod(s.date,P);});
+  if(voided.length){
+    warn.push("本期有 "+voided.length+" 張作廢發票（"+voided.map(function(v){return v.code+_mfNum(v.seq,8);}).join("、")+"）。"
+      +"作廢發票不列入本媒體檔（其課稅別與空白未使用不同），請於報稅軟體「銷項資料登錄」以課稅別「作廢之統一發票」手動登錄，或改用電子發票平台的作廢上傳檔。");
+  }
+  /* 空白票年月固定用期末月，不可取 sales[0]（陣列順序會影響結果） */
+  var _pr=periodYM(P); var ymDefault=_pr?String(_pr.pe):"     ";
   var saleRows=[];
   sales.forEach(function(s){
     saleRows.push({code:s.code,no:Number(s.seq),kind:"S",
@@ -1579,8 +1605,11 @@ function exportTaxMedia(){
       net:s.net,tax:s.tax,tc:"1",tail:" ".repeat(9)});
   });
   (db.tracks||[]).filter(function(t){return trackInPeriod(t,P);}).forEach(function(t){
+    var _a0=Number(t.start), _b0=Number(t.end);
+    if(!(_a0>=0)||!(_b0>=_a0)){ warn.push("字軌 "+t.code+" 的起訖號碼設定有誤（"+t.start+"~"+t.end+"），已略過空白未使用比對"); return; }
+    if(_b0-_a0>9999){ warn.push("字軌 "+t.code+" 區間過大（"+(_b0-_a0+1)+" 個號碼），已略過以免當機，請確認字軌設定"); return; }
     var blanks=[];
-    for(var n=Number(t.start);n<=Number(t.end);n++){ if(!used[t.code+"|"+n]) blanks.push(n); }
+    for(var n=_a0;n<=_b0;n++){ if(!used[t.code+"|"+n]) blanks.push(n); }
     var i=0;
     while(i<blanks.length){
       var a=blanks[i], b=a;
@@ -1605,20 +1634,20 @@ function exportTaxMedia(){
   dl(uni+".TXT", lines.join("\r\n")+"\r\n", "txt");
   var msg="✅ 已產生國稅局媒體檔："+uni+".TXT（共 "+lines.length+" 筆）\n\n"
     +"接下來在報稅軟體：進項登錄 → 匯入已建立進/銷項媒體檔 → 把此檔放到\n"
-    +"C:\\ETAX\\BLR\\UpLoad\\Default\\"+String(P).replace("/","")+"\\ → 全選 → 確定。\n\n"
+    +"C:\\ETAX\\BLR\\UpLoad\\Default\\"+(_pr?String(_pr.pe):"")+"\\ → 全選 → 確定。\n\n"
     +"⚠️ 匯入會覆蓋該期已建檔的進銷項資料，請一次匯入完整檔案。";
   if(warn.length)msg+="\n\n⚠️ 下列資料未匯出：\n"+warn.join("\n");
   alert(msg);
 }
 /* 期別字串 "115/07-08" -> {ps:11507, pe:11508}；字軌的 ps/pe 落在此範圍即屬本期 */
-function periodRange(P){
+function periodYM(P){
   var m=String(P||"").match(/^(\d{3})\/(\d{2})(?:-(\d{2}))?$/);
   if(!m)return null;
   var y=m[1], m1=m[2], m2=m[3]||m[2];
   return {ps:Number(y+m1), pe:Number(y+m2)};
 }
 function trackInPeriod(t,P){
-  var r=periodRange(P); if(!r)return false;
+  var r=periodYM(P); if(!r)return false;
   var ts=Number(t.ps||0), te=Number(t.pe||t.ps||0);
   if(!ts)return false;
   return ts<=r.pe && te>=r.ps;   /* 區間有交集 */
