@@ -570,10 +570,13 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <div class="lawpane" id="law-faq" style="display:none">
           <div class="sec-h"><h2>❓ 常見問題</h2></div>
           <p class="lawq">Q1：請客戶吃飯有開三聯式發票，可以抵營業稅嗎？</p><div class="lawno">不行（§19 交際應酬），但可列交際費（注意限額）。</div>
-          <p class="lawq">Q2：老闆自己的車加油可以抵嗎？</p><div class="lawstep">業務用途<b>可以抵</b>！不能抵的其實只有「<b>買車那台車本身</b>」（§19 I⑤，9 座以下乘人小客車購車款）；營運中的<b>油料費、修理費</b>只要是業務使用＋發票打公司統編，就可扣抵（財政部 80/11/30 台財稅第 800453828 號函）。員工或老闆<b>私車公用</b>也行：簽一份「私車公用協議」約定公司負擔油料維修，發票載公司統編即可。<b>但純私人用途</b>（家用、休假出遊）屬非供本業使用（§19 I②），不可抵。</div>
+          <p class="lawq">Q2：老闆自己的車加油可以抵嗎？</p><div class="lawstep">業務用途<b>可以抵</b>！不能抵的其實只有「<b>買車那台車本身</b>」（§19 I⑤，9 座以下乘人小客車購車款）；營運中的<b>油料費、修理費</b>只要是業務使用＋發票打公司統編，就可扣抵（財政部 80/11/30 台財稅第 800453828 號函）。員工或老闆<b>私車公用</b>也行，但函釋有<b>明文要件</b>（78年台財稅第780273399號函、88年台財稅第881902028號函）：<b>①必須有書面約定</b>油料費及修理費由公司負擔（沒書面就抵不了）<b>②發票載公司統編</b>（不可用個人載具）<b>③留存行車紀錄</b>證明業務使用。<b>但純私人用途</b>（家用、休假出遊）屬非供本業使用（§19 I②），不可抵。</div>
           <p class="lawq">Q3：買東西店家問「要不要打統編」？</p><div class="lawstep">公司要用的一律打統編！沒打統編就不能扣抵 5%，等於多付 5% 成本。</div>
           <p class="lawq">Q4：拜拜的金紙供品呢？</p><div class="lawwarn">不能扣抵營業稅，但可列「雜項費用」抵營所稅。</div>
-          <p class="lawq">Q5：Claude／ChatGPT 這種國外訂閱怎麼報？</p><div class="lawtip">走 §36：401 第 74 欄填給付額（台幣扣款額），專營應稅免繳。本系統自動加總。</div>
+          <p class="lawq">Q5：Claude／ChatGPT 這種國外訂閱怎麼報？</p><div class="lawtip">走 §36 逆向課稅：401 第 <b>74 欄</b>填給付額（台幣實際扣款額），<b>專營應稅免實際繳納</b>（§36Ⅰ但書），但仍應申報。本系統自動加總標記為「國外勞務」的憑證。<br>
+          ⚠️ <b>發票抬頭很關鍵</b>：若國外廠商開的是<b>個人名義</b> invoice、公司卻把它列為費用，等於在營所稅主張「公司購入」、在營業稅主張「個人消費」，<b>兩者不能拆開</b>。被查核時不是要補 74 欄、就是營所稅剔除該筆費用。<br>
+          ✅ <b>最乾淨的做法</b>：到廠商後台把訂閱改成<b>公司名義</b>（Billing 的 Company name 填公司全名、Tax ID 填統一編號），並用公司卡扣款，帳務與稅務就一致了。<br>
+          📌 漏填 74 欄的效果：專營應稅本就免繳，客觀上不生短漏稅款，74 欄填的是「給付額」非「銷售額」，不構成 §51Ⅰ③ 短漏報，實務多為通知補報；<b>但未申報項目的核課期間會由 5 年延長為 7 年</b>（稅捐稽徵法§21）。填了不用繳一毛錢，所以一律填最安全。</div>
           <p class="lawq">Q6：發票開錯了怎麼辦？</p><div class="lawwarn">同期＋買方同意退回 → 作廢重開；已申報的期 → 開折讓單。系統銷項頁有 ⊘ 作廢與匯出。</div>
           <p class="lawq">Q7：員工聚餐、三節禮品可以抵嗎？</p><div class="lawno">不可扣抵（酬勞員工），列「職工福利」費用（有限額）。</div>
           <p class="lawq">Q8：這期完全沒生意，可以不報嗎？</p><div class="lawno">不行！0 申報也要報，不報會被罰。</div>
@@ -674,6 +677,12 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <div class="frow" style="margin-top:12px">
             <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：台南市安南區府安路七街24號"></div>
             <div class="fld"><label>電話</label><input id="co_tel" placeholder="06-xxxxxxxx"></div>
+          </div>
+          <div class="frow" style="margin-top:12px">
+            <div class="fld"><label>稅籍編號 <span class="muted" style="font-size:11px">（報稅用·9碼）</span></label><input id="co_taxno" inputmode="numeric" placeholder="9 碼，見稅籍登記核准函"></div>
+            <div class="fld"><label>負責人姓名</label><input id="co_owner" placeholder="例：陳文斌"></div>
+            <div class="fld"><label>負責人身分證字號</label><input id="co_ownerid" placeholder="報稅申報人用"></div>
+            <div class="fld"><label>所屬稽徵機關</label><input id="co_office" placeholder="例：南區國稅局安南稽徵所"></div>
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld" style="grid-column:span 2"><label>公司 Logo（顯示在左上角，選填）</label>
@@ -801,6 +810,12 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         </div>
         </div>
         <div class="exppane" id="exp-csv" style="display:none">
+        <div class="card" style="border:2px solid var(--accent,#0A1628);margin-bottom:14px">
+          <h3 style="font-size:15px">🏛 國稅局媒體申報檔（BAN.TXT）</h3>
+          <p style="font-size:13px;color:var(--ink-2);line-height:1.7">一鍵產生財政部「營業稅電子申報繳稅系統（BLR）」可直接匯入的進銷項媒體檔，<b>不用再逐筆手key</b>。內容含本期可扣抵進項、已開立銷項，以及依字軌自動比對產生的<b>空白未使用發票</b>明細。<br>
+          <span style="color:var(--ink-3)">匯入路徑：報稅軟體 → 步驟2 進項登錄 → 匯入已建立進/銷項媒體檔 → 全選 → 確定。</span></p>
+          <button class="btn sm" onclick="exportTaxMedia()">⬇ 產生國稅局媒體檔</button>
+        </div>
         <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(230px,1fr))">
           <div class="card"><h3 style="font-size:15px">進項明細 CSV</h3><p style="font-size:13px;color:var(--ink-2)">財政部進項憑證欄位，供 401 匯入／核對。</p><button class="btn sm" onclick="exportCSV('purchase')">下載進項.csv</button></div>
           <div class="card"><h3 style="font-size:15px">銷項明細 CSV</h3><p style="font-size:13px;color:var(--ink-2)">銷項憑證，字軌逐號列出。</p><button class="btn sm" onclick="exportCSV('sale')">下載銷項.csv</button></div>
@@ -1421,6 +1436,80 @@ function exportCSV(kind){const _P=taxPeriod||curPeriod();if(kind==="purchase"){c
     const rows=db.purchase.filter(p=>inPeriod(p.date,_P)).map(p=>["25",p.date,p.uni,p.name,p.type,p.item,p.net,p.tax,p.ded?"1":"2",p.cat]);dl("卓信_"+_P.replace("/","-")+"_進項.csv",toCSV([h,...rows]),"csv");}
   else{const h=["格式代號","發票號碼","發票日期","買受人統編","買受人名稱","品名","銷售額(未稅)","稅額","課稅別"];
     const rows=db.sale.slice().filter(s=>!s.void&&inPeriod(s.date,_P)).sort((a,b)=>a.code.localeCompare(b.code)||a.seq-b.seq).map(s=>["35",invStr(s.code,s.seq),s.date,s.uni,s.name,s.item,s.net,s.tax,"1應稅"]);dl("卓信_"+_P.replace("/","-")+"_銷項.csv",toCSV([h,...rows]),"csv");}}
+/* ===== 國稅局媒體檔匯出（BLR 營業稅電子申報系統 · 進銷項媒體檔 BAN.TXT）=====
+   格式為固定寬度 81 字元 + CRLF，逆向自財政部 BLR11500.01 實際轉出檔（2026-09-06 卓信首期申報驗證通過）
+   共同結構(81字元)：格式代號2 稅籍編號9 流水號7 開立年月5 買方統編8 賣方統編8 字軌2 號碼8 金額12 課稅別1 稅額10 扣抵代號1 空白8
+   進項(25)：買方=自己，扣抵代號 1=進貨費用 2=固定資產
+   銷項(35)：賣方=自己，扣抵代號位留空
+   空白未使用：課稅別填 D、買方統編留空；連號彙總時買方統編欄改放「發票訖號」，第81位放彙加註記 A  */
+function _mfPad(v,n){v=String(v==null?"":v);return v.length>=n?v.slice(0,n):v+" ".repeat(n-v.length);}
+function _mfNum(v,n){v=String(Math.round(Math.abs(Number(v)||0)));return v.length>=n?v.slice(-n):"0".repeat(n-v.length)+v;}
+function _mfYM(d){/* 2026-08-11 -> 11508 */ if(!d)return "     ";var y=parseInt(d.slice(0,4),10)-1911,m=d.slice(5,7);return String(y)+m;}
+function _mfInvSplit(no){/* CQ71691662 -> {code:"CQ",seq:"71691662"} */ no=String(no||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase();
+  var m=no.match(/^([A-Z]{2})(\d{8})$/); return m?{code:m[1],seq:m[2]}:{code:"",seq:""};}
+function _mfInvFromNote(p){/* 進項發票號碼優先從 note 抓「發票XX12345678」，其次 invNo 欄 */
+  var t=(p.invNo||"")+" "+(p.note||"");var m=t.match(/([A-Z]{2}\d{8})/i);return m?m[1].toUpperCase():"";}
+function exportTaxMedia(){
+  var co=db.company||{};
+  var taxNo=(co.taxNo||"").replace(/\D/g,""), uni=(co.uni||"").replace(/\D/g,"");
+  if(taxNo.length!==9){alert("請先到「設定管理 → 公司資料」填寫 9 碼稅籍編號，才能產生國稅局媒體檔。");return;}
+  if(uni.length!==8){alert("請先填寫 8 碼統一編號。");return;}
+  var P=taxPeriod||curPeriod(), lines=[], seq=0, warn=[];
+  // ---- 進項（只取可扣抵、非國外勞務；國外勞務走401第74欄不進媒體檔）----
+  db.purchase.filter(function(p){return inPeriod(p.date,P)&&p.ded&&!p.s36;})
+    .map(function(p){var iv=_mfInvSplit(_mfInvFromNote(p));return {p:p,k:(iv.code||"zz")+(iv.seq||"")};})
+    .sort(function(x,y){return x.k.localeCompare(y.k);})
+    .map(function(o){return o.p;}).forEach(function(p){
+    var inv=_mfInvSplit(_mfInvFromNote(p));
+    if(!inv.code){warn.push("進項 "+p.date+" "+(p.name||"")+"：找不到發票號碼（需 2 碼字軌＋8 碼數字），已略過");return;}
+    seq++;
+    lines.push("25"+taxNo+_mfNum(seq,7)+_mfYM(p.date)
+      +_mfPad(uni,8)+_mfPad((p.uni||"").replace(/\D/g,""),8)+inv.code+inv.seq
+      +_mfNum(p.net,12)+"1"+_mfNum(p.tax,10)+(p.cat==="資產(設備)"?"2":"1")+" ".repeat(8));
+  });
+  // ---- 銷項：已開立 + 空白未使用，一律依「字軌+發票號碼」排序後輸出（與國稅局轉出檔一致）----
+  var sales=db.sale.filter(function(s){return !s.void&&inPeriod(s.date,P);});
+  var used={}; sales.forEach(function(s){used[s.code+"|"+s.seq]=1;});
+  var ymDefault=sales.length?_mfYM(sales[0].date):_mfYM(String(P).slice(0,3)+"-"+String(P).slice(4,6)+"-01");
+  var saleRows=[];
+  sales.forEach(function(s){
+    saleRows.push({code:s.code,no:Number(s.seq),kind:"S",
+      buyer:_mfPad((s.uni||"").replace(/\D/g,""),8),ym:_mfYM(s.date),
+      net:s.net,tax:s.tax,tc:"1",tail:" ".repeat(9)});
+  });
+  (db.tracks||[]).filter(function(t){return String(t.period||"").replace(/\s/g,"")===String(P).replace(/\s/g,"")||inPeriodTrack(t,P);}).forEach(function(t){
+    var blanks=[];
+    for(var n=Number(t.start);n<=Number(t.end);n++){ if(!used[t.code+"|"+n]) blanks.push(n); }
+    var i=0;
+    while(i<blanks.length){
+      var a=blanks[i], b=a;
+      while(i+1<blanks.length&&blanks[i+1]===b+1){i++;b=blanks[i];}
+      i++;
+      if(a===b){
+        saleRows.push({code:t.code,no:a,kind:"B",buyer:" ".repeat(8),ym:ymDefault,net:0,tax:0,tc:"D",tail:" ".repeat(9)});
+      }else{
+        saleRows.push({code:t.code,no:a,kind:"B",buyer:_mfNum(b,8),ym:ymDefault,net:0,tax:0,tc:"D",tail:" ".repeat(7)+"A "});
+      }
+    }
+  });
+  saleRows.sort(function(x,y){return (x.code||"").localeCompare(y.code||"")||(x.no-y.no);});
+  saleRows.forEach(function(r){
+    seq++;
+    lines.push("35"+taxNo+_mfNum(seq,7)+r.ym+r.buyer+_mfPad(uni,8)
+      +_mfPad(r.code,2)+_mfNum(r.no,8)+_mfNum(r.net,12)+r.tc+_mfNum(r.tax,10)+r.tail);
+  });
+  if(!lines.length){alert("本期沒有可匯出的進銷項資料。");return;}
+  var bad=lines.filter(function(l){return l.length!==81;});
+  if(bad.length){alert("媒體檔格式異常（有 "+bad.length+" 列長度不是 81 字元），已中止匯出，請回報。");return;}
+  dl(uni+".TXT", lines.join("\r\n")+"\r\n", "txt");
+  var msg="✅ 已產生國稅局媒體檔："+uni+".TXT（共 "+lines.length+" 筆）\n\n"
+    +"接下來在報稅軟體：進項登錄 → 匯入已建立進/銷項媒體檔 → 把此檔放到\n"
+    +"C:\\ETAX\\BLR\\UpLoad\\Default\\"+String(P).replace("/","")+"\\ → 全選 → 確定。\n\n"
+    +"⚠️ 匯入會覆蓋該期已建檔的進銷項資料，請一次匯入完整檔案。";
+  if(warn.length)msg+="\n\n⚠️ 下列資料未匯出：\n"+warn.join("\n");
+  alert(msg);
+}
+function inPeriodTrack(t,P){try{var ps=String(P).replace("/","");return String(t.ps)===ps||String(t.pe)===ps;}catch(e){return false;}}
 function exportVoucherCSV(){const h=["傳票號","日期","摘要","會計科目","借方","貸方"];const rows=[];
   allEntries().forEach(v=>v.lines.forEach(l=>rows.push([v.no,v.date,v.memo,l.acct,l.debit||"",l.credit||""])));dl("卓信_115-4_傳票.csv",toCSV([h,...rows]),"csv");}
 function exportBalanceCSV(){const h=["會計科目","借方總額","貸方總額","借餘","貸餘"];const rows=balanceRows().map(r=>[r.a,r.d,r.c,r.dr||"",r.cr||""]);dl("卓信_115-4_餘額表.csv",toCSV([h,...rows]),"csv");}
@@ -2621,7 +2710,7 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
 
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
 /* ===== 公司資料 + 開帳精靈 ===== */
-function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
+function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);set("co_taxno",co.taxNo);set("co_owner",co.owner);set("co_ownerid",co.ownerId);set("co_office",co.office);const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
 function onbGo(view,settab){try{var o=document.getElementById("setupOvl");if(o)o.classList.remove("on");}catch(e){}
   try{goView(view);}catch(e){}
   if(view==="settings"&&settab){setTimeout(function(){var b=document.querySelector('#v-settings .stab[data-p="'+settab+'"]');if(b)b.click();},120);}
@@ -2629,7 +2718,7 @@ function onbGo(view,settab){try{var o=document.getElementById("setupOvl");if(o)o
 function reopenOnboard(){var o=document.getElementById("setupOvl");if(o)o.classList.add("on");}
 function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owner")return;const co=db.company||{};if(!co.name&&!db.setupSkipped&&dataScore(db)===0){const o=$("#setupOvl");if(o)o.classList.add("on");}}
 (function(){
-  const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
+  const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";db.company.taxNo=($("#co_taxno").value||"").trim();db.company.owner=($("#co_owner").value||"").trim();db.company.ownerId=($("#co_ownerid").value||"").trim();db.company.office=($("#co_office").value||"").trim();save();alert("已儲存公司資料。");});
   const sg=$("#setupGo");if(sg)sg.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");const nb=document.querySelector('#nav button[data-v="settings"]');if(nb)nb.click();const cb=document.querySelector('#settabs .stab[data-p="company"]');if(cb)cb.click();});
   const ss=$("#setupSkip");if(ss)ss.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");if(!db.company)db.company={};db.setupSkipped=true;save();});
 })();
