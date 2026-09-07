@@ -41,6 +41,25 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
 .pay .bank{font-family:ui-monospace,Menlo,monospace;background:#f6f5f1;border-radius:10px;padding:12px 14px;display:inline-block;margin:8px 0}
 .foot{color:#9a958a;font-size:12.5px;text-align:center;padding:28px 20px 40px}
 .foot a{color:#9a958a}
+
+  .buybox{display:flex;flex-direction:column;gap:8px;margin-top:auto}
+  .cta.buy{width:100%;border:0;cursor:pointer;font:inherit;font-weight:600}
+  .cta-alt{background:#fff;color:#0d1d33;border:1px solid var(--line,#e4ddd2)!important}
+  .trial{display:block;text-align:center;font-size:13px;color:var(--muted);text-decoration:none;padding-top:2px}
+  .trial:hover{text-decoration:underline}
+  .modal-bg{position:fixed;inset:0;background:rgba(13,29,51,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:99}
+  .modal-bg.on{display:flex}
+  .modal{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+  .modal h3{margin:0 0 4px;font-size:18px}
+  .modal .sub{color:var(--muted);font-size:13.5px;margin:0 0 16px}
+  .modal label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}
+  .modal input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #d9d2c6;border-radius:10px;font:inherit}
+  .modal .row{display:flex;gap:8px;margin-top:18px}
+  .modal button{flex:1;padding:11px;border-radius:10px;border:0;cursor:pointer;font:inherit;font-weight:600}
+  .modal .go{background:#0d1d33;color:#fff}
+  .modal .cancel{background:#f1ede6;color:#0d1d33}
+  .modal .err{color:#b3261e;font-size:13px;margin-top:10px;display:none}
+  .modal .note{font-size:12.5px;color:var(--muted);margin-top:14px;line-height:1.6}
 </style></head><body>
 
 <div class="topbar">
@@ -76,7 +95,11 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
         <li>營業稅試算＋歷期進銷彙總</li>
         <li>雲端同步＋每日備份</li>
       </ul>
-      <a class="cta" href="/">開始使用</a>
+      <div class="buybox">
+        <button class="cta buy" data-plan="BASIC" data-cycle="YEARLY">年繳訂閱　NT$5,990</button>
+        <button class="cta cta-alt buy" data-plan="BASIC" data-cycle="MONTHLY">月繳訂閱　NT$599／月</button>
+        <a class="trial" href="/">先免費試用 30 天</a>
+      </div>
     </div>
 
     <div class="plan feat">
@@ -92,7 +115,11 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
         <li>AI 紙本憑證辨識 30 張／月</li>
         <li>請款簽核・週期憑證・專案損益</li>
       </ul>
-      <a class="cta" href="/">開始使用</a>
+      <div class="buybox">
+        <button class="cta buy" data-plan="STANDARD" data-cycle="YEARLY">年繳訂閱　NT$9,990</button>
+        <button class="cta cta-alt buy" data-plan="STANDARD" data-cycle="MONTHLY">月繳訂閱　NT$999／月</button>
+        <a class="trial" href="/">先免費試用 30 天</a>
+      </div>
     </div>
 
     <div class="plan">
@@ -107,7 +134,11 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
         <li>固定資產折舊・批次請款套印</li>
         <li>優先技術支援</li>
       </ul>
-      <a class="cta" href="/">開始使用</a>
+      <div class="buybox">
+        <button class="cta buy" data-plan="PRO" data-cycle="YEARLY">年繳訂閱　NT$19,900</button>
+        <button class="cta cta-alt buy" data-plan="PRO" data-cycle="MONTHLY">月繳訂閱　NT$1,990／月</button>
+        <a class="trial" href="/">先免費試用 30 天</a>
+      </div>
     </div>
 
   </div>
@@ -116,12 +147,86 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
 <div class="sec">
   <h2>付款方式</h2>
   <div class="pay">
-    <p style="margin-top:0">目前採 <b>銀行轉帳</b>，完成後由專人於 1 個工作天內開通對應公司帳本：</p>
+    <p style="margin-top:0">選擇方案後可 <b>線上刷卡</b> 立即完成訂閱（月繳為自動扣款，可隨時取消）。亦可使用 <b>銀行轉帳</b>：</p>
     <div class="bank">銀行：新光商業銀行 台南分行（103）<br>帳號：0657100005506<br>戶名：卓信人資整合有限公司</div>
-    <p style="font-size:13.5px;color:var(--muted)">轉帳後請來信 <a href="mailto:service@zhuohsin.com" style="color:#0d1d33">service@zhuohsin.com</a>，附上註冊 Email 與轉帳末五碼。線上刷卡／定期定額即將開放。</p>
+    <p style="font-size:13.5px;color:var(--muted)">轉帳後請來信 <a href="mailto:service@zhuohsin.com" style="color:#0d1d33">service@zhuohsin.com</a>，附上註冊 Email 與轉帳末五碼。刷卡付款由綠界科技 ECPay 處理，卓信不會取得您的卡片資料。</p>
   </div>
   <p style="font-size:13px;color:var(--muted);margin-top:14px"><a href="/terms.html" style="color:var(--muted)">服務條款</a> ・ <a href="/privacy.html" style="color:var(--muted)">隱私權政策</a> ・ <a href="/" style="color:var(--muted)">回登入</a></p>
 </div>
 
 <div class="foot">卓信人資整合有限公司 ・ 統編 62098963 ・ 台南市安南區府安路七街24號</div>
+
+<div class="modal-bg" id="buyModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="bmTitle">
+    <h3 id="bmTitle">訂閱 <span id="bmPlan"></span></h3>
+    <p class="sub" id="bmPrice"></p>
+    <label for="bmEmail">註冊 Email <span style="color:#b3261e">*</span></label>
+    <input id="bmEmail" type="email" placeholder="用來開通您的公司帳本" autocomplete="email">
+    <label for="bmName">公司或聯絡人名稱</label>
+    <input id="bmName" type="text" placeholder="選填" autocomplete="organization">
+    <div class="err" id="bmErr"></div>
+    <div class="row">
+      <button class="cancel" type="button" id="bmCancel">取消</button>
+      <button class="go" type="button" id="bmGo">前往付款</button>
+    </div>
+    <p class="note">按「前往付款」後將轉至綠界科技 ECPay 的安全付款頁面完成刷卡。卓信不會取得或保存您的信用卡資料。</p>
+  </div>
+</div>
+<script>
+(function(){
+  // 後端 API（卓信官網後台）。若要改用測試環境，改這一行即可。
+  var API = "https://zhuohsin.com/api/ecpay";
+  var NAMES = { BASIC:"基本方案", STANDARD:"標準方案", PRO:"進階方案" };
+  var cur = null;
+  var bg=document.getElementById("buyModal"), err=document.getElementById("bmErr"),
+      go=document.getElementById("bmGo"), email=document.getElementById("bmEmail");
+
+  function open(plan, cycle, label){
+    cur={plan:plan, cycle:cycle};
+    document.getElementById("bmPlan").textContent = NAMES[plan]||plan;
+    document.getElementById("bmPrice").textContent = (cycle==="YEARLY"?"年繳":"月繳（每月自動扣款，可隨時取消）") + "　" + label;
+    err.style.display="none"; go.disabled=false; go.textContent="前往付款";
+    bg.classList.add("on"); setTimeout(function(){email.focus();},50);
+  }
+  function close(){ bg.classList.remove("on"); }
+
+  document.querySelectorAll(".buy").forEach(function(b){
+    b.addEventListener("click", function(){
+      var t=b.textContent.replace(/^(年繳訂閱|月繳訂閱)\s*/,"").trim();
+      open(b.dataset.plan, b.dataset.cycle, t);
+    });
+  });
+  document.getElementById("bmCancel").addEventListener("click", close);
+  bg.addEventListener("click", function(e){ if(e.target===bg) close(); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") close(); });
+
+  go.addEventListener("click", async function(){
+    if(!cur) return;
+    var em=(email.value||"").trim();
+    if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)){
+      err.textContent="請填寫正確的 Email，開通帳本會用到。"; err.style.display="block"; email.focus(); return;
+    }
+    err.style.display="none"; go.disabled=true; go.textContent="處理中…";
+    try{
+      var r=await fetch(API+"/create-order",{
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({plan:cur.plan, cycle:cur.cycle, email:em,
+                             name:(document.getElementById("bmName").value||"").trim()})
+      });
+      var d=await r.json();
+      if(!d.ok){ throw new Error(d.error||"系統忙碌中，請稍後再試"); }
+      // 以表單 POST 送往綠界付款頁
+      var f=document.createElement("form");
+      f.method="post"; f.action=d.action;
+      Object.keys(d.params).forEach(function(k){
+        var i=document.createElement("input"); i.type="hidden"; i.name=k; i.value=d.params[k]; f.appendChild(i);
+      });
+      document.body.appendChild(f); f.submit();
+    }catch(e){
+      err.textContent=(e&&e.message)||"連線失敗，請稍後再試，或來信 service@zhuohsin.com。";
+      err.style.display="block"; go.disabled=false; go.textContent="前往付款";
+    }
+  });
+})();
+</script>
 </body></html>
