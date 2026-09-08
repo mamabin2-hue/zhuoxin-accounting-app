@@ -192,7 +192,12 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button class="btn ghost sm" type="button" onclick="forgotPassword()">忘記密碼？</button>
     </div>
     <div class="msg" id="lg_msg"></div>
-    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 0">忘記密碼可按上方按鈕自行重設 · <a href="/pricing.html" style="color:var(--accent-ink)">🏠 方案與介紹</a> · <a href="/guide.html" target="_blank" onclick="return openGuide(this)" style="color:var(--accent-ink)">📖 使用說明書</a></p>
+    <p style="font-size:12px;color:var(--ink-3);margin:10px 0 6px">忘記密碼可按上方按鈕自行重設</p>
+    <div style="display:flex;gap:8px">
+      <a class="btn ghost sm" href="/pricing.html" style="flex:1;text-align:center;text-decoration:none">← 方案與介紹</a>
+      <a class="btn ghost sm" href="/guide.html" target="_blank" onclick="return openGuide(this)" style="flex:1;text-align:center;text-decoration:none">📖 使用說明書</a>
+      <a class="btn ghost sm" href="https://www.zhuohsin.com" target="_blank" style="flex:1;text-align:center;text-decoration:none">卓信官網 ↗</a>
+    </div>
   </div>
 </div>
 <div class="app">
@@ -818,6 +823,16 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <button class="stab" data-ep="restore" onclick="expTab(this)">⟲ 還原／危險操作</button>
         </div>
         <div class="exppane" id="exp-bk">
+        <div class="card" style="margin-bottom:14px;border:1px solid var(--accent-ink)">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div><h3 style="font-size:15px">💾 備份到我的電腦</h3>
+              <p style="font-size:13px;color:var(--ink-2);margin:4px 0 0">雲端已自動保存，這裡可再存一份到自己電腦。按下後會跳出視窗，<b>由您自行選擇存放位置</b>。</p></div>
+            <div class="actions" style="margin:0;white-space:nowrap">
+              <button class="btn" onclick="enableAutoBackup()">選擇位置並備份…</button>
+              <button class="btn ghost sm" onclick="backupJSON()">直接下載一份</button>
+            </div>
+          </div>
+        </div>
         <div class="card" style="margin-bottom:14px">
           <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
             <div><h3 style="font-size:15px">🛡 備份健康檢查</h3>
@@ -2164,11 +2179,11 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本，共 60 版可還原")
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
-  if(!bkHandle && age===null) h+=row("❌","③ 電腦備份檔 — 尚未啟用","<b>建議多留一份在自己電腦</b>：按右邊按鈕 → 跳出儲存視窗 → <b>先選資料夾、再按存檔</b>，設定一次就好，之後每次變更自動更新。 <button class=\"btn sm\" style=\"margin-top:6px\" onclick=\"enableAutoBackup()\">立即啟用電腦備份</button>","var(--danger)");
-  else if(age===null) h+=row("⚠️","③ 電腦備份檔 — 已設定但尚未寫入","若剛跳出權限詢問請按「允許」；或點『重新啟用』後改一筆資料觸發","var(--warn)");
-  else if(age>3) h+=row("⚠️","③ 電腦備份檔 — 已 "+Math.floor(age)+" 天沒更新","多半是瀏覽器重開後權限被暫停：跳出詢問時按「允許」（勾選「每次造訪時允許」即可），或點『重新啟用』","var(--warn)");
+  if(!bkHandle && age===null) h+=row("○","③ 電腦備份檔（選用）— 尚未設定","雲端兩層已在保護您的帳本，這層是<b>額外的離線保險</b>。用上方「選擇位置並備份…」設定一次即可，之後每次變更自動更新。","var(--ink-3)");
+  else if(age===null) h+=row("○","③ 電腦備份檔（選用）— 已設定，尚未寫入","雲端兩層正常運作中。若剛跳出權限詢問請按「允許」，或點『重新啟用』後改一筆資料觸發。","var(--ink-3)");
+  else if(age>3) h+=row("○","③ 電腦備份檔（選用）— 上次更新於 "+Math.floor(age)+" 天前","<b>資料並未遺失</b>：雲端資料庫與 60 份歷史版本都正常。電腦這份因瀏覽器重開後權限被暫停而沒更新，按上方「選擇位置並備份…」或『重新啟用』即可續用。","var(--ink-3)");
   else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
-  h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">若三項都是 ✅，代表您的帳本同時保存在「雲端資料庫＋60 個歷史版本＋您的電腦」三個地方，任何一處故障都不會遺失。</div>`;
+  h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">前兩項為系統自動保護，只要都是 ✅ 資料就安全無虞；第三項「電腦備份檔」為選用的離線保險，設定後可讓帳本同時存在三個地方。</div>`;
   el.innerHTML=h;}
 function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRegrant"),di=$("#bkDisable");if(!st)return;
   const last=localStorage.getItem(LS+"_bk");const lastTxt=last?new Date(last).toLocaleString("zh-TW"):"—";
