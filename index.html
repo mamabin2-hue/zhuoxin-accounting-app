@@ -1172,8 +1172,7 @@ function filingMapData(P){
     if(p.s36)      f={cols:"74",note:"國外勞務給付額（不進媒體檔、免繳）"};
     else if(p.ded) f=fixed?{cols:"34/35 → 46/47 → 48·49",note:"得扣抵·固定資產"}
                           :{cols:"32/33 → 44/45 → 48",note:"得扣抵·進貨及費用"};
-    else           f=fixed?{cols:"僅 49",note:"不得扣抵·固定資產（不進 34/35）"}
-                          :{cols:"僅 48",note:"不得扣抵·進貨及費用（不進 32/33）"};
+    else           f={cols:"不申報",note:"§19 不得扣抵 → 不列入媒體檔，帳上列費用"};
     return {inv:(typeof _mfInvFromNote==="function"?_mfInvFromNote(p):"")||"（無發票號）",
             date:p.date||"",uni:p.uni||"",name:p.name||"",item:p.item||"",
             net:+p.net||0,tax:+p.tax||0,ded:!!p.ded,s36:!!p.s36,fixed:fixed,code:code,
@@ -1196,8 +1195,9 @@ function filingMapData(P){
   f.n32=sum(dedExp,function(r){return r.net;}); f.n33=sum(dedExp,function(r){return r.tax;});
   f.n34=sum(dedFix,function(r){return r.net;}); f.n35=sum(dedFix,function(r){return r.tax;});
   f.n44=f.n32; f.n45=f.n33; f.n46=f.n34; f.n47=f.n35;
-  f.n48=f.n44+sum(nonDed.filter(function(r){return !r.fixed;}),function(r){return r.net;});
-  f.n49=f.n46+sum(nonDed.filter(function(r){return r.fixed;}),function(r){return r.net;});
+  /* 48/49 只計已申報的憑證。不得扣抵者依實務作法不列入媒體檔，
+     故不進 48/49（2026-09-08 卓信定案，見申報總表第4期更正歷程）。 */
+  f.n48=f.n44; f.n49=f.n46;
   f.n74=sum(s36r,function(r){return r.net;});
   f.n101=f.n22;
   f.n107=f.n45+f.n47;
@@ -1244,8 +1244,8 @@ function renderFilingMap(){
     ["34 / 35","同上（<b>得扣抵·固定資產</b>）",f.n34,f.n35,"進項 "+D.cnt.dedFix+" 筆（扣抵代號 2）"],
     ["44 / 45","進項合計 ⑨（進貨及費用）",f.n44,f.n45,"＝28~43 之進貨費用列"],
     ["46 / 47","進項合計 ⑩（固定資產）",f.n46,f.n47,"＝28~43 之固定資產列"],
-    ["48","<b>進項總金額（進貨及費用）</b>　含不得扣抵憑證",f.n48,null,"得扣抵 "+D.cnt.dedExp+" 筆 ＋ 不得扣抵 "+D.cnt.nonDed+" 筆"],
-    ["49","進項總金額（固定資產）　含不得扣抵",f.n49,null,""],
+    ["48","<b>進項總金額（進貨及費用）</b>",f.n48,null,"＝44（不得扣抵 "+D.cnt.nonDed+" 筆未申報，不計入）"],
+    ["49","進項總金額（固定資產）",f.n49,null,"＝46"],
     ["74","購買國外勞務給付額（§36，專營應稅免繳）",f.n74,null,D.cnt.s36+" 筆·不進媒體檔"],
     ["101","銷項稅額合計",null,f.n101,"＝22"],
     ["107","<b>得扣抵進項稅額合計</b>",null,f.n107,"＝45 ＋ 47（⑨＋⑩）"],
@@ -1265,7 +1265,7 @@ function renderFilingMap(){
   }).join('');
 
   var chk=[
-    ["48 ＝ 44 ＋ 不得扣抵進貨費用金額", f.n48===f.n44+D.rowsP.filter(function(r){return !r.ded&&!r.fixed&&!r.s36;}).reduce(function(a,r){return a+r.net;},0)],
+    ["48 ＝ 44（不得扣抵未申報）", f.n48===f.n44],
     ["107 ＝ 45 ＋ 47", f.n107===f.n45+f.n47],
     ["101 ＝ 22", f.n101===f.n22],
     ["110 ＝ 107 ＋ 108", f.n110===f.n107+f.n108],
@@ -1276,7 +1276,7 @@ function renderFilingMap(){
 
   el.innerHTML=
    '<div class="lawtip" style="margin:0 0 10px">📌 <b>怎麼用</b>：左邊每一張憑證，右邊寫明它會進到 401 的哪幾欄。'
-   +'<b>黃底</b>＝不得扣抵，只計入 48／49 欄，<b>不進</b> 32/33。填完申報書後對照最下方「欄位彙總」逐欄核對，'
+   +'<b>黃底</b>＝§19 不得扣抵，<b>整筆不列入申報</b>（帳上仍列費用），因此也不進 48／49 欄。填完申報書後對照最下方「欄位彙總」逐欄核對，'
    +'並確認「公式驗算」全部打勾。期別：<b>'+esc(D.P)+'</b></div>'
    +'<div class="sec-h" style="margin-top:6px"><h3 style="margin:0;font-size:15px">進項憑證 → 401 欄位</h3></div>'
    +'<div class="twrap"><div class="tscroll"><table><thead><tr>'
@@ -1343,7 +1343,15 @@ function printFilingCheck(){
 /* export */
 function dl(name,text,type){const b=new Blob([type==="csv"?"﻿"+text:text],{type:(type==="csv"?"text/csv":"application/json")+";charset=utf-8"});
   const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
-function toCSV(rows){return rows.map(r=>r.map(c=>{c=c==null?"":String(c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(",")).join("\r\n");}
+/* CSV 公式注入防護：以 = + - @ 開頭的儲存格，Excel/Sheets 會當成公式執行。
+   廠商名稱、品名、備註可能來自 OCR 或他人輸入，屬外部可控，必須中和。
+   純數字（含負數、小數、千分位）不加前綴，以免破壞金額欄位。 */
+function _csvCell(c){
+  c = (c==null) ? "" : String(c);
+  if(c && /^[=+\-@\t\r]/.test(c) && !/^-?[\d,]+(\.\d+)?$/.test(c)) c = "'" + c;
+  return /[",\n\r]/.test(c) ? '"'+c.replace(/"/g,'""')+'"' : c;
+}
+function toCSV(rows){return rows.map(r=>r.map(_csvCell).join(",")).join("\r\n");}
 /* ===== 匯出財政部存證發票上傳檔(BTB207W)：H賣方 + 每張M主檔 + D明細；mode=issue開立/void作廢(H帶CAN) ===== */
 function eiSan(v,max){return String(v==null?"":v).replace(/[<>%&!$,\r\n]/g,"").slice(0,max||200);}
 function exportEinvoiceBTB(mode){
@@ -1774,8 +1782,17 @@ function exportTaxMedia(){
   var miss=filingReady();
   if(miss.length){alert("報稅資料不完整，無法產生媒體檔：\n\n· "+miss.join("\n· ")+"\n\n請到「設定管理 → 報稅設定」補齊。");return;}
   var taxNo=(fl.taxNo||"").replace(/\D/g,""), uni=(co.uni||"").replace(/\D/g,"");
-  var P=taxPeriod||curPeriod(), lines=[], seq=0, warn=[];
-  // ---- 進項（只取可扣抵、非國外勞務；國外勞務走401第74欄不進媒體檔）----
+  var P=taxPeriod||curPeriod(), lines=[], seq=0, warn=[], skipped=[];
+  /* ---- 進項（只取可扣抵、非國外勞務）----
+     不得扣抵者不列入媒體檔：申報進項之目的在扣抵，不扣抵即無申報義務，
+     實務上多數營業人不登錄，401 第 48 欄自然只含已申報部分（帳上仍列費用）。
+     國外勞務(§36)走 401 第 74 欄，亦不進媒體檔。 */
+  (db.purchase||[]).filter(function(p){return inPeriod(p.date,P)&&!p.ded&&!p.s36;})
+    .forEach(function(p){
+      var iv=_mfInvSplit(_mfInvFromNote(p));
+      skipped.push("· "+(p.date||"")+" "+(p.name||"")+" "+(iv.code?iv.code+iv.seq:"(無發票號)")
+        +" "+fmt(p.net)+"／稅 "+fmt(p.tax)+"　"+(p.item||""));
+    });
   (db.purchase||[]).filter(function(p){return inPeriod(p.date,P)&&p.ded&&!p.s36;})
     .map(function(p){var iv=_mfInvSplit(_mfInvFromNote(p));return {p:p,k:(iv.code||"zz")+(iv.seq||"")};})
     .sort(function(x,y){return x.k.localeCompare(y.k);})
@@ -1842,6 +1859,9 @@ function exportTaxMedia(){
     +"接下來在報稅軟體：進項登錄 → 匯入已建立進/銷項媒體檔 → 把此檔放到\n"
     +"C:\\ETAX\\BLR\\UpLoad\\Default\\"+(_pr?String(_pr.pe):"")+"\\ → 全選 → 確定。\n\n"
     +"⚠️ 匯入會覆蓋該期已建檔的進銷項資料，請一次匯入完整檔案。";
+  if(skipped.length)msg+="\n\nℹ️ 本期有 "+skipped.length+" 筆標記為「不可扣抵」，未列入申報檔\n"
+    +"（帳上仍應列費用；401 第 48 欄因此只含已申報部分）：\n"+skipped.join("\n")
+    +"\n\n請確認這些憑證的『可扣抵』勾選正確 —— 標錯會直接影響申報金額。";
   if(warn.length)msg+="\n\n⚠️ 下列資料未匯出：\n"+warn.join("\n");
   alert(msg);
 }
