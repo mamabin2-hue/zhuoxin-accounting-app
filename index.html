@@ -631,6 +631,8 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <div class="grid kpis" id="opsKpis" style="margin-bottom:14px"></div>
         <input id="opsSearch" oninput="opsFilter()" placeholder="🔍 搜尋公司名稱／統編…" style="width:100%;max-width:320px;font-size:13px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px">
         <div id="opsList"></div>
+        <div class="sec-h" style="margin-top:22px"><h2 style="font-size:16px">AI 辨識用量</h2><span class="muted">各客戶紙本憑證辨識張數</span></div>
+        <div id="opsAI"></div>
         <div class="sec-h" style="margin-top:22px"><h2 style="font-size:16px">客戶回報</h2><span class="muted">問題回報／建議（最新 50 筆）</span></div>
         <div id="opsFb"></div>
         <div class="note" style="margin-top:14px"><b>控管機制：</b>新註冊自動 30 天試用；到期未開通轉唯讀。收到匯款後按「開通付費」。停權立即擋寫入（資料保留 90 天後才清）。單月憑證 >2000 張標 ⚠️，客戶達 80 家請升級 Supabase Pro。</div>
@@ -2318,6 +2320,14 @@ async function loadOps(){
           <button class="btn ghost sm" onclick="opsExtendTrial('${r.id}')">延長試用</button>
           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="9" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
+  try{const au=await sb.rpc("ops_ai_usage");const abox=$("#opsAI");
+    if(abox&&!au.error){const ar=au.data||[];
+      const dayTotal=ar.reduce((a,r)=>a+(+r.today||0),0),monTotal=ar.reduce((a,r)=>a+(+r.month||0),0);
+      const used=ar.filter(r=>(+r.total||0)>0);
+      abox.innerHTML=`<div class="card" style="margin-bottom:10px"><b>今日全站 ${dayTotal} 張</b>　·　本月 ${monTotal} 張<div style="font-size:12px;color:var(--ink-3);margin-top:6px">AI 辨識共用 Gemini 免費額度（每日請求數有上限）。今日若逼近上限，後面的客戶會辨識失敗，屆時可改用付費層（每 1000 張約 NT$35）。</div></div>`+
+        '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
+        (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>';}
+  }catch(e){}
   try{const fb=await sb.from("feedback").select("created_at,email,page,message,image").order("created_at",{ascending:false}).limit(50);
     const fbox=$("#opsFb");
     if(fbox&&!fb.error){const fr=fb.data||[];
@@ -3054,6 +3064,7 @@ async function aiRecognizeReceipt(blob){
     const resp=await fetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image:b64,mime:"image/jpeg"})});
     const j=await resp.json();
     if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc((j&&j.error)||"辨識失敗，請手動填寫");}return;}
+    try{ if(typeof bookOrgId!=="undefined"&&bookOrgId) sb.from("ai_usage").insert({org_id:bookOrgId,kind:"receipt"}).then(()=>{},()=>{}); }catch(_){}
     const d=j.data;const setIf=(id,v)=>{const e=$("#"+id);if(e&&!e.value&&v)e.value=v;};
     setIf("p_date",d["日期"]);setIf("p_name",d["賣方名稱"]);setIf("p_uni",d["賣方統編"]);setIf("p_item",d["品名摘要"]);
     const total=+String(d["總計"]||"").replace(/[^\d.]/g,"")||0;
