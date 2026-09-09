@@ -215,7 +215,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.2.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.3.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -2344,7 +2344,7 @@ async function opsExtendTrial(id){
     if(r.error)throw r.error;alert("✅ 已延長 "+d+" 天。");loadOps();
   }catch(e){alert("延長失敗："+((e&&e.message)||e));}}
 async function opsPlanPick(id){
-  var pick=prompt("開通哪個方案？\n1 = 基本（年繳 5,990）\n2 = 標準（年繳 9,990）\n3 = 進階（年繳 19,900）\n（早鳥/自訂價：直接照收到的金額開通，方案僅影響顯示）","2");
+  var pick=prompt("開通哪個方案？\n1 = 基本（年繳 5,990）\n2 = 標準（年繳 19,900）\n3 = 進階（年繳 48,800）\n（早鳥/自訂價：直接照收到的金額開通，方案僅影響顯示）","2");
   if(pick===null)return;
   var map={"1":"basic","2":"standard","3":"pro"};var plan=map[String(pick).trim()]||"basic";
   await opsSet(id,"plan",plan);
