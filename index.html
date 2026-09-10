@@ -286,7 +286,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           </div></details>
           <div class="actions"><button class="btn" type="submit" id="pSubmitBtn">＋ 新增並切傳票</button>
             <button class="btn ghost sm" type="button" onclick="scanInvoiceQR()">📷 掃發票QR</button>
-            <label class="btn ghost sm" style="display:inline-block">🧾 拍照存憑證<input type="file" accept="image/*" capture="environment" style="display:none" onchange="attachReceiptPhoto(this)"></label>
+            <label class="btn ghost sm" style="display:inline-block">🧾 拍照／上傳憑證<input type="file" accept="image/*" style="display:none" onchange="attachReceiptPhoto(this)"></label>
             <label class="btn ghost sm" style="display:inline-block">📥 匯入收據JSON<input type="file" accept=".json" style="display:none" onchange="importReceipts(this)"></label>
             <span class="muted" style="color:var(--ink-3);font-size:12.5px">稅額留空自動 = 未稅 × 5%</span></div>
         </form>
@@ -420,7 +420,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld" style="grid-column:span 3"><label>請款事由</label><input id="pr_reason" maxlength="100" placeholder="例：8月網路費代墊、出差交通費" required></div>
-            <div class="fld" style="align-self:end"><label class="btn ghost sm" style="display:inline-block">🧾 附憑證照片<input type="file" accept="image/*" capture="environment" style="display:none" onchange="prPhoto(this)"></label><span id="pr_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div>
+            <div class="fld" style="align-self:end"><label class="btn ghost sm" style="display:inline-block">🧾 附憑證照片<input type="file" accept="image/*" style="display:none" onchange="prPhoto(this)"></label><span id="pr_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div>
           </div>
           <div class="actions"><button class="btn" type="submit">＋ 建立並送審</button><span class="muted" style="color:var(--ink-3);font-size:12.5px">送審後由老闆／管理員核准，核准後付款自動入帳</span></div>
         </form>
