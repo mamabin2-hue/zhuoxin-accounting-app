@@ -138,6 +138,23 @@
     .side .brand{padding:4px 8px;width:100%} .nav{flex-direction:row;flex-wrap:wrap} .nav button{width:auto} .side .foot{display:none}
     .content{padding:18px 16px 50px} .top{padding:12px 16px}
   }
+  /* 手機：導覽與品牌收緊，把版面讓給內容 */
+  @media (max-width:560px){
+    .side{padding:8px 10px;gap:2px}
+    .side .brand{padding:2px 4px 6px;gap:7px}
+    .side .brand .mark{width:28px;height:28px}
+    .side .brand b{font-size:15px}
+    .side .brand span{display:none}
+    .nav{gap:4px}
+    .nav button{padding:6px 9px;font-size:13px;gap:5px}
+    .nav button .ic{display:none}
+    #acctBox{padding:6px 8px 2px}
+    #orgSwitchWrap{padding:6px 8px 2px}
+    .content{padding:12px 12px 40px}
+    .top{padding:8px 12px}
+    .tabs button{padding:6px 10px;font-size:13px}
+    .sec-h h2{font-size:17px}
+  }
   @media print{.side,.top,.actions,.del,.theme-btn,.form{display:none!important}.app{display:block}.content{max-width:none}}
 .settabs{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 16px;border-bottom:1px solid var(--border)}
   .stab{background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;color:var(--ink-2);font-size:14px;font-weight:500;font-family:inherit;cursor:pointer;margin-bottom:-1px}
@@ -215,7 +232,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.5.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.6.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -976,7 +993,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">💬 問題回報 / 建議</b><button class="btn ghost sm" onclick="closeFeedback()">✕</button></div>
     <p style="font-size:12.5px;color:var(--ink-3);margin:0 0 10px">遇到問題、怪怪的地方、或想要的功能都可以寫，我們會收到並改進。</p>
     <textarea id="fb_msg" rows="5" style="width:100%;font-size:14px;padding:10px;border:1px solid var(--border);border-radius:10px;resize:vertical" placeholder="例如：切換公司後報表打不開、希望能匯出 Excel…"></textarea>
-    <div style="margin-top:8px;display:flex;align-items:center;gap:10px"><label class="btn ghost sm" style="display:inline-block">📷 附截圖／照片<input type="file" accept="image/*" style="display:none" onchange="fbPhoto(this)"></label><img id="fb_photoPreview" style="max-height:46px;display:none;border:1px solid var(--border);border-radius:6px"><span id="fb_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div>
+    <div style="margin-top:8px;display:flex;align-items:center;gap:10px"><label class="btn ghost sm" style="display:inline-block">📷 附截圖／照片<input type="file" accept="image/*" multiple style="display:none" onchange="fbPhoto(this)"></label><span id="fb_photoTag" style="font-size:12px;color:var(--ink-3)"></span></div><div id="fb_shots" style="margin-top:8px"></div>
     <div class="msg" id="fb_hint" style="font-size:12.5px;margin-top:6px"></div>
     <div class="actions" style="margin-top:10px"><button class="btn" onclick="sendFeedback()">送出</button><span style="font-size:11.5px;color:var(--ink-3);align-self:center">送出後由卓信收到；急事請直接聯繫卓信</span></div>
   </div>
@@ -1432,8 +1449,14 @@ function printFilingCheck(){
   w.document.close(); setTimeout(function(){w.print();},400);
 }
 /* export */
-function dl(name,text,type){const b=new Blob([type==="csv"?"﻿"+text:text],{type:(type==="csv"?"text/csv":"application/json")+";charset=utf-8"});
-  const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href);}
+function dl(name,text,type){
+  const b=new Blob([type==="csv"?"﻿"+text:text],{type:(type==="csv"?"text/csv":"application/json")+";charset=utf-8"});
+  const url=URL.createObjectURL(b);
+  const a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";a.style.display="none";
+  document.body.appendChild(a);
+  try{a.click();}catch(e){window.open(url,"_blank");}
+  // iOS Safari 下載是非同步的，立刻 revoke 會讓檔案抓不到 → 延後釋放
+  setTimeout(()=>{try{document.body.removeChild(a);}catch(e){}URL.revokeObjectURL(url);},60000);}
 /* CSV 公式注入防護：以 = + - @ 開頭的儲存格，Excel/Sheets 會當成公式執行。
    廠商名稱、品名、備註可能來自 OCR 或他人輸入，屬外部可控，必須中和。
    純數字（含負數、小數、千分位）不加前綴，以免破壞金額欄位。 */
@@ -2515,11 +2538,42 @@ async function loadOps(){
         '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
         (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>';}
   }catch(e){}
-  try{const fb=await sb.from("feedback").select("created_at,email,page,message,image").order("created_at",{ascending:false}).limit(50);
-    const fbox=$("#opsFb");
-    if(fbox&&!fb.error){const fr=fb.data||[];
-      fbox.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th>Email</th><th>頁面</th><th>內容</th><th>照片</th></tr></thead><tbody>'+(fr.length?fr.map(f=>`<tr><td class="num" style="font-size:11px;white-space:nowrap">${new Date(f.created_at).toLocaleString("zh-TW",{hour12:false}).slice(0,16)}</td><td style="font-size:12px">${esc(f.email||"")}</td><td style="font-size:12px">${esc(TITLES[(f.page||"").replace("v-","")]||f.page||"")}</td><td style="font-size:12px;max-width:380px;white-space:pre-wrap">${esc(f.message||"")}</td><td>${f.image?`<img src="${f.image}" style="max-height:56px;border-radius:6px;cursor:zoom-in" onclick="fbView(this.src)">`:"—"}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無回報</td></tr>')+'</tbody></table></div></div>';}
+  try{const fb=await sb.from("feedback").select("id,created_at,email,page,message,image,images,status,handled_at").order("created_at",{ascending:false}).limit(80);
+    if(!fb.error)_opsFbData=fb.data||[];
+    renderOpsFeedback();
   }catch(e){}}
+
+let _opsFbData=[], _opsFbFilter="open";
+const FB_STATUS={open:{t:"待處理",c:"var(--warn)"},doing:{t:"處理中",c:"var(--accent-ink)"},done:{t:"已解決",c:"var(--good)"},skip:{t:"不處理",c:"var(--ink-3)"}};
+function opsFbFilter(v){_opsFbFilter=v;renderOpsFeedback();}
+async function opsFbSet(id,st){
+  try{const r=await sb.from("feedback").update({status:st,handled_at:(st==="open"?null:new Date().toISOString())}).eq("id",id);
+    if(r.error)throw r.error;
+    const it=_opsFbData.find(x=>x.id===id);if(it){it.status=st;it.handled_at=(st==="open"?null:new Date().toISOString());}
+    renderOpsFeedback();
+  }catch(e){alert("更新失敗："+((e&&e.message)||e));}}
+function renderOpsFeedback(){
+  const fbox=$("#opsFb");if(!fbox)return;
+  const all=_opsFbData||[];
+  const cnt=k=>all.filter(x=>(x.status||"open")===k).length;
+  const list=(_opsFbFilter==="all")?all:all.filter(x=>(x.status||"open")===_opsFbFilter);
+  const btn=(k,label)=>`<button class="btn ghost sm" style="${_opsFbFilter===k?"border-color:var(--accent-ink);color:var(--accent-ink);font-weight:700":""}" onclick="opsFbFilter('${k}')">${label}${k!=="all"?"（"+cnt(k)+"）":"（"+all.length+"）"}</button>`;
+  fbox.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${btn("open","待處理")}${btn("doing","處理中")}${btn("done","已解決")}${btn("skip","不處理")}${btn("all","全部")}</div>`
+   +'<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th>Email</th><th>頁面</th><th>內容</th><th>照片</th><th>狀態</th><th>處理</th></tr></thead><tbody>'
+   +(list.length?list.map(f=>{
+      const st=f.status||"open", sc=FB_STATUS[st]||FB_STATUS.open;
+      const shots=(Array.isArray(f.images)&&f.images.length)?f.images:(f.image?[f.image]:[]);
+      return `<tr><td class="num" style="font-size:11px;white-space:nowrap">${new Date(f.created_at).toLocaleString("zh-TW",{hour12:false}).slice(0,16)}</td>`
+        +`<td style="font-size:12px">${esc(f.email||"")}</td>`
+        +`<td style="font-size:12px">${esc(TITLES[(f.page||"").replace("v-","")]||f.page||"")}</td>`
+        +`<td style="font-size:12px;max-width:340px;white-space:pre-wrap">${esc(f.message||"")}</td>`
+        +`<td>${shots.length?shots.map(src=>`<img src="${src}" style="max-height:48px;margin:0 3px 3px 0;border-radius:6px;cursor:zoom-in" onclick="fbView(this.src)">`).join(""):"—"}</td>`
+        +`<td style="white-space:nowrap;font-size:12px;color:${sc.c};font-weight:700">${sc.t}</td>`
+        +`<td style="white-space:nowrap"><select onchange="opsFbSet('${f.id}',this.value)" style="font-size:12px;padding:3px 6px;border-radius:6px;border:1px solid var(--border)">`
+        +Object.keys(FB_STATUS).map(k=>`<option value="${k}"${k===st?" selected":""}>${FB_STATUS[k].t}</option>`).join("")
+        +`</select></td></tr>`;}).join("")
+     :`<tr><td colspan="7" class="empty">${_opsFbFilter==="open"?"沒有待處理的回報 🎉":"此狀態沒有回報"}</td></tr>`)
+   +'</tbody></table></div></div>';}
 function fbView(src){var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();}}
 function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
   document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
@@ -2904,10 +2958,22 @@ function subscribeRealtime(){
     const row=p.new;if(!row||!row.updated_at)return;const ts=Date.parse(row.updated_at);if(ts<=lastRemoteTs)return;lastRemoteTs=ts;adopt(row.data);setCloud("in");
   }).subscribe();
 }
-let _fbImage="";
-async function fbPhoto(inp){const f=inp.files&&inp.files[0];if(!f)return;inp.value="";const tag=document.getElementById("fb_photoTag");
-  try{const blob=await compressImage(f,1000,0.7);_fbImage=await blobToDataURL(blob);const pv=document.getElementById("fb_photoPreview");if(pv){pv.src=_fbImage;pv.style.display="";}if(tag){tag.style.color="var(--good)";tag.textContent="✓ 已附照片";}}catch(e){if(tag){tag.style.color="var(--danger)";tag.textContent="照片失敗："+e.message;}}}
-function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";_fbImage="";var pv=document.getElementById("fb_photoPreview");if(pv){pv.src="";pv.style.display="none";}var pt=document.getElementById("fb_photoTag");if(pt)pt.textContent="";}}
+let _fbImages=[];const FB_MAX_SHOTS=3;
+async function fbPhoto(inp){
+  const fs=inp.files?[...inp.files]:[];if(!fs.length)return;inp.value="";
+  const tag=document.getElementById("fb_photoTag");
+  for(const f of fs){
+    if(_fbImages.length>=FB_MAX_SHOTS){if(tag){tag.style.color="var(--warn)";tag.textContent="最多 "+FB_MAX_SHOTS+" 張，其餘已略過";}break;}
+    try{const blob=await compressImage(f,1000,0.7);_fbImages.push(await blobToDataURL(blob));}
+    catch(e){if(tag){tag.style.color="var(--danger)";tag.textContent="照片失敗："+e.message;}}
+  }
+  fbRenderShots();}
+function fbRenderShots(){
+  const box=document.getElementById("fb_shots"),tag=document.getElementById("fb_photoTag");
+  if(box)box.innerHTML=_fbImages.map((src,i)=>`<span style="position:relative;display:inline-block;margin:0 6px 6px 0"><img src="${src}" style="max-height:52px;border:1px solid var(--border);border-radius:6px;cursor:zoom-in" onclick="fbView(this.src)"><button type="button" onclick="fbDropShot(${i})" title="移除" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;line-height:16px;border-radius:50%;border:0;background:var(--danger,#d64545);color:#fff;font-size:12px;cursor:pointer">×</button></span>`).join("");
+  if(tag){tag.style.color="var(--ink-3)";tag.textContent=_fbImages.length?("已附 "+_fbImages.length+" / "+FB_MAX_SHOTS+" 張"):"";}}
+function fbDropShot(i){_fbImages.splice(i,1);fbRenderShots();}
+function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";_fbImages=[];fbRenderShots();}}
 function closeFeedback(){var m=document.getElementById("fbModal");if(m)m.style.display="none";}
 async function sendFeedback(){
   var t=document.getElementById("fb_msg"),h=document.getElementById("fb_hint");
@@ -2917,8 +2983,14 @@ async function sendFeedback(){
   try{
     if(sb&&sbUser){
       var page=(document.querySelector(".view.on")||{}).id||"";
-      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImage||null});
+      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImages[0]||null,images:_fbImages.length?_fbImages:null,status:"open"});
       if(error)throw error;
+      // 立刻通知卓信（寄信＋LINE）；通知失敗不影響回報已送出
+      try{const {data:{session}}=await sb.auth.getSession();
+        if(session)fetch("https://www.zhuohsin.com/api/acc-feedback",{method:"POST",
+          headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
+          body:JSON.stringify({email:sbUser.email||"",message:msg.slice(0,2000),page:(TITLES[(page||"").replace("v-","")]||page||""),org:(db.company&&db.company.name)||"",shots:_fbImages.length})}).catch(()=>{});
+      }catch(_){}
     }else{
       // 未登入:暫存本機,登入後可再送(或提示登入)
       throw new Error("尚未登入雲端，請先登入再回報。");
