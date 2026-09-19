@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.13.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.13.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -254,8 +254,8 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <span class="pill" style="cursor:pointer" title="點我管理發票字軌" onclick="goView('sale')">字軌 <b class="num" id="topTrack">DV</b></span>
         <button class="theme-btn" id="cloudBtn" title="雲端同步">☁︎ 雲端</button>
                 <button class="theme-btn" id="themeBtn">◐ 主題</button>
-      <div id="quickBar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;width:100%"></div>
       </div>
+      <div id="quickBar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;width:100%"></div>
     </div>
     <div class="content">
       <div class="settabs" id="subtabs" style="margin-bottom:12px"></div>
@@ -1054,7 +1054,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.13.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.13.1";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
