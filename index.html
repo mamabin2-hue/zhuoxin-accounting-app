@@ -154,6 +154,14 @@
     .top{padding:8px 12px}
     .tabs button{padding:6px 10px;font-size:13px}
     .sec-h h2{font-size:17px}
+    /* 手機：登出收到 LOGO 那一排，不要自己佔掉一整行 */
+    .side{display:flex;flex-wrap:wrap;align-items:center}
+    .side .brand{order:1;flex:1 1 auto;padding-bottom:0}
+    #acctBox{order:2;width:auto;padding:0!important;margin:0;border-top:0!important}
+    #acctBox .btn{width:auto!important;padding:5px 10px;font-size:12.5px}
+    .nav{order:3;width:100%}
+    #orgSwitchWrap{order:4;width:100%}
+    .side .foot{order:5;width:100%}
     .ovl{align-items:flex-start;padding:14px 12px 28px}
     #fbModal{align-items:flex-start!important;padding:14px 12px 28px!important}
     .modal{padding:18px}
@@ -235,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.6.2</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1012,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.6.2";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.7.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -2219,10 +2227,10 @@ function renderBS(){const wrap=$("#bsWrap");if(!wrap)return;const _asof=($("#bs_
   const rows=arr=>arr.map(r=>`<tr><td>${esc(r[0])}</td><td class="r num">${fmt(r[1])}</td></tr>`).join("");
   const uBlock=U.length?`<tr><td style="font-weight:650;color:var(--warn)">未分類（請確認科目分類）</td><td></td></tr>${rows(U)}`:"";
   wrap.innerHTML=`<div class="grid" style="grid-template-columns:1fr 1fr;gap:16px">
-    <div class="card"><table style="font-size:14px"><thead><tr><th style="background:none;border:0;padding:0 0 8px;font-size:14px;color:var(--ink)">資產</th><th></th></tr></thead>
+    <div class="card"><table style="font-size:14px"><thead><tr><th style="background:none;border:0;padding:0 0 8px;font-size:14px;color:var(--ink)">資產</th><th style="background:none;border:0;padding:0"></th></tr></thead>
       <tbody>${rows(A)}${uBlock}</tbody>
       <tfoot><tr><td style="font-weight:700">資產總計</td><td class="r num" style="font-weight:700">${fmt(tA)}</td></tr></tfoot></table></div>
-    <div class="card"><table style="font-size:14px"><thead><tr><th style="background:none;border:0;padding:0 0 8px;font-size:14px;color:var(--ink)">負債與權益</th><th></th></tr></thead>
+    <div class="card"><table style="font-size:14px"><thead><tr><th style="background:none;border:0;padding:0 0 8px;font-size:14px;color:var(--ink)">負債與權益</th><th style="background:none;border:0;padding:0"></th></tr></thead>
       <tbody><tr><td style="font-weight:650">負債</td><td></td></tr>${rows(L)}
         <tr><td style="padding-left:0;border-top:1px solid var(--border)">負債合計</td><td class="r num" style="border-top:1px solid var(--border)">${fmt(tL)}</td></tr>
         <tr><td style="font-weight:650;padding-top:12px">權益</td><td></td></tr>${rows(Eq)}
@@ -2249,9 +2257,29 @@ async function enableAutoBackup(){
 async function writeBackup(){
   if(!bkHandle||bkNeedsGrant)return;
   try{if(!(await perm(bkHandle,true)))return;
-    const w=await bkHandle.createWritable();await w.write(new Blob([JSON.stringify(db,null,2)],{type:"application/json"}));await w.close();
-    localStorage.setItem(LS+"_bk",new Date().toISOString());refreshBackupUI();}
+    const payload=JSON.stringify(db,null,2);
+    const w=await bkHandle.createWritable();await w.write(new Blob([payload],{type:"application/json"}));await w.close();
+    localStorage.setItem(LS+"_bk",new Date().toISOString());
+    bkLogPush({t:new Date().toISOString(),name:bkHandle.name||"卓信會計_備份.json",bytes:payload.length,
+               n:((db.purchases||[]).length+(db.sales||[]).length+(db.journal||[]).length)});
+    refreshBackupUI();}
   catch(e){console.warn("自動備份失敗",e);}}
+// 備份紀錄：每次成功寫檔留一筆，保留最近 50 筆。資料真的出事時，可以告訴客戶檔案叫什麼、
+// 最後一次寫入是什麼時候、當時有幾筆資料，讓他自己在電腦裡找得回來。
+function bkLogPush(rec){
+  try{const k=LS+"_bkLog";const a=JSON.parse(localStorage.getItem(k)||"[]");
+    a.unshift(rec);localStorage.setItem(k,JSON.stringify(a.slice(0,50)));}catch(e){}}
+function bkLogGet(){try{return JSON.parse(localStorage.getItem(LS+"_bkLog")||"[]");}catch(e){return [];}}
+function bkLogToggle(){const el=$("#bkLogBox");if(!el)return;
+  const open=el.style.display!=="none";el.style.display=open?"none":"block";
+  const b=$("#bkLogBtn");if(b)b.textContent=open?"▸ 備份紀錄":"▾ 備份紀錄";
+  if(!open)renderBkLog();}
+function renderBkLog(){const el=$("#bkLogBox");if(!el)return;
+  const a=bkLogGet();
+  if(!a.length){el.innerHTML='<div style="font-size:12.5px;color:var(--ink-3);padding:8px 0">尚無紀錄。設定「選擇位置並備份…」之後，每次寫檔都會記一筆。</div>';return;}
+  el.innerHTML='<div class="twrap"><div class="tscroll"><table style="font-size:12.5px"><thead><tr><th>時間</th><th>檔案名稱</th><th class="r">筆數</th><th class="r">大小</th></tr></thead><tbody>'
+    +a.slice(0,20).map(r=>`<tr><td class="num" style="white-space:nowrap">${new Date(r.t).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</td><td>${esc(r.name||"")}</td><td class="r num">${r.n==null?"—":r.n}</td><td class="r num">${r.bytes?Math.round(r.bytes/1024)+" KB":"—"}</td></tr>`).join("")
+    +'</tbody></table></div></div><div style="font-size:12px;color:var(--ink-3);margin-top:6px">瀏覽器基於安全不提供完整路徑，只給檔名；在電腦的檔案總管／Finder 搜尋上面的檔案名稱就能找到。</div>';}
 function autoBackup(){if(!bkHandle||bkNeedsGrant)return;clearTimeout(bkTimer);bkTimer=setTimeout(()=>writeBackup(),600);}
 async function reGrant(){if(!bkHandle)return;if(await perm(bkHandle,true)){bkNeedsGrant=false;await writeBackup();}refreshBackupUI();}
 async function disableAutoBackup(){bkHandle=null;bkNeedsGrant=false;try{await idbDel(IDB_KEY);}catch(_){}refreshBackupUI();}
@@ -2295,8 +2323,9 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   if(!bkHandle && age===null) h+=row("○","③ 電腦備份檔（選用）— 尚未設定","雲端兩層已在保護您的帳本，這層是<b>額外的離線保險</b>。用上方「選擇位置並備份…」設定一次即可，之後每次變更自動更新（跳出詢問時選 <b>「每次造訪時允許」</b>，就不會再問第二次）。","var(--ink-3)");
   else if(age===null) h+=row("○","③ 電腦備份檔（選用）— 已設定，尚未寫入","雲端兩層正常運作中。若剛跳出權限詢問請按「允許」，或點『重新啟用』後改一筆資料觸發。","var(--ink-3)");
   else if(age>3) h+=row("○","③ 電腦備份檔（選用）— 上次更新於 "+Math.floor(age)+" 天前","<b>資料並未遺失</b>：雲端資料庫與 60 份歷史版本都正常。電腦這份因瀏覽器重開後權限被暫停而沒更新，按上方「選擇位置並備份…」或『重新啟用』即可續用；跳出詢問時請選 <b>「每次造訪時允許」</b>，以後就不會再問。","var(--ink-3)");
-  else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW"));
+  else h+=row("✅","③ 電腦備份檔 — 正常","上次備份 "+new Date(localStorage.getItem(LS+"_bk")).toLocaleString("zh-TW")+(bkHandle&&bkHandle.name?"　·　檔名 <b>"+esc(bkHandle.name)+"</b>":""));
   h+=`<div style="margin-top:10px;font-size:12px;color:var(--ink-3)">前兩項為系統自動保護，只要都是 ✅ 資料就安全無虞；第三項「電腦備份檔」為選用的離線保險，設定後可讓帳本同時存在三個地方。</div>`;
+  h+=`<div style="margin-top:8px"><button class="btn ghost sm" id="bkLogBtn" onclick="bkLogToggle()">▸ 備份紀錄</button><div id="bkLogBox" style="display:none;margin-top:8px"></div></div>`;
   el.innerHTML=h;}
 function refreshBackupUI(){const st=$("#bkStatus"),en=$("#bkEnable"),rg=$("#bkRegrant"),di=$("#bkDisable");if(!st)return;
   const last=localStorage.getItem(LS+"_bk");const lastTxt=last?new Date(last).toLocaleString("zh-TW"):"—";
@@ -2478,11 +2507,10 @@ function applyBrand(){
   try{
     const bt=$("#brandText");const mark=document.querySelector(".brand .mark");
     if(!bt)return;
-    const isZX=bookOrgId===ZX_ORG;
-    if(isZX){bt.innerHTML="<b>卓信會計</b><span>記帳系統</span>";document.title="卓信雲端會計";return;}
-    const nm=(db.company&&db.company.name)||(sbUser&&sbUser.email?sbUser.email.split("@")[0]+" 的帳本":"我的公司");
+    // 每一本帳都是「自己的帳本」：公司名稱與 LOGO 一律跟著該帳本的設定走（卓信自己這本也一樣）。
+    const nm=(db.company&&db.company.name)||(sbUser&&sbUser.email?sbUser.email.split("@")[0]+" 的帳本":"MY ACC");
     const logo=db.company&&db.company.logo;
-    bt.innerHTML="<b>"+esc(nm.length>10?nm.slice(0,10):nm)+"</b><span>雲端記帳系統</span>";
+    bt.innerHTML="<b>"+esc(nm.length>10?nm.slice(0,10):nm)+"</b><span>MY ACC 雲端記帳</span>";
     if(mark){mark.innerHTML=logo?('<img src="'+esc(logo)+'" style="width:34px;height:34px;border-radius:9px;object-fit:cover">'):('<div style="width:34px;height:34px;border-radius:9px;background:var(--accent,#1f7a5c);color:#fff;display:grid;place-items:center;font-weight:800;font-size:16px">'+esc(nm.slice(0,1))+"</div>");}
     document.title=nm+"｜雲端記帳";
   }catch(e){}
@@ -2634,7 +2662,7 @@ function initCloud(){
     const la=+(localStorage.getItem(LS+"_lastActive")||0);
     if(la&&(Date.now()-la)>IDLE_MIN*60000){try{await sb.auth.signOut();}catch(e){}document.body.classList.add("locked");try{openLogin();}catch(e){}setCloud("out");try{alert("為保護資料，距上次使用已超過 "+IDLE_MIN+" 分鐘，請重新登入。");}catch(e){}return;}
     onSignedIn(data.session.user);}else{setCloud("out");if(localStorage.getItem(LS+"_hasCloud")==="1")document.body.classList.add("locked");try{openLogin();}catch(e){}}});
-  sb.auth.onAuthStateChange((_e,s)=>{s?onSignedIn(s.user):onSignedOut();});
+  sb.auth.onAuthStateChange((_e,s)=>{s?onSignedIn(s.user):onSignedOut();if(s)setTimeout(()=>{try{flushFeedbackQueue();}catch(e){}},3000);});
 }
 async function onSignedIn(user){
   if(sbUser&&sbUser.id===user.id)return;sbUser=user;setCloud("sync");
@@ -2980,6 +3008,27 @@ function fbRenderShots(){
 function fbDropShot(i){_fbImages.splice(i,1);fbRenderShots();}
 function openFeedback(){var m=document.getElementById("fbModal");if(m){m.style.display="flex";var t=document.getElementById("fb_msg");if(t){t.value="";t.focus();}var h=document.getElementById("fb_hint");if(h)h.textContent="";_fbImages=[];fbRenderShots();}}
 function closeFeedback(){var m=document.getElementById("fbModal");if(m)m.style.display="none";}
+// 問題回報的通知：送不出去就存起來，下次開啟自動補送，不會因為權杖過期就整筆通知消失。
+const FB_Q=LS+"_fbQueue";
+function fbQueueGet(){try{return JSON.parse(localStorage.getItem(FB_Q)||"[]");}catch(e){return [];}}
+function fbQueueSet(a){try{localStorage.setItem(FB_Q,JSON.stringify(a.slice(0,20)));}catch(e){}}
+async function notifyFeedback(payload){
+  let ok=false;
+  try{const r=await apiFetch("https://www.zhuohsin.com/api/acc-feedback",{method:"POST"},payload);
+      ok=!!(r&&r.ok);}catch(_){}
+  if(!ok){const q=fbQueueGet();q.push(payload);fbQueueSet(q);}
+  return ok;
+}
+async function flushFeedbackQueue(){
+  const q=fbQueueGet();if(!q.length||!sbUser)return;
+  const left=[];
+  for(const p of q){
+    let ok=false;
+    try{const r=await apiFetch("https://www.zhuohsin.com/api/acc-feedback",{method:"POST"},p);ok=!!(r&&r.ok);}catch(_){}
+    if(!ok)left.push(p);
+  }
+  fbQueueSet(left);
+}
 async function sendFeedback(){
   var t=document.getElementById("fb_msg"),h=document.getElementById("fb_hint");
   var msg=(t&&t.value||"").trim();
@@ -2990,12 +3039,10 @@ async function sendFeedback(){
       var page=(document.querySelector(".view.on")||{}).id||"";
       var ins=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImages[0]||null,images:_fbImages.length?_fbImages:null,status:"open"}).select("id").single();
       if(ins.error)throw ins.error;
-      // 立刻通知卓信（寄信＋LINE）；通知失敗不影響回報已送出
-      try{const {data:{session}}=await sb.auth.getSession();
-        if(session)fetch("https://www.zhuohsin.com/api/acc-feedback",{method:"POST",
-          headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
-          body:JSON.stringify({id:(ins.data&&ins.data.id)||"",email:sbUser.email||"",message:msg.slice(0,2000),page:(TITLES[(page||"").replace("v-","")]||page||""),org:(db.company&&db.company.name)||"",shots:_fbImages.length,ver:APP_VER||"",ua:navigator.userAgent.slice(0,180)})}).catch(()=>{});
-      }catch(_){}
+      // 立刻通知卓信（寄信＋LINE）；通知失敗不影響回報已送出，但會排入佇列下次自動補送
+      notifyFeedback({id:(ins.data&&ins.data.id)||"",email:sbUser.email||"",message:msg.slice(0,2000),
+        page:(TITLES[(page||"").replace("v-","")]||page||""),org:(db.company&&db.company.name)||"",
+        shots:_fbImages.length,ver:APP_VER||"",ua:navigator.userAgent.slice(0,180)});
     }else{
       // 未登入:暫存本機,登入後可再送(或提示登入)
       throw new Error("尚未登入雲端，請先登入再回報。");
@@ -3288,27 +3335,60 @@ function delProject(id){if(!confirm("刪除此專案？（已標記的交易會�
 
 /* ===== 掃發票QR + 拍照憑證 ===== */
 function parseEinvQR(t){
-  if(!t||t.length<50)return null;
-  const m=t.match(/^([A-Z]{2}\d{8})(\d{7})(\d{4})([0-9a-fA-F]{8})([0-9a-fA-F]{8})(\d{8})(\d{8})/);
+  t=String(t||"").trim();
+  if(t.length<50)return null;
+  // 有些掃碼結果前面會夾雜空白或換行，改成從字串中找出發票左側碼的起點
+  const m=t.match(/([A-Z]{2}\d{8})(\d{7})(\d{4})([0-9a-fA-F]{8})([0-9a-fA-F]{8})(\d{8})(\d{8})/);
   if(!m)return null;
   const no=m[1],rocDate=m[2],net=parseInt(m[4],16),total=parseInt(m[5],16),buyer=m[6],seller=m[7];
   const y=+rocDate.slice(0,3)+1911,mo=rocDate.slice(3,5),d=rocDate.slice(5,7);
   return {no,date:y+"-"+mo+"-"+d,net,total,tax:total-net,buyer,seller};
 }
+// iPhone 的 Safari 沒有內建 BarcodeDetector，過去會直接跳成「拍照存檔」＝等於掃不到。
+// 這裡改成先載一支純 JavaScript 的掃碼引擎當備援，讓手機也能真的掃。
+let _jsqrLoading=null;
+function loadJsQR(){
+  if(window.jsQR)return Promise.resolve(true);
+  if(_jsqrLoading)return _jsqrLoading;
+  _jsqrLoading=new Promise(res=>{
+    const sc=document.createElement("script");
+    sc.src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js";
+    sc.onload=()=>res(!!window.jsQR);sc.onerror=()=>res(false);
+    document.head.appendChild(sc);
+    setTimeout(()=>res(!!window.jsQR),8000);
+  });
+  return _jsqrLoading;
+}
 async function scanInvoiceQR(){
-  if(!("BarcodeDetector" in window)){
-    const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
-    inp.onchange=async()=>{alert("此瀏覽器不支援即時掃碼，已改為拍照存檔。請手動輸入金額。");attachReceiptPhoto(inp);};inp.click();return;}
+  const hasNative="BarcodeDetector" in window;
+  let useJsQR=false;
+  if(!hasNative){
+    useJsQR=await loadJsQR();
+    if(!useJsQR){
+      const inp=document.createElement("input");inp.type="file";inp.accept="image/*";
+      inp.onchange=async()=>{alert("這台裝置無法即時掃碼（也載不到備援掃碼元件），已改為拍照存檔，金額請手動輸入。");attachReceiptPhoto(inp);};inp.click();return;}
+  }
   const ovl=document.createElement("div");ovl.style.cssText="position:fixed;inset:0;background:#000;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center";
-  ovl.innerHTML='<video autoplay playsinline style="max-width:96vw;max-height:70vh;border-radius:12px"></video><p style="color:#fff;margin:14px;font-size:14px">對準發票左側 QR Code…</p><button class="btn" style="background:#fff">取消</button>';
+  ovl.innerHTML='<video autoplay playsinline style="max-width:96vw;max-height:70vh;border-radius:12px"></video><p style="color:#fff;margin:14px;font-size:14px">對準發票<b>左側</b>那個 QR Code（右邊那個不是）<br><span id="qrTip" style="opacity:.7;font-size:12px">掃描中…</span></p><button class="btn" style="background:#fff">取消</button>';
   document.body.appendChild(ovl);
   const video=ovl.querySelector("video");let stream=null,stop=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());ovl.remove();};
   ovl.querySelector("button").onclick=stop;
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});video.srcObject=stream;}
   catch(e){stop();alert("無法開啟相機："+e.message);return;}
-  const det=new BarcodeDetector({formats:["qr_code"]});
+  const det=hasNative?new BarcodeDetector({formats:["qr_code"]}):null;
+  const cv=document.createElement("canvas");const cx=cv.getContext("2d",{willReadFrequently:true});
+  // 兩種引擎輸出統一成 [{rawValue}]，後面的處理不必分叉
+  const readFrame=async()=>{
+    if(det)return await det.detect(video);
+    if(!video.videoWidth)return [];
+    cv.width=video.videoWidth;cv.height=video.videoHeight;
+    cx.drawImage(video,0,0,cv.width,cv.height);
+    const img=cx.getImageData(0,0,cv.width,cv.height);
+    const hit=window.jsQR?window.jsQR(img.data,img.width,img.height,{inversionAttempts:"attemptBoth"}):null;
+    return hit?[{rawValue:hit.data}]:[];
+  };
   const tick=async()=>{if(!ovl.isConnected)return;
-    try{const codes=await det.detect(video);
+    try{const codes=await readFrame();
       for(const c of codes){const r=parseEinvQR(c.rawValue);
         if(r){stop();
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
@@ -3320,6 +3400,7 @@ async function scanInvoiceQR(){
           return;}}
     }catch(_){ }
     requestAnimationFrame(tick);};
+  try{const tip=ovl.querySelector("#qrTip");if(tip)tip.textContent=hasNative?"掃描中…（內建掃碼）":"掃描中…（備援掃碼）";}catch(_){}
   video.onloadedmetadata=()=>tick();
 }
 async function compressImage(file,maxW,q){return new Promise((res,rej)=>{const img=new Image();img.onerror=()=>rej(new Error("非有效圖片"));img.onload=()=>{const sc=Math.min(1,maxW/img.width);const w=Math.round(img.width*sc),h=Math.round(img.height*sc);const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);cv.toBlob(b=>res(b),"image/jpeg",q||0.72);};img.src=URL.createObjectURL(file);});}
@@ -3335,12 +3416,37 @@ async function attachReceiptPhoto(inp){
     aiRecognizeReceipt(blob,note).catch(()=>{});
   }catch(e){alert("上傳失敗："+e.message);}
 }
+// 取一個確定還有效的存取權杖：快到期就先換新，避免呼叫後端時被判「登入已過期」。
+async function freshToken(){
+  try{
+    let r=await sb.auth.getSession();
+    let session=r&&r.data?r.data.session:null;
+    if(!session)return null;
+    const exp=(session.expires_at||0)*1000;
+    if(!exp||exp-Date.now()<120000){
+      try{const rr=await sb.auth.refreshSession();if(rr&&rr.data&&rr.data.session)session=rr.data.session;}catch(_){}
+    }
+    return session?session.access_token:null;
+  }catch(e){return null;}
+}
+// 帶權杖呼叫後端；若仍被判過期，換新權杖再試一次才放棄。
+async function apiFetch(url,opt,body){
+  let tok=await freshToken();
+  if(!tok)return null;
+  const go=t=>fetch(url,Object.assign({},opt,{headers:Object.assign({"Content-Type":"application/json"},(opt&&opt.headers)||{},{Authorization:"Bearer "+t}),body:JSON.stringify(body)}));
+  let resp=await go(tok);
+  if(resp.status===401){
+    try{const rr=await sb.auth.refreshSession();
+      const t2=rr&&rr.data&&rr.data.session?rr.data.session.access_token:null;
+      if(t2)resp=await go(t2);}catch(_){}
+  }
+  return resp;
+}
 async function aiRecognizeReceipt(blob,userNote){
   try{
-    const {data:{session}}=await sb.auth.getSession();
-    if(!session)return;
     const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.readAsDataURL(blob);});
-    const resp=await fetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image:b64,mime:"image/jpeg",note:userNote||""})});
+    const resp=await apiFetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST"},{image:b64,mime:"image/jpeg",note:userNote||""});
+    if(!resp){const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI：尚未登入雲端，請先登入再辨識。";}return;}
     const j=await resp.json();
     if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc((j&&j.error)||"辨識失敗，請手動填寫");}return;}
     try{ if(typeof bookOrgId!=="undefined"&&bookOrgId) sb.from("ai_usage").insert({org_id:bookOrgId,kind:"receipt"}).then(()=>{},()=>{}); }catch(_){}
