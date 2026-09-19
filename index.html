@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.2</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.8.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1020,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.7.2";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.8.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -2655,6 +2655,38 @@ function resetIdle(){
   _idleTimer=setTimeout(idleLogout,IDLE_MIN*60000);
 }
 (function(){["click","keydown","mousemove","touchstart","scroll"].forEach(function(ev){document.addEventListener(ev,function(){var w=document.getElementById("idleWarn");if(w)w.remove();resetIdle();},{passive:true});});})();
+/* ── 閒置判斷不能只靠 setTimeout ──────────────────────────────────────────
+   手機（尤其 iPhone Safari）把分頁切到背景或螢幕休眠時，setTimeout 會被暫停或
+   大幅延後。過去只在「開啟頁面」時比對過一次真實時間，回到前景時完全不檢查，
+   結果就是：離開 40 分鐘再回來照樣能操作（該登出沒登出），而 Supabase 的權杖
+   卻早就過期，接著呼叫後端就被判「登入已過期」。
+   改成一律用「牆上時鐘」判斷：每分鐘檢查一次，並在回到前景時立刻檢查；
+   判斷不確定時一律往安全邊倒（登出）。 */
+function idleElapsedMs(){
+  var la=+(localStorage.getItem(LS+"_lastActive")||0);
+  return la?(Date.now()-la):0;
+}
+async function idleCheck(fromResume){
+  if(typeof sbUser==="undefined"||!sbUser)return;
+  var gone=idleElapsedMs();
+  if(gone>IDLE_MIN*60000){ idleLogout(); return; }
+  if(gone>(IDLE_MIN-1)*60000){
+    try{var b=document.getElementById("idleWarn");
+      if(!b){b=document.createElement("div");b.id="idleWarn";b.style.cssText="position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:99999;background:#7a1f1f;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3)";document.body.appendChild(b);}
+      b.textContent="⏳ 閒置過久，1 分鐘後將自動登出（動一下畫面即可繼續）";}catch(e){}
+  }
+  // 回到前景時順便把權杖換新：背景期間自動續期的計時器同樣被凍住，
+  // 不先換新就會發生「人還在線上、後端卻說登入已過期」。
+  if(fromResume&&sb&&sb.auth){
+    try{var r=await sb.auth.getSession();var ss=r&&r.data?r.data.session:null;
+      if(ss&&(!ss.expires_at||ss.expires_at*1000-Date.now()<300000))await sb.auth.refreshSession();
+    }catch(e){}
+  }
+}
+setInterval(function(){idleCheck(false);},60000);
+document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck(true);});
+window.addEventListener("focus",function(){idleCheck(true);});
+window.addEventListener("pageshow",function(){idleCheck(true);});
 function initCloud(){
   if(typeof supabase==="undefined"||!supabase.createClient){setCloud("nolib");return;}
   try{sb=supabase.createClient(SB_URL,SB_KEY);}catch(e){setCloud("nolib");return;}
