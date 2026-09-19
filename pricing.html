@@ -147,7 +147,7 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
 <div class="sec">
   <h2>付款方式</h2>
   <div class="pay">
-    <p style="margin-top:0">選擇方案後可 <b>線上刷卡</b> 立即完成付款。目前為<b>單次付款制</b>：年繳一次付清一年、月繳付一個月，到期前我們會主動通知續訂（自動續扣功能規劃中）。亦可使用 <b>銀行轉帳</b>：</p>
+    <p style="margin-top:0">選擇方案後可 <b>線上刷卡</b> 立即完成訂閱。<b>年繳</b>為一次付清一年，到期前我們會主動通知續訂；<b>月繳</b>採信用卡定期定額，每月自動扣款，需要停止時來信 service@zhuohsin.com 即可取消。亦可使用 <b>銀行轉帳</b>：</p>
     <div class="bank">銀行：新光商業銀行 台南分行（103）<br>帳號：0657100005506<br>戶名：卓信人資整合有限公司</div>
     <p style="font-size:13.5px;color:var(--muted)">轉帳後請來信 <a href="mailto:service@zhuohsin.com" style="color:#0d1d33">service@zhuohsin.com</a>，附上註冊 Email 與轉帳末五碼。刷卡付款由綠界科技 ECPay 處理，卓信不會取得您的卡片資料。</p>
   </div>
@@ -184,7 +184,7 @@ main{max-width:1000px;margin:0 auto;padding:0 20px 20px}
   function open(plan, cycle, label){
     cur={plan:plan, cycle:cycle};
     document.getElementById("bmPlan").textContent = NAMES[plan]||plan;
-    document.getElementById("bmPrice").textContent = (cycle==="YEARLY"?"年繳（一次付清一年）":"月繳（本次付一個月）") + "　" + label;
+    document.getElementById("bmPrice").textContent = (cycle==="YEARLY"?"年繳（一次付清一年）":"月繳（每月自動扣款，可來信取消）") + "　" + label;
     err.style.display="none"; go.disabled=false; go.textContent="前往付款";
     bg.classList.add("on"); setTimeout(function(){email.focus();},50);
   }
