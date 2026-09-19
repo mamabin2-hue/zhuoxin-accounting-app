@@ -237,13 +237,13 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button data-g="tax"><span class="ic">％</span>稅務試算</button>
       <button data-g="law"><span class="ic">§</span>法令知識</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="ar"></button><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
     <div id="orgSwitchWrap" style="display:none;padding:12px 14px 4px"><label style="font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:4px">🏢 公司切換（需驗證）</label><select id="orgSwitch" onchange="switchOrg(this)" style="width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border)"></select></div>
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.9.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.10.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -478,6 +478,19 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       </section>
 
       <!-- BALANCE -->
+      <section class="view" id="v-ar">
+        <div class="sec-h"><h2>應收應付</h2><span class="muted">未收未付一覽 · 逐筆沖帳 · 點任一列展開明細</span></div>
+        <div class="tabs" style="margin-bottom:12px">
+          <button id="arTabAR" class="on" onclick="arSetKind('ar')">應收帳款（客戶欠我們）</button>
+          <button id="arTabAP" onclick="arSetKind('ap')">應付帳款（我們欠廠商）</button>
+        </div>
+        <div class="grid" id="arKpi" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px"></div>
+        <div class="twrap"><div class="tscroll"><table>
+          <thead><tr><th>日期</th><th>對象</th><th>憑證</th><th>品名</th><th class="r">原始金額</th><th class="r">已沖銷</th><th class="r">未結</th><th>狀態</th><th></th></tr></thead>
+          <tbody id="arBody"></tbody><tfoot id="arFoot"></tfoot></table></div></div>
+        <div class="note" id="arNote" style="margin-top:14px"></div>
+      </section>
+
       <section class="view" id="v-balance">
         <div class="sec-h"><h2>餘額表（試算表）</h2><span class="muted">各科目借貸總額與餘額 · 檢查借貸平衡</span></div>
         <div class="twrap"><div class="tscroll"><table>
@@ -1020,7 +1033,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.9.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.10.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1046,10 +1059,10 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",cash:"資金預測",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",cash:"資金預測",ar:"應收應付",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
 const NAVGROUPS=[
   {g:"book",items:["dash","purchase","sale","petty","payreq","recur","journal"]},
-  {g:"report",items:["voucher","ledger","fund","cash","assets","balance","pl","bs"]},
+  {g:"report",items:["voucher","ledger","fund","cash","assets","ar","balance","pl","bs"]},
   {g:"tax",items:["tax"]},
   {g:"law",items:["law"]},
   {g:"setup",items:["settings","export","users","ops"]}];
@@ -1167,11 +1180,133 @@ function vouchersFor(){const out=[];let seq=1;
     }else{const s=r.d;out.push({no,date:s.date,proj:s.proj||"",srcType:"s",srcId:s.id,memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
       lines:[{acct:s.pay,debit:s.net+s.tax,credit:0},{acct:"銷貨收入",debit:0,credit:s.net},{acct:"銷項稅額",debit:0,credit:s.tax}]});}});
   return out;}
+
+/* ===== 應收應付與沖帳 =====
+   結構上沿用既有傳票機制：沖帳只是再產生一張傳票，
+   所以餘額表、分類帳、資產負債表全部自動跟著變，不會有第二套數字。
+   應收＝銷項憑證的收款方式選「應收帳款」；應付＝進項憑證選「應付帳款」或「信用卡」。 */
+const AR_ACCT="應收帳款", AP_ACCT="應付帳款";
+function settleEntries(){
+  return (db.settle||[]).map((x,i)=>{
+    const no="S"+String(i+1).padStart(3,"0");
+    const acct=x.kind==="ap"?AP_ACCT:AR_ACCT;
+    const cash=x.pay||"銀行存款";
+    const lines=x.kind==="ap"
+      ? [{acct:acct,debit:x.amount,credit:0},{acct:cash,debit:0,credit:x.amount}]
+      : [{acct:cash,debit:x.amount,credit:0},{acct:acct,debit:0,credit:x.amount}];
+    return {no,date:x.date,proj:"",srcType:"x",srcId:x.id,
+            memo:(x.kind==="ap"?"付款沖銷 · ":"收款沖銷 · ")+(x.who||"")+(x.note?" "+x.note:""),lines};
+  });
+}
+// 未結清項目：原始金額扣掉歷次沖帳
+function openItems(kind){
+  const out=[];
+  if(kind==="ap"){
+    (db.purchase||[]).filter(x=>x.pay===AP_ACCT||x.pay==="信用卡").forEach(x=>{
+      out.push({kind:"ap",src:"p",id:x.id,date:x.date||"",who:x.name||"（未填廠商）",
+        no:(x.note||"").replace(/📎\S+/g,"").split(";")[0].trim()||"—",item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
+    });
+  }else{
+    (db.sale||[]).filter(x=>x.pay===AR_ACCT).forEach(x=>{
+      out.push({kind:"ar",src:"s",id:x.id,date:x.date||"",who:x.name||"（未填客戶）",
+        no:invStr(x.code,x.seq),item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
+    });
+  }
+  out.forEach(o=>{
+    o.rows=(db.settle||[]).filter(t=>t.src===o.src&&t.srcId===o.id).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+    o.paid=o.rows.reduce((a,t)=>a+(+t.amount||0),0);
+    o.left=Math.round((o.total-o.paid)*100)/100;
+  });
+  return out.sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+}
+let _arKind="ar", _arOpen="";
+function arSetKind(k){_arKind=k;_arOpen="";renderAR();}
+function arToggle(id){_arOpen=(_arOpen===id?"":id);renderAR();}
+function arAdd(src,id){
+  const list=openItems(_arKind),o=list.find(x=>x.src===src&&x.id===id);
+  if(!o)return;
+  const d=$("#ar_d_"+id),a=$("#ar_a_"+id),pz=$("#ar_p_"+id),n=$("#ar_n_"+id);
+  const date=(d&&d.value)||todayStr();
+  let amt=Math.round((+(a&&a.value)||0)*100)/100;
+  if(!amt){alert("請輸入這次"+(_arKind==="ap"?"付款":"收款")+"的金額。");return;}
+  if(amt>o.left+0.001){
+    if(!confirm("這次金額 "+fmt(amt)+" 超過未結的 "+fmt(o.left)+"。\n超收／超付會讓這筆變成負餘額，確定要這樣記嗎？"))return;
+  }
+  db.settle.push({id:uid(),kind:_arKind,src:src,srcId:id,date:date,amount:amt,
+                  pay:(pz&&pz.value)||"銀行存款",who:o.who,note:((n&&n.value)||"").slice(0,60)});
+  save();renderAR();
+}
+function arDel(sid){
+  if(!confirm("要刪除這筆沖帳紀錄嗎？刪除後未結金額會加回去。"))return;
+  db.settle=(db.settle||[]).filter(x=>x.id!==sid);save();renderAR();
+}
+function arGoto(kind){_arKind=kind;_arOpen="";go("ar");}
+function renderAR(){
+  const body=$("#arBody");if(!body)return;
+  const isAP=_arKind==="ap";
+  const t1=$("#arTabAR"),t2=$("#arTabAP");
+  if(t1)t1.className=isAP?"":"on"; if(t2)t2.className=isAP?"on":"";
+  const list=openItems(_arKind);
+  const unpaid=list.filter(o=>Math.abs(o.left)>0.004);
+  const sumTotal=list.reduce((a,o)=>a+o.total,0);
+  const sumPaid=list.reduce((a,o)=>a+o.paid,0);
+  const sumLeft=list.reduce((a,o)=>a+o.left,0);
+  const kpi=$("#arKpi");
+  if(kpi)kpi.innerHTML=
+     `<div class="card kpi"><div class="lbl">${isAP?"應付總額":"應收總額"}</div><div class="val num">${fmt(sumTotal)}<small> 元</small></div><div class="sub num">${list.length} 筆</div></div>`
+    +`<div class="card kpi"><div class="lbl">${isAP?"已付":"已收"}</div><div class="val num">${fmt(sumPaid)}<small> 元</small></div><div class="sub num">${(db.settle||[]).filter(x=>x.kind===_arKind).length} 次沖帳</div></div>`
+    +`<div class="card kpi"><div class="lbl">${isAP?"尚未付款":"尚未收款"}</div><div class="val num" style="color:${sumLeft>0?"var(--warn)":"var(--good)"}">${fmt(sumLeft)}<small> 元</small></div><div class="sub num">${unpaid.length} 筆未結清</div></div>`;
+  if(!list.length){
+    body.innerHTML=`<tr><td colspan="9" class="empty">目前沒有${isAP?"應付":"應收"}項目。${isAP?"進項憑證的付款方式選「應付帳款」或「信用卡」":"銷項憑證的收款方式選「應收帳款」"}，就會出現在這裡。</td></tr>`;
+    const f=$("#arFoot");if(f)f.innerHTML="";const nt=$("#arNote");if(nt)nt.innerHTML="";return;
+  }
+  const payOpts=["銀行存款","現金"].map(v=>`<option value="${v}">${v}</option>`).join("");
+  body.innerHTML=list.map(o=>{
+    const done=Math.abs(o.left)<0.005;
+    const over=o.left<-0.004;
+    const st=done?'<span class="ok">已結清</span>':over?'<span class="bad">超'+(isAP?"付":"收")+'</span>':(o.paid>0?'<span style="color:var(--warn)">部分'+(isAP?"付款":"收款")+'</span>':'<span style="color:var(--ink-2)">未'+(isAP?"付":"收")+'</span>');
+    const opened=_arOpen===o.id;
+    let h=`<tr style="cursor:pointer" onclick="arToggle('${o.id}')">
+      <td class="num" style="white-space:nowrap">${esc(o.date)}</td>
+      <td>${esc(o.who)}</td>
+      <td style="font-size:12.5px">${esc(o.no)}</td>
+      <td style="font-size:12.5px">${esc(o.item)}</td>
+      <td class="r num">${fmt(o.total)}</td>
+      <td class="r num">${o.paid?fmt(o.paid):"—"}</td>
+      <td class="r num" style="font-weight:700;color:${done?"var(--ink-3)":"var(--warn)"}">${fmt(o.left)}</td>
+      <td style="white-space:nowrap">${st}</td>
+      <td style="white-space:nowrap;font-size:12px;color:var(--ink-3)">${opened?"▾ 收合":"▸ 明細／沖帳"}</td></tr>`;
+    if(opened){
+      const rows=o.rows.length
+        ? o.rows.map(t=>`<tr><td class="num" style="white-space:nowrap">${esc(t.date)}</td><td>${esc(t.pay||"")}</td><td class="r num">${fmt(t.amount)}</td><td style="font-size:12.5px">${esc(t.note||"")}</td><td><button class="btn ghost sm" onclick="arDel('${t.id}')">刪除</button></td></tr>`).join("")
+        : `<tr><td colspan="5" class="empty" style="padding:8px">還沒有${isAP?"付款":"收款"}紀錄。</td></tr>`;
+      h+=`<tr><td colspan="9" style="background:var(--surface);padding:12px 14px">
+        <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">${esc(o.who)}　${esc(o.no)}　原始 ${fmt(o.total)}　未結 <b style="color:${done?"var(--ink-3)":"var(--warn)"}">${fmt(o.left)}</b></div>
+        <div class="twrap"><div class="tscroll"><table style="font-size:13px">
+          <thead><tr><th>${isAP?"付款":"收款"}日</th><th>${isAP?"付款":"收款"}帳戶</th><th class="r">金額</th><th>備註</th><th></th></tr></thead>
+          <tbody>${rows}</tbody></table></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px">
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}日</label><input type="date" id="ar_d_${o.id}" value="${todayStr()}" style="font-size:13px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">金額</label><input type="number" step="1" id="ar_a_${o.id}" value="${done?"":Math.max(0,o.left)}" style="font-size:13px;width:120px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}帳戶</label><select id="ar_p_${o.id}" style="font-size:13px">${payOpts}</select></div>
+          <div class="fld" style="margin:0;flex:1;min-width:140px"><label style="font-size:11.5px">備註（可略）</label><input id="ar_n_${o.id}" placeholder="例：第 3 期" style="font-size:13px"></div>
+          <button class="btn sm" onclick="arAdd('${o.src}','${o.id}')">記一筆${isAP?"付款":"收款"}</button>
+        </div>
+        <div style="font-size:12px;color:var(--ink-3);margin-top:8px">每記一筆就自動產生一張傳票（${isAP?"借 應付帳款／貸 付款帳戶":"借 收款帳戶／貸 應收帳款"}），餘額表與報表會同步更新。</div>
+      </td></tr>`;
+    }
+    return h;
+  }).join("");
+  const f=$("#arFoot");
+  if(f)f.innerHTML=`<tr><td colspan="4">合計 ${list.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="2"></td></tr>`;
+  const nt=$("#arNote");
+  if(nt)nt.innerHTML=`點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}；這裡的未結合計會等於餘額表上「${isAP?AP_ACCT:AR_ACCT}」的餘額。`;
+}
 function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[l.acct]=1));
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();try{renderAR();}catch(e){console.warn("AR",e);}renderBalance();
   renderJournalList();renderFund();try{renderCashForecast();}catch(e){}renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);const tt=$("#topTrack");if(tt)tt.textContent=t?t.code:"未設定";const tp=$("#topPeriod");if(tp)tp.textContent=curPeriod();syncSale();}
 
@@ -1236,7 +1371,12 @@ function balanceRows(){const E=allEntries();return accounts().map(a=>{let d=0,c=
   const bal=d-c;return {a,d,c,dr:bal>0?bal:0,cr:bal<0?-bal:0};});}
 function renderBalance(){const rows=balanceRows();const b=$("#balBody");
   if(!rows.length){b.innerHTML=`<tr><td colspan="5" class="empty">尚無分錄。</td></tr>`;$("#balFoot").innerHTML="";$("#balNote").textContent="";return;}
-  b.innerHTML=rows.map(r=>`<tr><td>${esc(r.a)}</td><td class="r num">${fmt(r.d)}</td><td class="r num">${fmt(r.c)}</td><td class="r num">${r.dr?fmt(r.dr):""}</td><td class="r num">${r.cr?fmt(r.cr):""}</td></tr>`).join("");
+  b.innerHTML=rows.map(r=>{
+    // 應收／應付可直接點進「應收應付」看是誰、欠多久、沖過幾次
+    const jump=r.a===AR_ACCT?"ar":r.a===AP_ACCT?"ap":"";
+    const name=jump?`${esc(r.a)} <button class="btn ghost sm" style="margin-left:6px;padding:2px 8px;font-size:11.5px" onclick="arGoto('${jump}')">看明細／沖帳 ↗</button>`:esc(r.a);
+    return `<tr><td>${name}</td><td class="r num">${fmt(r.d)}</td><td class="r num">${fmt(r.c)}</td><td class="r num">${r.dr?fmt(r.dr):""}</td><td class="r num">${r.cr?fmt(r.cr):""}</td></tr>`;
+  }).join("");
   const sd=rows.reduce((a,r)=>a+r.d,0),sc=rows.reduce((a,r)=>a+r.c,0),sdr=rows.reduce((a,r)=>a+r.dr,0),scr=rows.reduce((a,r)=>a+r.cr,0);
   $("#balFoot").innerHTML=`<tr><td>合計</td><td class="r num">${fmt(sd)}</td><td class="r num">${fmt(sc)}</td><td class="r num">${fmt(sdr)}</td><td class="r num">${fmt(scr)}</td></tr>`;
   const ok=Math.round(sd)===Math.round(sc)&&Math.round(sdr)===Math.round(scr);
@@ -2065,7 +2205,7 @@ function openingEntries(){const ops=db.opening||[];if(!ops.length)return [];
   return [{no:"OB",date:"期初",memo:"期初餘額",lines:ops.map(o=>({acct:o.acct,debit:o.side==="借"?+o.amount||0:0,credit:o.side==="貸"?+o.amount||0:0}))}];}
 function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,proj:j.proj||"",srcType:"j",srcId:j.id,memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
 function flowEntries(){return [...vouchersFor(),...manualEntries()];}
-function allEntries(){const mid=[...vouchersFor(),...manualEntries()].sort((a,b)=>(a.date||"").localeCompare(b.date||""));return [...openingEntries(),...mid];}
+function allEntries(){const mid=[...vouchersFor(),...manualEntries(),...settleEntries()].sort((a,b)=>(a.date||"").localeCompare(b.date||""));return [...openingEntries(),...mid];}
 function balancesOf(entries){const m={};entries.forEach(v=>v.lines.forEach(l=>{m[l.acct]=(m[l.acct]||0)+l.debit-l.credit;}));return m;}
 function netIncome(){const m=balancesOf(flowEntries());let inc=0,exp=0;
   Object.keys(m).forEach(a=>{const c=classify(a);if(c==="收入")inc+=-m[a];else if(c==="成本"||c==="費用")exp+=m[a];});return {inc,exp,ni:inc-exp};}
@@ -2456,12 +2596,12 @@ function drawCashChart(P){
 /* org_settings 舊環境沒有 filing_json 欄位時的判斷 */
 function _colMissing(e){const c=String(e&&e.code||""),m=String(e&&e.message||"");
   return c==="42703"||c==="PGRST204"||/filing_json/.test(m);}
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],recurs:[],deleted:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],settle:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],recurs:[],deleted:[]});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
 function mergeById(a,b){const out=[],seen=new Set();(a||[]).concat(b||[]).forEach(x=>{if(!x)return;const k=(x.id!=null)?x.id:JSON.stringify(x);if(seen.has(k))return;seen.add(k);out.push(x);});return out;}
-function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.tracks=dedupeTracks(out.tracks);out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if(!out.filing&&Lc.filing)out.filing=Lc.filing;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
+function mergeDb(local,remote){const R=remote||{},Lc=local||{};const out=Object.assign(DBDEF(),R);const del=new Set([...(R.deleted||[]),...(Lc.deleted||[])]);["purchase","sale","settle","journal","opening","banks","vendors","customers","projects","accountsCustom","tracks","petty"].forEach(k=>{out[k]=mergeById(R[k],Lc[k]).filter(x=>!(x&&x.id!=null&&del.has(x.id)));});out.tracks=dedupeTracks(out.tracks);out.deleted=[...del];out.prevCredit=(R.prevCredit!==undefined&&R.prevCredit!==null)?R.prevCredit:(Lc.prevCredit||0);if(!out.company&&Lc.company)out.company=Lc.company;if(!out.filing&&Lc.filing)out.filing=Lc.filing;if((!R.pettyCfg||!R.pettyCfg.amount)&&Lc.pettyCfg&&Lc.pettyCfg.amount)out.pettyCfg=Lc.pettyCfg;out.settings=Object.assign({},Lc.settings||{},R.settings||{});return out;}
 /* ===== 多人帳號：成員解析 + 功能權限 ===== */
 let bookOwnerId=null,myRole="owner",myFeatures=null;
 /* ---- 角色視角模擬（僅切換畫面權限；模擬唯讀時系統一樣擋存檔）---- */
@@ -2629,7 +2769,7 @@ async function opsSet(id,field,val){
   if(error){alert("操作失敗。\n"+plainError(error));return;}
   loadOps();}
 async function delMember(id){if(!confirm("移除此成員？對方將無法再存取本帳。"))return;try{await sb.from("members").delete().eq("id",id);}catch(e){}loadMembers();}
-function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});db.tracks=dedupeTracks(db.tracks||[]);if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
+function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});db.tracks=dedupeTracks(db.tracks||[]);if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];if(!Array.isArray(db.settle))db.settle=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
   if(state==="in"){cloudDot("on","已同步");}
