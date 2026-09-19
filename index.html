@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.8.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.8.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1020,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.8.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.8.1";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1656,9 +1656,9 @@ async function prPhoto(inp){
     if(!sb||!sbUser||!bookOrgId){alert("需登入才能附照片。");return;}
     const key=bookOrgId+"/pr-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
     const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
-    if(error){alert("上傳失敗："+error.message);return;}
+    if(error){alert("上傳失敗。\n"+plainError(error));return;}
     _prPhotoKey=key;const t=$("#pr_photoTag");if(t)t.textContent="✓ 已附照片";
-  }catch(e){alert("照片處理失敗："+e.message);}}
+  }catch(e){alert("照片處理失敗。\n"+plainError(e));}}
 function fillPrAcct(){const s2=$("#pr_acct");if(!s2)return;const cur=s2.value;const list=accountsByCat("費用")||[];s2.innerHTML=[...list].map(a=>`<option>${esc(a)}</option>`).join("");if(cur)s2.value=cur;}
 function prStatusPill(st){const M={pending:["待審","#e9a23b"],approved:["已核准","#1f7a5c"],rejected:["已退回","#d64545"],paid:["已付款","#3b76d6"]};const m=M[st]||[st,"#888"];return `<span class="tag" style="background:${m[1]};color:#fff">${m[0]}</span>`;}
 function canApprove(){return myRole==="owner"||myRole==="admin";}
@@ -1721,7 +1721,7 @@ async function prPay(id){
   const pick=prompt("付款來源（輸入編號）：\n"+opts.map((o,i)=>(i+1)+"."+o).join("\n"),"1");
   if(pick===null)return;const bank=opts[(+pick||1)-1]||opts[0];
   const {error}=await sb.rpc("payreq_action",{pid:r.dbid||r.id,act:"paid",bank});
-  if(error){alert("失敗："+error.message);return;}
+  if(error){alert("操作失敗。\n"+plainError(error));return;}
   r.status="paid";r.payFrom=bank;
   // 自動入帳:建一筆進項(無發票→不可扣抵列費用;含照片備註)
   db.purchase.push({id:uid(),date:todayStr(),type:"其他",uni:"",name:r.payee,item:"請款："+(r.reason||""),cat:"費用",acct:r.acct||"雜項費用",net:+r.amount||0,tax:0,ded:false,pay:bank,s36:false,proj:"",note:("請款單付款"+(r.photoKey?";📎"+r.photoKey:"")).slice(0,100)});
@@ -2251,7 +2251,7 @@ async function perm(h,write){const o={mode:write?"readwrite":"read"};if((await h
 async function enableAutoBackup(){
   if(!fsaOK()){alert("此瀏覽器不支援自動寫檔備份，建議用 Chrome 或 Edge 開啟。仍可用下方「下載備份」手動備份。");return;}
   let h;try{h=await window.showSaveFilePicker({id:"zxbk",startIn:"documents",suggestedName:"卓信會計_備份.json",types:[{description:"JSON 備份",accept:{"application/json":[".json"]}}]});}
-  catch(e){if(e&&e.name!=="AbortError")alert("啟用失敗："+(e.message||e));return;}
+  catch(e){if(e&&e.name!=="AbortError")alert("啟用失敗。\n"+plainError(e));return;}
   bkHandle=h;bkNeedsGrant=false;try{await idbSet(IDB_KEY,h);}catch(_){}
   await writeBackup(true);refreshBackupUI();}
 async function writeBackup(){
@@ -2584,7 +2584,7 @@ async function opsFbSet(id,st){
     if(r.error)throw r.error;
     const it=_opsFbData.find(x=>x.id===id);if(it){it.status=st;it.handled_at=(st==="open"?null:new Date().toISOString());}
     renderOpsFeedback();
-  }catch(e){alert("更新失敗："+((e&&e.message)||e));}}
+  }catch(e){alert("更新失敗。\n"+plainError(e));}}
 function renderOpsFeedback(){
   const fbox=$("#opsFb");if(!fbox)return;
   const all=_opsFbData||[];
@@ -2616,7 +2616,7 @@ async function opsExtendTrial(id){
   if(!d||d<1||d>365){alert("請輸入 1〜365 的天數。");return;}
   try{const r=await sb.rpc("ops_extend_trial",{p_org:id,p_days:d});
     if(r.error)throw r.error;alert("✅ 已延長 "+d+" 天。");loadOps();
-  }catch(e){alert("延長失敗："+((e&&e.message)||e));}}
+  }catch(e){alert("延長失敗。\n"+plainError(e));}}
 async function opsPlanPick(id){
   var pick=prompt("開通哪個方案？\n1 = 基本（年繳 5,990）\n2 = 標準（年繳 19,900）\n3 = 進階（年繳 48,800）\n（早鳥/自訂價：直接照收到的金額開通，方案僅影響顯示）","2");
   if(pick===null)return;
@@ -2626,7 +2626,7 @@ async function opsPlanPick(id){
 async function opsSet(id,field,val){
   if(!confirm((field==="plan"?"開通為付費方案？":"變更狀態為 "+val+"？")))return;
   const {error}=await sb.rpc("ops_set_org",{oid:id,f:field,v:val});
-  if(error){alert("失敗："+error.message);return;}
+  if(error){alert("操作失敗。\n"+plainError(error));return;}
   loadOps();}
 async function delMember(id){if(!confirm("移除此成員？對方將無法再存取本帳。"))return;try{await sb.from("members").delete().eq("id",id);}catch(e){}loadMembers();}
 function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});db.tracks=dedupeTracks(db.tracks||[]);if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
@@ -2639,6 +2639,38 @@ function setCloud(state,msg){
   else cloudDot("","登入雲端");
   const lw=$("#loginWarn");if(lw)lw.style.display=(state==="out"||state==="nolib")?"":"none";}
 /* ===== 閒置自動登出（財務系統資安：無操作 20 分鐘自動登出，防公用/遺失裝置被人接手）===== */
+/* ── 錯誤訊息一律翻成看得懂的話 ────────────────────────────────────────
+   資料庫與瀏覽器丟出來的原文（permission denied for table…、JWT expired、
+   42501、Failed to fetch）客戶看不懂，也不知道該怎麼辦。這裡統一轉成
+   「發生什麼事＋你可以怎麼做」，原文只留在 console 供我們查。 */
+function plainError(e){
+  var raw = (e && (e.message || e.error_description || e.error || e.msg)) || e || "";
+  raw = String(raw);
+  var code = (e && (e.code || e.status)) ? String(e.code || e.status) : "";
+  var t = raw.toLowerCase();
+  try{ console.warn("[原始錯誤]", code, raw, e); }catch(_){}
+  var map = [
+    [/jwt expired|token is expired|登入已過期|invalid jwt|session.*expired|401/, "登入時效已過，請重新登入一次就會恢復（資料不會不見）。"],
+    [/row-level security|violates row-level security/, "這本帳目前不允許寫入。常見原因是試用到期、或你已不是這本帳的成員。"],
+    [/permission denied/, "這個帳號沒有這項資料的權限。若是剛被加入或剛升級，請重新登入一次再試。"],
+    [/failed to fetch|networkerror|network request failed|load failed/, "連不上網路。請確認網路後再試一次，資料已先存在這台裝置上。"],
+    [/duplicate key|already exists/, "這筆資料已經存在，不需要重複新增。"],
+    [/foreign key/, "關聯的資料不存在或已被刪除，請重新選一次。"],
+    [/value too long|too long for type/, "輸入的字數超過欄位上限，請縮短後再存。"],
+    [/payload too large|entity too large|file size/, "檔案太大。請改拍小一點或壓縮後再上傳。"],
+    [/invalid login credentials/, "帳號或密碼不正確。"],
+    [/rate limit|too many requests|429/, "短時間內嘗試太多次，請等一兩分鐘再試。"],
+    [/quota|exceeded/, "本日用量已達上限，請明天再試或升級方案。"],
+    [/timeout|timed out/, "等待太久沒有回應，請再試一次。"],
+    [/not found|404/, "找不到這筆資料，可能已被刪除或搬移。"],
+    [/5\d\d|internal server|service unavailable/, "伺服器暫時沒有回應，請稍後再試一次。"]
+  ];
+  for(var i=0;i<map.length;i++){ if(map[i][0].test(t)||map[i][0].test(code)) return map[i][1]; }
+  if(code==="42501") return "這個帳號沒有這項資料的權限。若是剛被加入或剛升級，請重新登入一次再試。";
+  if(code==="23505") return "這筆資料已經存在，不需要重複新增。";
+  return raw ? ("發生問題：" + raw.slice(0,120) + "\n若一直發生，請用右下角「問題回報」告訴我們，我們會收到。")
+             : "發生未知的問題，請用右下角「問題回報」告訴我們。";
+}
 const IDLE_MIN=20; let _idleTimer=null,_idleWarnTimer=null;
 function markActive(){try{localStorage.setItem(LS+"_lastActive",String(Date.now()));}catch(e){}}
 async function idleLogout(){
@@ -3082,7 +3114,7 @@ async function sendFeedback(){
     if(h){h.style.color="var(--good)";h.textContent="✅ 已送出，謝謝你的回報！";}
     if(t)t.value="";
     setTimeout(closeFeedback,1200);
-  }catch(e){if(h){h.style.color="var(--danger)";h.textContent="送出失敗："+((e&&e.message)||e);}}
+  }catch(e){if(h){h.style.color="var(--danger)";h.textContent="送出失敗。"+plainError(e);}}
 }
 async function doLogout(){if(!sbUser){openLogin();return;}if(!confirm("要登出「"+(sbUser.email||"")+"」嗎？"))return;try{await sb.auth.signOut();}catch(e){}try{localStorage.removeItem(LS+"_trial");}catch(e){}location.reload();}
 async function forgotPassword(){
@@ -3135,7 +3167,7 @@ $("#lg_reg").addEventListener("click",async()=>{
   const email=$("#mem_email").value.trim().toLowerCase();if(!email){alert("請輸入員工 email。");return;}
   const role=$("#mem_role").value;const features=[...document.querySelectorAll("#mem_feats .memfeat:checked")].map(c=>c.value);
   const {error}=await sb.from("members").insert({owner_id:bookOwnerId||sbUser.id,email,role,features,status:"active"});
-  if(error){alert("新增失敗："+error.message);return;}
+  if(error){alert("新增失敗。\n"+plainError(error));return;}
   $("#mem_email").value="";document.querySelectorAll("#mem_feats .memfeat").forEach(c=>c.checked=false);loadMembers();
   alert("已新增成員。請通知對方用此 email 到登入頁『員工註冊新帳號』設定密碼，登入後即依權限生效。");
 });})();
@@ -3468,7 +3500,7 @@ async function attachReceiptPhoto(inp){
   if(!sb||!sbUser||!bookOrgId){alert("已壓縮 "+Math.round(blob.size/1024)+"KB，但需登入且完成升級後才能上傳雲端。目前請自行保存照片。");return;}
   const key=bookOrgId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
   try{const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
-    if(error){alert("上傳失敗："+error.message);return;}
+    if(error){alert("上傳失敗。\n"+plainError(error));return;}
     const note=(prompt("這筆是什麼用途？（可留空直接按確定）\n\n寫清楚用途，AI 才能判對科目與能不能扣抵。\n例：請客戶喝飲料 → 交際費、不可扣抵\n例：公司車加油 → 燃料費、可扣抵","")||"").trim().slice(0,100);
     const nn=$("#p_note");
     if(nn){
@@ -3478,7 +3510,7 @@ async function attachReceiptPhoto(inp){
     }
     const h=$("#p_dedHint");if(h){h.style.display="block";h.innerHTML="🤖 AI 辨識中…";}
     aiRecognizeReceipt(blob,note).catch(()=>{});
-  }catch(e){alert("上傳失敗："+e.message);}
+  }catch(e){alert("上傳失敗。\n"+plainError(e));}
 }
 // 取一個確定還有效的存取權杖：快到期就先換新，避免呼叫後端時被判「登入已過期」。
 async function freshToken(){
@@ -3512,7 +3544,7 @@ async function aiRecognizeReceipt(blob,userNote){
     const resp=await apiFetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST"},{image:b64,mime:"image/jpeg",note:userNote||""});
     if(!resp){const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI：尚未登入雲端，請先登入再辨識。";}return;}
     const j=await resp.json();
-    if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc((j&&j.error)||"辨識失敗，請手動填寫");}return;}
+    if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc(j&&j.error?plainError({message:j.error}):"這張看不清楚，請手動填寫金額與品名。");}return;}
     try{ if(typeof bookOrgId!=="undefined"&&bookOrgId) sb.from("ai_usage").insert({org_id:bookOrgId,kind:"receipt"}).then(()=>{},()=>{}); }catch(_){}
     const d=j.data;const setIf=(id,v)=>{const e=$("#"+id);if(e&&!e.value&&v)e.value=v;};
     setIf("p_date",d["日期"]);setIf("p_name",d["賣方名稱"]);setIf("p_uni",d["賣方統編"]);setIf("p_item",d["品名摘要"]);
@@ -3546,7 +3578,7 @@ async function aiRecognizeReceipt(blob,userNote){
         +"<br><b>以上為 AI 建議，請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
   }catch(e){console.warn("aiRecognizeReceipt",e);}
 }
-async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗："+e.message);}}
+async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗。\n"+plainError(e));}}
 
 /* ===== 收據→進項物件（檔案匯入與雲端收件匣共用） ===== */
 function receiptToPurchase(oo){if(!oo)return null;const net=+oo.net||0,tax=+oo.tax||0;if(!net&&!tax&&!oo.item)return null;
