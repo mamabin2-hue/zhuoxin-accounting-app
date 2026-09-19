@@ -243,18 +243,18 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.12.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.13.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
     <div class="top">
-      <div id="quickBar" style="display:none;grid-column:1/-1;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;width:100%"></div>
       <h1 id="topTitle">總覽</h1>
       <div class="period">
         <span class="pill">期別 <b class="num" id="topPeriod">—</b></span>
         <span class="pill" style="cursor:pointer" title="點我管理發票字軌" onclick="goView('sale')">字軌 <b class="num" id="topTrack">DV</b></span>
         <button class="theme-btn" id="cloudBtn" title="雲端同步">☁︎ 雲端</button>
                 <button class="theme-btn" id="themeBtn">◐ 主題</button>
+      <div id="quickBar" style="display:none;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;width:100%"></div>
       </div>
     </div>
     <div class="content">
@@ -485,6 +485,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <button id="arTabAR" class="on" onclick="arSetKind('ar')">應收帳款（客戶欠我們）</button>
           <button id="arTabAP" onclick="arSetKind('ap')">應付帳款（我們欠廠商）</button>
         </div>
+        <div class="note" id="arHow" style="margin-bottom:12px;font-size:12.5px"></div>
         <div class="grid" id="arKpi" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px"></div>
         <div class="twrap"><div class="tscroll"><table>
           <thead><tr><th>日期</th><th>對象</th><th>憑證</th><th>品名</th><th class="r">原始金額</th><th class="r">已沖銷</th><th class="r">未結</th><th>狀態</th><th></th></tr></thead>
@@ -1053,7 +1054,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.12.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.13.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1070,7 +1071,7 @@ const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let db={tracks:[],purchase:[],sale:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
+let db={tracks:[],purchase:[],sale:[],settle:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   db.tracks=dedupeTracks(db.tracks||[]);}
@@ -1118,14 +1119,13 @@ const QUICK=[
   {v:"tax",label:"401 試算",icon:"％",hint:"這期要繳多少營業稅"}
 ];
 // 我的最愛是個人使用習慣，存在這台裝置即可，不寫進帳本資料
-let _favs=null;
+// 我的最愛存在帳本設定裡，換裝置也跟著走；共用電腦時也不會看到別人釘的
 function favs(){
-  if(_favs)return _favs;
-  try{_favs=JSON.parse(localStorage.getItem(LS+"_favs")||"[]");}catch(e){_favs=[];}
-  if(!Array.isArray(_favs))_favs=[];
-  return _favs;
+  if(!db.settings)db.settings={};
+  if(!Array.isArray(db.settings.favs))db.settings.favs=[];
+  return db.settings.favs;
 }
-function favsSave(){try{localStorage.setItem(LS+"_favs",JSON.stringify(favs()));}catch(e){}}
+function favsSave(){try{save();}catch(e){}}
 function isFav(v){ return favs().indexOf(v)>=0; }
 function toggleFav(v){
   const a=favs(), i=a.indexOf(v);
@@ -1135,9 +1135,11 @@ function toggleFav(v){
 function renderQuickBar(){
   const el=$("#quickBar"); if(!el) return;
   const btn=(v,label,icon,hint,fav)=>`<button class="btn ghost sm" title="${esc(hint||label)}" onclick="goView('${v}')" style="padding:5px 10px;font-size:12.5px;white-space:nowrap">${icon} ${esc(label)}${fav?'<span style="color:var(--accent-ink,#b8860b);margin-left:3px">★</span>':''}</button>`;
+  // 快速列不可以繞過功能權限：選單看不到的，這裡也不能給
+  const allowed=v=>{try{return visibleItems(groupOf(v)).indexOf(v)>=0;}catch(e){return true;}};
   let h='<span style="font-size:11.5px;color:var(--ink-3);white-space:nowrap">快速作業</span>';
-  h+=QUICK.map(q=>btn(q.v,q.label,q.icon,q.hint,false)).join("");
-  const f=favs().filter(v=>TITLES[v]);
+  h+=QUICK.filter(q=>allowed(q.v)).map(q=>btn(q.v,q.label,q.icon,q.hint,false)).join("");
+  const f=favs().filter(v=>TITLES[v]&&allowed(v));
   if(f.length){
     h+='<span style="width:1px;height:18px;background:var(--border);margin:0 4px"></span>';
     h+='<span style="font-size:11.5px;color:var(--ink-3);white-space:nowrap">我的最愛</span>';
@@ -1153,7 +1155,7 @@ function renderFavStar(){
     let b=h.querySelector(".fav-star");
     if(!b){
       b=document.createElement("button"); b.className="btn ghost sm fav-star";
-      b.style.cssText="margin-left:auto;padding:3px 9px;font-size:12px;white-space:nowrap";
+      b.style.cssText="margin-left:8px;padding:3px 9px;font-size:12px;white-space:nowrap";
       b.setAttribute("onclick","toggleFav('"+v+"')");
       h.appendChild(b);
     }
@@ -1210,10 +1212,13 @@ function totals(period){const P=period===undefined?curPeriod():period;
 $("#p_net").addEventListener("input",syncPTotal);$("#p_tax").addEventListener("input",syncPTotal);
 function syncPTotal(){const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;$("#p_total").value=fmt(net+tax);}
 $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_net").value||0;const tax=$("#p_tax").value===""?autoTax(net):+$("#p_tax").value;
-  const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:(($("#p_cat").value==="業主提取"||($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0)?false:($("#p_ded").value==="1")),pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||"",note:(($("#p_note")||{}).value||"").slice(0,100)};
+  const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:(($("#p_cat").value==="業主提取"||($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0)?false:($("#p_ded").value==="1")),pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||"",note:(($("#p_note")||{}).value||"").slice(0,100),
+    // §19 各款的勾選要存下來，否則回頭編輯時會被清空，不可扣抵會靜靜變成可扣抵
+    ent:!!($("#p_ent")&&$("#p_ent").checked),emp:!!($("#p_emp")&&$("#p_emp").checked),
+    car:!!($("#p_car")&&$("#p_car").checked),nonbiz:!!($("#p_nonbiz")&&$("#p_nonbiz").checked)};
   if(editPid){const i=db.purchase.findIndex(x=>x.id===editPid);if(i>=0)db.purchase[i]=_obj;editPid=null;const b=$("#pSubmitBtn");if(b)b.textContent="＋ 新增並切傳票";}
   else{db.purchase.push(_obj);if(autoAddVendorOn()){const nm=_obj.name,u=_obj.uni;if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}}
-  e.target.reset();$("#p_total").value="";if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
+  e.target.reset();$("#p_total").value="";_dedLockedByDoc=false;if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
 const _ps=$("#pSample");if(_ps)_ps.addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
 
 /* sale */
@@ -1223,7 +1228,7 @@ function syncSale(){const t=trackForDate($("#s_date").value);if(!t||!t.code){$("
   $("#s_trkHint").textContent=`期別 ${t.period}｜字軌 ${t.code}｜下一張 ${seq<=t.end?invStr(t.code,seq):"—"}（剩 ${Math.max(0,t.end-seq+1)} 號）`;}
 $("#sForm").addEventListener("submit",e=>{e.preventDefault();
   const _r=saleNetTax();const net=_r.net,tax=_r.tax;const _cn=$("#s_name").value.trim();if(!_cn){alert("銷項的買受人（客戶）名稱必填。");return;}
-  if(editSid){const i=db.sale.findIndex(x=>x.id===editSid);if(i>=0){const old=db.sale[i];db.sale[i]={id:editSid,code:old.code,seq:old.seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||"",note:(($("#s_note")||{}).value||"").slice(0,100)};}editSid=null;const b=$("#sSubmitBtn");if(b)b.textContent="＋ 開立並切傳票";e.target.reset();save();return;}
+  if(editSid){const i=db.sale.findIndex(x=>x.id===editSid);if(i>=0){const old=db.sale[i];db.sale[i]=Object.assign({},old,{id:editSid,code:old.code,seq:old.seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||"",note:(($("#s_note")||{}).value||"").slice(0,100)});}editSid=null;const b=$("#sSubmitBtn");if(b)b.textContent="＋ 開立並切傳票";e.target.reset();save();return;}
   const t=trackForDate($("#s_date").value);if(!t){alert("尚無字軌，請先加入配號。");return;}
   const seq=nextSeq(t);if(seq>t.end){alert("本期字軌號碼（至 "+invStr(t.code,t.end)+"）已用完。");return;}
   db.sale.push({id:uid(),code:t.code,seq,date:$("#s_date").value,uni:$("#s_uni").value.trim(),name:_cn,item:$("#s_item").value.trim(),net,tax,pay:$("#s_pay").value,proj:($("#s_proj")||{}).value||"",note:(($("#s_note")||{}).value||"").slice(0,100)});
@@ -1243,7 +1248,24 @@ function parseTrackMail(txt){if(!txt)return null;
   if(!pm||!cm||!sm||!em)return null;
   return {period:`${pm[1]}/${pm[2]}~${pm[3]}/${pm[4]}`,ps:+(pm[1]+pm[2]),pe:+(pm[3]+pm[4]),category:catm?catm[1].trim():"",code:cm[1].toUpperCase(),start:+sm[1],end:+em[1]};}
 
-function del(kind,id){if(!confirm("確定刪除這筆？"))return;db[kind]=db[kind].filter(x=>x.id!==id);if(!Array.isArray(db.deleted))db.deleted=[];db.deleted.push(id);if(db.deleted.length>3000)db.deleted=db.deleted.slice(-3000);save();}
+function del(kind,id){
+  // 銷項發票一律不准刪：刪掉後該號碼會在申報媒體檔中變成「空白未使用」，
+  // 若買方已申報該張進項，勾稽不符會被認定漏開發票（營業稅法§51 I③）。
+  if(kind==="sale"){
+    const sd=(db.sale||[]).find(x=>x.id===id);
+    alert("發票號碼一旦配發就必須交代去向，不能刪除。\n\n"
+      +(sd?("這張是 "+invStr(sd.code,sd.seq)+"。\n\n"):"")
+      +"開錯請用「⊘ 作廢」，系統會把它列為作廢發票；\n若該期已申報，請改開銷貨折讓單。");
+    return;
+  }
+  // 有沖帳紀錄的憑證不能直接刪，否則沖帳會變孤兒，應收／應付出現找不到來源的餘額
+  const tied=(db.settle||[]).filter(x=>!x.voided&&x.srcId===id);
+  if(tied.length){
+    alert("這筆憑證已經有 "+tied.length+" 筆沖帳紀錄（共 "+fmt(tied.reduce((a,x)=>a+(+x.amount||0),0))+" 元）。\n\n請先到「應收應付」把那些沖帳作廢，再回來刪除，否則帳上會留下沒有來源的餘額。");
+    return;
+  }
+  if(!confirm("確定刪除這筆？"))return;
+  db[kind]=db[kind].filter(x=>x.id!==id);if(!Array.isArray(db.deleted))db.deleted=[];db.deleted.push(id);if(db.deleted.length>3000)db.deleted=db.deleted.slice(-3000);save();}
 
 /* vouchers — clean accounts, detail in memo */
 const ACCT_ORDER={"現金":1,"銀行存款":2,"信用卡":3,"應收帳款":4,"進項稅額":5,"生財設備":6,"進貨":7,"應付帳款":20,"銷項稅額":21,"銷貨收入":40,"營業費用":50};
@@ -1265,7 +1287,7 @@ function vouchersFor(){const out=[];let seq=1;
    應收＝銷項憑證的收款方式選「應收帳款」；應付＝進項憑證選「應付帳款」或「信用卡」。 */
 const AR_ACCT="應收帳款", AP_ACCT="應付帳款";
 function settleEntries(){
-  return (db.settle||[]).map((x,i)=>{
+  return (db.settle||[]).filter(x=>!x.voided).map((x,i)=>{
     const no="S"+String(i+1).padStart(3,"0");
     const acct=x.kind==="ap"?AP_ACCT:AR_ACCT;
     const cash=x.pay||"銀行存款";
@@ -1285,60 +1307,79 @@ function openItems(kind){
         no:(x.note||"").replace(/📎\S+/g,"").split(";")[0].trim()||"—",item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
     });
   }else{
-    (db.sale||[]).filter(x=>x.pay===AR_ACCT).forEach(x=>{
+    (db.sale||[]).filter(x=>!x.void&&x.pay===AR_ACCT).forEach(x=>{
       out.push({kind:"ar",src:"s",id:x.id,date:x.date||"",who:x.name||"（未填客戶）",
         no:invStr(x.code,x.seq),item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
     });
   }
   out.forEach(o=>{
     o.rows=(db.settle||[]).filter(t=>t.src===o.src&&t.srcId===o.id).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
-    o.paid=o.rows.reduce((a,t)=>a+(+t.amount||0),0);
+    o.paid=o.rows.filter(t=>!t.voided).reduce((a,t)=>a+(+t.amount||0),0);
     o.left=Math.round((o.total-o.paid)*100)/100;
   });
   return out.sort((a,b)=>(a.date||"").localeCompare(b.date||""));
 }
-let _arKind="ar", _arOpen="";
+let _arKind="ar", _arOpen="", _arShowDone=false;
+function arToggleDone(){_arShowDone=!_arShowDone;renderAR();}
 function arSetKind(k){_arKind=k;_arOpen="";renderAR();}
 function arToggle(id){_arOpen=(_arOpen===id?"":id);renderAR();}
 function arAdd(src,id){
+  if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法沖帳。");return;}
   const list=openItems(_arKind),o=list.find(x=>x.src===src&&x.id===id);
   if(!o)return;
   const d=$("#ar_d_"+id),a=$("#ar_a_"+id),pz=$("#ar_p_"+id),n=$("#ar_n_"+id);
   const date=(d&&d.value)||todayStr();
   let amt=Math.round((+(a&&a.value)||0)*100)/100;
-  if(!amt){alert("請輸入這次"+(_arKind==="ap"?"付款":"收款")+"的金額。");return;}
+  if(!(amt>0)){alert("金額必須大於 0。\n\n若要沖正先前記錯的一筆，請直接把那筆作廢，不要用負數。");return;}
+  if(o.date&&date<o.date){
+    if(!confirm((_arKind==="ap"?"付款":"收款")+"日（"+date+"）早於憑證日期（"+o.date+"）。\n這會讓中間期間的餘額變成負數，確定嗎？"))return;
+  }
   if(amt>o.left+0.001){
-    if(!confirm("這次金額 "+fmt(amt)+" 超過未結的 "+fmt(o.left)+"。\n超收／超付會讓這筆變成負餘額，確定要這樣記嗎？"))return;
+    if(!confirm("這次金額 "+fmt(amt)+" 超過未結的 "+fmt(o.left)+"，多出 "+fmt(amt-o.left)+"。\n\n財報上多收的部分應列為「預收款項」（負債）、多付的應列為「預付費用」，\n本系統目前會留在"+(_arKind==="ap"?"應付":"應收")+"帳款並顯示為負數，期末需自行調整。\n\n確定要這樣記嗎？"))return;
   }
   db.settle.push({id:uid(),kind:_arKind,src:src,srcId:id,date:date,amount:amt,
                   pay:(pz&&pz.value)||"銀行存款",who:o.who,note:((n&&n.value)||"").slice(0,60)});
   save();renderAR();
 }
 function arDel(sid){
-  if(!confirm("要刪除這筆沖帳紀錄嗎？刪除後未結金額會加回去。"))return;
-  db.settle=(db.settle||[]).filter(x=>x.id!==sid);save();renderAR();
+  if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法修改資料。");return;}
+  const r=(db.settle||[]).find(x=>x.id===sid); if(!r)return;
+  if(!confirm("要作廢 "+(r.date||"")+" 這筆 "+fmt(r.amount)+" 元的"+(r.kind==="ap"?"付款":"收款")+"嗎？\n\n作廢後未結金額會加回 "+fmt(r.amount)+" 元，原紀錄會保留並標示作廢原因，供日後查核。"))return;
+  const why=(prompt("請輸入作廢原因（會留存，供日後查核）","記錯金額")||"").trim();
+  if(!why){alert("必須填寫原因才能作廢。");return;}
+  r.voided=true; r.voidReason=why.slice(0,60); r.voidDate=todayStr();
+  save();renderAR();
 }
-function arGoto(kind){_arKind=kind;_arOpen="";go("ar");}
+function arGoto(kind){_arKind=kind;_arOpen="";goView("ar");}
 function renderAR(){
   const body=$("#arBody");if(!body)return;
   const isAP=_arKind==="ap";
   const t1=$("#arTabAR"),t2=$("#arTabAP");
   if(t1)t1.className=isAP?"":"on"; if(t2)t2.className=isAP?"on":"";
-  const list=openItems(_arKind);
-  const unpaid=list.filter(o=>Math.abs(o.left)>0.004);
-  const sumTotal=list.reduce((a,o)=>a+o.total,0);
-  const sumPaid=list.reduce((a,o)=>a+o.paid,0);
-  const sumLeft=list.reduce((a,o)=>a+o.left,0);
+  const all=openItems(_arKind);
+  const unpaid=all.filter(o=>Math.abs(o.left)>0.004);
+  // 用久了已結清的會把畫面塞滿，預設只顯示還沒結清的
+  const list=_arShowDone?all:unpaid;
+  const sumTotal=all.reduce((a,o)=>a+o.total,0);
+  const sumPaid=all.reduce((a,o)=>a+o.paid,0);
+  const sumLeft=all.reduce((a,o)=>a+o.left,0);
+  const settleCount=all.reduce((a,o)=>a+o.rows.filter(t=>!t.voided).length,0);
   const kpi=$("#arKpi");
   if(kpi)kpi.innerHTML=
      `<div class="card kpi"><div class="lbl">${isAP?"應付總額":"應收總額"}</div><div class="val num">${fmt(sumTotal)}<small> 元</small></div><div class="sub num">${list.length} 筆</div></div>`
-    +`<div class="card kpi"><div class="lbl">${isAP?"已付":"已收"}</div><div class="val num">${fmt(sumPaid)}<small> 元</small></div><div class="sub num">${(db.settle||[]).filter(x=>x.kind===_arKind).length} 次沖帳</div></div>`
+    +`<div class="card kpi"><div class="lbl">${isAP?"已付":"已收"}</div><div class="val num">${fmt(sumPaid)}<small> 元</small></div><div class="sub num">${settleCount} 次沖帳</div></div>`
     +`<div class="card kpi"><div class="lbl">${isAP?"尚未付款":"尚未收款"}</div><div class="val num" style="color:${sumLeft>0?"var(--warn)":"var(--good)"}">${fmt(sumLeft)}<small> 元</small></div><div class="sub num">${unpaid.length} 筆未結清</div></div>`;
+  // 「東西怎麼跑進來」這句話要一直看得到，不能只在清單全空時出現
+  const howEl=$("#arHow");
+  if(howEl)howEl.innerHTML=`這裡只列出${isAP?"付款方式選「應付帳款」或「信用卡」的<b>進項憑證</b>":"收款方式選「應收帳款」的<b>銷項憑證</b>"}。`
+    +`${isAP?"進貨":"開發票"}時若選了現金或銀行存款，代表當場${isAP?"付清":"收訖"}，不會出現在這裡。`
+    +`　<button class="btn ghost sm" style="padding:2px 8px;font-size:11.5px" onclick="arToggleDone()">${_arShowDone?"只看未結清":"顯示已結清（"+(all.length-unpaid.length)+"）"}</button>`;
   if(!list.length){
-    body.innerHTML=`<tr><td colspan="9" class="empty">目前沒有${isAP?"應付":"應收"}項目。${isAP?"進項憑證的付款方式選「應付帳款」或「信用卡」":"銷項憑證的收款方式選「應收帳款」"}，就會出現在這裡。</td></tr>`;
-    const f=$("#arFoot");if(f)f.innerHTML="";const nt=$("#arNote");if(nt)nt.innerHTML="";return;
-  }
-  const payOpts=["銀行存款","現金"].map(v=>`<option value="${v}">${v}</option>`).join("");
+    body.innerHTML=`<tr><td colspan="9" class="empty">${_arShowDone?("目前沒有"+(isAP?"應付":"應收")+"項目。"):"沒有未結清的項目 🎉"}</td></tr>`;
+    const f=$("#arFoot");if(f)f.innerHTML="";
+  }else{
+  let _pl=[];try{ if(typeof bankNames==="function")_pl=bankNames()||[]; }catch(e){}
+  const payOpts=[...new Set([..._pl,"銀行存款","現金"])].map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
   body.innerHTML=list.map(o=>{
     const done=Math.abs(o.left)<0.005;
     const over=o.left<-0.004;
@@ -1356,7 +1397,9 @@ function renderAR(){
       <td style="white-space:nowrap;font-size:12px;color:var(--ink-3)">${opened?"▾ 收合":"▸ 明細／沖帳"}</td></tr>`;
     if(opened){
       const rows=o.rows.length
-        ? o.rows.map(t=>`<tr><td class="num" style="white-space:nowrap">${esc(t.date)}</td><td>${esc(t.pay||"")}</td><td class="r num">${fmt(t.amount)}</td><td style="font-size:12.5px">${esc(t.note||"")}</td><td><button class="btn ghost sm" onclick="arDel('${t.id}')">刪除</button></td></tr>`).join("")
+        ? o.rows.map(t=>t.voided
+            ? `<tr style="opacity:.55"><td class="num" style="white-space:nowrap;text-decoration:line-through">${esc(t.date)}</td><td style="text-decoration:line-through">${esc(t.pay||"")}</td><td class="r num" style="text-decoration:line-through">${fmt(t.amount)}</td><td style="font-size:12px">已作廢 ${esc(t.voidDate||"")}　原因：${esc(t.voidReason||"")}</td><td></td></tr>`
+            : `<tr><td class="num" style="white-space:nowrap">${esc(t.date)}</td><td>${esc(t.pay||"")}</td><td class="r num">${fmt(t.amount)}</td><td style="font-size:12.5px">${esc(t.note||"")}</td><td><button class="btn ghost sm" onclick="arDel('${t.id}')">作廢</button></td></tr>`).join("")
         : `<tr><td colspan="5" class="empty" style="padding:8px">還沒有${isAP?"付款":"收款"}紀錄。</td></tr>`;
       h+=`<tr><td colspan="9" style="background:var(--surface);padding:12px 14px">
         <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">${esc(o.who)}　${esc(o.no)}　原始 ${fmt(o.total)}　未結 <b style="color:${done?"var(--ink-3)":"var(--warn)"}">${fmt(o.left)}</b></div>
@@ -1365,7 +1408,7 @@ function renderAR(){
           <tbody>${rows}</tbody></table></div></div>
         <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;margin-top:10px">
           <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}日</label><input type="date" id="ar_d_${o.id}" value="${todayStr()}" style="font-size:13px"></div>
-          <div class="fld" style="margin:0"><label style="font-size:11.5px">金額</label><input type="number" step="1" id="ar_a_${o.id}" value="${done?"":Math.max(0,o.left)}" style="font-size:13px;width:120px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">金額</label><input type="number" step="1" min="1" id="ar_a_${o.id}" value="${done?"":Math.max(0,o.left)}" onkeydown="if(event.key==='Enter'){event.preventDefault();arAdd('${o.src}','${o.id}');}" style="font-size:13px;width:120px"></div>
           <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}帳戶</label><select id="ar_p_${o.id}" style="font-size:13px">${payOpts}</select></div>
           <div class="fld" style="margin:0;flex:1;min-width:140px"><label style="font-size:11.5px">備註（可略）</label><input id="ar_n_${o.id}" placeholder="例：第 3 期" style="font-size:13px"></div>
           <button class="btn sm" onclick="arAdd('${o.src}','${o.id}')">記一筆${isAP?"付款":"收款"}</button>
@@ -1375,10 +1418,20 @@ function renderAR(){
     }
     return h;
   }).join("");
+  }
   const f=$("#arFoot");
-  if(f)f.innerHTML=`<tr><td colspan="4">合計 ${list.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="2"></td></tr>`;
+  if(f)f.innerHTML=`<tr><td colspan="4">合計 ${all.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="2"></td></tr>`;
+  // 明細與總帳要真的勾稽給使用者看，不能用一句話保證相等：
+  // 期初餘額、代墊款進項、週期憑證、手動分錄都會打到應收／應付，但不會出現在這份清單。
+  const acctName=isAP?AP_ACCT:AR_ACCT;
+  let ledger=0; try{ const mm=balancesOf(allEntries()); ledger=isAP?-(mm[acctName]||0):(mm[acctName]||0); }catch(e){}
+  const gap=Math.round((ledger-sumLeft)*100)/100;
   const nt=$("#arNote");
-  if(nt)nt.innerHTML=`點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}；這裡的未結合計會等於餘額表上「${isAP?AP_ACCT:AR_ACCT}」的餘額。`;
+  if(nt)nt.innerHTML=`點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}（已作廢的不算）。<br>`
+    +`本頁未結合計 <b class="num">${fmt(sumLeft)}</b>；餘額表「${acctName}」餘額 <b class="num">${fmt(ledger)}</b>　`
+    +(Math.abs(gap)<0.5
+      ? `<span class="ok">✓ 明細與總帳相符</span>`
+      : `<span class="bad">⚠ 差額 ${fmt(gap)}</span>　這筆差額來自<b>期初餘額、代墊款進項、週期憑證或手動分錄</b>——這些也會計入${acctName}，但不是由憑證產生，所以不會出現在上面的清單，需要自行核對。`);
 }
 
 /* ===== 合併報表（進階方案）=====
@@ -1390,13 +1443,19 @@ function currentPlan(){
   const o=(typeof myOrgs!=="undefined"&&myOrgs||[]).find(x=>x.org_id===bookOrgId);
   return (o&&o.plan)||"";
 }
+// 只要手上有任何一本帳是進階方案就可以用合併報表 —— 記帳業者常常只有一本升級
+function hasProPlan(){ return (typeof myOrgs!=="undefined"&&myOrgs||[]).some(o=>o.plan==="pro"); }
 async function loadOrgData(orgId){
   const keys=Object.keys(TBL);
   const rs=await Promise.all(keys.map(k=>sb.from(TBL[k].t).select("*").eq("org_id",orgId).limit(10000)));
   const nd=DBDEF();
-  keys.forEach((k,i)=>{ if(rs[i]&&!rs[i].error) nd[k]=(rs[i].data||[]).map(TBL[k].from); });
-  const op=await sb.from("openings").select("*").eq("org_id",orgId).limit(5000);
-  if(op&&!op.error&&TBL.opening) nd.opening=(op.data||[]).map(TBL.opening.from);
+  keys.forEach((k,i)=>{
+    // 任何一張表讀不到就中止：寧可不出表，也不能端出少了一段收入卻看不出來的報表
+    if(rs[i]&&rs[i].error)throw new Error("讀取「"+TBL[k].t+"」失敗："+(rs[i].error.message||""));
+    const d=(rs[i]&&rs[i].data)||[];
+    if(d.length>=10000)throw new Error("「"+TBL[k].t+"」筆數超過 10,000 筆上限，資料會被截斷，為避免報表不完整已停止。");
+    nd[k]=d.map(TBL[k].from);
+  });
   return nd;
 }
 // 用另一本帳的資料跑同一套算式，算完立刻還原，不影響目前開著的帳本
@@ -1406,11 +1465,12 @@ function renderMerge(){
   if(!gate)return;
   const plan=currentPlan();
   const orgs=(typeof myOrgs!=="undefined"&&myOrgs||[]);
-  if(plan!=="pro"){
+  if(!orgs.length){ ui.style.display="none"; gate.innerHTML='<div class="card">帳本清單載入中…</div>'; return; }
+  if(!hasProPlan()){
     ui.style.display="none";
     gate.innerHTML=`<div class="card" style="border-color:var(--warn)"><div style="font-weight:700;margin-bottom:6px">合併報表是進階方案的功能</div>
       <div style="font-size:13.5px;color:var(--ink-2);line-height:1.7">同一個人管理多本帳冊時，這裡可以把各公司的損益表、資產負債表與銷售彙總合併成一份給老闆看。<br>
-      目前這本帳的方案是「${esc(plan||"未設定")}」。升級進階方案後即可使用。</div>
+      你目前的帳本方案是「${esc(plan||"未設定")}」，手上沒有任何一本是進階方案。升級後即可使用。</div>
       <div class="actions" style="margin-top:12px"><a class="btn sm" href="https://acc.zhuohsin.com/pricing.html" target="_blank">看方案說明 ↗</a></div></div>`;
     return;
   }
@@ -1419,34 +1479,54 @@ function renderMerge(){
   if(pick)pick.innerHTML=orgs.length
     ? orgs.map(o=>`<label style="display:flex;align-items:center;gap:6px;font-size:13.5px"><input type="checkbox" class="mg-org" value="${esc(o.org_id)}" checked> ${esc(o.name||"未命名帳本")}</label>`).join("")
     : '<span style="font-size:13px;color:var(--ink-3)">找不到你有權限的帳本。</span>';
-  const y=new Date().getFullYear();
+  const now=new Date(), y=now.getFullYear(), mm=String(now.getMonth()+1).padStart(2,"0");
   const f=$("#mg_from"),t=$("#mg_to"),a=$("#mg_asof");
-  if(f&&!f.value)f.value=y+"-01"; if(t&&!t.value)t.value=y+"-12";
-  if(a&&!a.value)a.value=new Date().toISOString().slice(0,10);
+  // 預設「今年 1 月到本月」，不要帶到還沒發生的未來月份
+  if(f&&!f.value)f.value=y+"-01"; if(t&&!t.value)t.value=y+"-"+mm;
+  if(a&&!a.value)a.value=now.toISOString().slice(0,10);
 }
 async function runMerge(){
   const out=$("#mergeOut"); if(!out)return;
   const ids=[...document.querySelectorAll(".mg-org:checked")].map(x=>x.value);
   if(!ids.length){alert("請至少勾選一本帳。");return;}
   out.innerHTML='<div class="card">讀取各帳本資料中…</div>';
-  const from=($("#mg_from")||{}).value||"", to=($("#mg_to")||{}).value||"", asof=($("#mg_asof")||{}).value||"";
+  let from=($("#mg_from")||{}).value||"", to=($("#mg_to")||{}).value||"";
+  const asof=($("#mg_asof")||{}).value||"";
+  if(from&&to&&from>to){alert("損益期間的起始月份晚於結束月份，請重新選擇。");return;}
+  if(asof&&to&&asof.slice(0,7)!==to){
+    if(!confirm("資產負債表截止日（"+asof+"）與損益期間結束（"+to+"）不同月。\n兩張報表會反映不同時點，不能直接勾稽。\n\n確定要這樣產生嗎？"))return;
+  }
+  // 月份要展開成完整日期，否則「2026-12-15 > 2026-12」會把整個 12 月排除掉
+  const monthEnd=m2=>{const y=+m2.slice(0,4),mm=+m2.slice(5,7);return m2+"-"+String(new Date(y,mm,0).getDate()).padStart(2,"0");};
+  const fromD=from?from+"-01":"", toD=to?monthEnd(to):"";
   const orgs=(typeof myOrgs!=="undefined"&&myOrgs||[]);
   const cols=[];
   try{
     for(const id of ids){
       const nd=await loadOrgData(id);
       const name=(orgs.find(o=>o.org_id===id)||{}).name||"未命名帳本";
-      const pl=withDb(nd,()=>balancesOf(flowEntries().filter(inRangeFlow(from,to))));
-      const bs=withDb(nd,()=>balancesOf(allEntries().filter(asOfFilter(asof))));
-      const plToAsof=withDb(nd,()=>balancesOf(flowEntries().filter(inRangeFlow("",asof))));
-      const sale=(nd.sale||[]).filter(x=>!x.void).reduce((acc,x)=>{acc.net+=+x.net||0;acc.tax+=+x.tax||0;acc.n++;return acc;},{net:0,tax:0,n:0});
-      cols.push({id,name,pl,bs,plToAsof,sale});
+      // classify() 會查 db.accountsCustom，必須在 withDb 內就把分類定案，
+      // 否則會拿「目前開著那本帳」的科目對照表去分類別人的帳，費用可能整段消失
+      const pack=withDb(nd,()=>{
+        const mk=m2=>{const o={};Object.keys(m2).forEach(k=>{o[k]={cat:classify(k),bal:m2[k]};});return o;};
+        const pl=mk(balancesOf(flowEntries().filter(inRangeFlow(fromD,toD))));
+        const bs=mk(balancesOf(allEntries().filter(asOfFilter(asof))));
+        const cum=mk(balancesOf(flowEntries().filter(inRangeFlow("",asof))));
+        // 期初借貸是否平衡，逐本檢查，不平就要講出來
+        let od=0,oc=0;(nd.opening||[]).forEach(o=>{if(o.side==="借")od+=+o.amount||0;else oc+=+o.amount||0;});
+        return {pl,bs,cum,openDiff:Math.round(od-oc)};
+      });
+      const sale=(nd.sale||[]).filter(x=>!x.void&&(!fromD||x.date>=fromD)&&(!toD||x.date<=toD))
+        .reduce((acc,x)=>{acc.net+=+x.net||0;acc.tax+=+x.tax||0;acc.n++;return acc;},{net:0,tax:0,n:0});
+      cols.push({id,name,pl:pack.pl,bs:pack.bs,cum:pack.cum,openDiff:pack.openDiff,sale});
     }
   }catch(e){ out.innerHTML='<div class="card" style="border-color:var(--danger)">讀取失敗。'+esc(plainError(e))+'</div>'; return; }
 
+  // 分類用各帳本自己算好的（存在 {cat,bal} 裡），不再在這裡重新 classify
   const sumBy=(getter,kinds)=>{
     const acc={};
-    cols.forEach(c=>{const m=getter(c);Object.keys(m).forEach(k=>{if(!kinds||kinds.indexOf(classify(k))>=0){acc[k]=acc[k]||{};acc[k][c.id]=(acc[k][c.id]||0)+m[k];}});});
+    cols.forEach(c=>{const m=getter(c);Object.keys(m).forEach(k=>{
+      if(!kinds||kinds.indexOf(m[k].cat)>=0){acc[k]=acc[k]||{};acc[k][c.id]=(acc[k][c.id]||0)+m[k].bal;}});});
     return acc;
   };
   const head=`<th>會計科目</th>${cols.map(c=>`<th class="r">${esc(c.name)}</th>`).join("")}<th class="r">合計</th>`;
@@ -1456,42 +1536,69 @@ async function runMerge(){
     let tot=0; const colTot={};
     const body=names.map(n=>{
       let rowSum=0;
-      const tds=cols.map(c=>{const v=sign*(acc[n][c.id]||0);rowSum+=v;colTot[c.id]=(colTot[c.id]||0)+v;return `<td class="r num">${v?fmt(Math.round(v)):""}</td>`;}).join("");
+      const tds=cols.map(c=>{const v=Math.round(sign*(acc[n][c.id]||0));rowSum+=v;colTot[c.id]=(colTot[c.id]||0)+v;return `<td class="r num">${v?fmt(v):""}</td>`;}).join("");
       tot+=rowSum;
-      return `<tr><td>${esc(n)}</td>${tds}<td class="r num" style="font-weight:700">${fmt(Math.round(rowSum))}</td></tr>`;
+      return `<tr><td>${esc(n)}</td>${tds}<td class="r num" style="font-weight:700">${fmt(rowSum)}</td></tr>`;
     }).join("");
     return `<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">${title}</div>
       <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr>${head}</tr></thead><tbody>${body}</tbody>
-      <tfoot><tr><td>合計</td>${cols.map(c=>`<td class="r num">${fmt(Math.round(colTot[c.id]||0))}</td>`).join("")}<td class="r num" style="font-weight:800">${fmt(Math.round(tot))}</td></tr></tfoot>
+      <tfoot><tr><td>合計</td>${cols.map(c=>`<td class="r num">${fmt(colTot[c.id]||0)}</td>`).join("")}<td class="r num" style="font-weight:800">${fmt(tot)}</td></tr></tfoot>
       </table></div></div></div>`;
   };
 
   const inc=sumBy(c=>c.pl,["收入"]), cost=sumBy(c=>c.pl,["成本"]), exp=sumBy(c=>c.pl,["費用"]);
-  const asset=sumBy(c=>c.bs,["資產"]), liab=sumBy(c=>c.bs,["負債"]), eq=sumBy(c=>c.bs,["權益"]);
+  // 資產要含「資產減」（累計折舊），否則資產虛增；未分類不能靜靜消失
+  const asset=sumBy(c=>c.bs,["資產","資產減"]), liab=sumBy(c=>c.bs,["負債"]), eq=sumBy(c=>c.bs,["權益"]);
+  const unk=sumBy(c=>c.bs,["未分類"]);
 
-  // 本期損益＝截止日前的收入減成本費用，逐公司算再相加
-  const niRow=cols.map(c=>{let i=0,e=0;Object.keys(c.plToAsof).forEach(k=>{const cl=classify(k);if(cl==="收入")i+=-c.plToAsof[k];else if(cl==="成本"||cl==="費用")e+=c.plToAsof[k];});return {id:c.id,ni:i-e};});
-  const niTot=niRow.reduce((a,x)=>a+x.ni,0);
+  const val=(acc,sign)=>{let t=0;Object.keys(acc).forEach(n=>cols.forEach(c=>{t+=Math.round(sign*(acc[n][c.id]||0));}));return t;};
+  // 本期損益＝使用者選的損益期間（跟上方三張表同一個期間，才對得起來）
+  const niPeriod=cols.map(c=>{let i=0,e=0;Object.keys(c.pl).forEach(k=>{const o=c.pl[k];if(o.cat==="收入")i+=-o.bal;else if(o.cat==="成本"||o.cat==="費用")e+=o.bal;});return {id:c.id,ni:Math.round(i-e)};});
+  const niPeriodTot=niPeriod.reduce((a,x)=>a+x.ni,0);
+  // 併入權益的是「截至資產負債表截止日的累計損益」，這是兩個不同的數字，要分開講
+  const niCum=cols.map(c=>{let i=0,e=0;Object.keys(c.cum).forEach(k=>{const o=c.cum[k];if(o.cat==="收入")i+=-o.bal;else if(o.cat==="成本"||o.cat==="費用")e+=o.bal;});return {id:c.id,ni:Math.round(i-e)};});
+  const niCumTot=niCum.reduce((a,x)=>a+x.ni,0);
 
-  const salesTable=`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">銷售彙總（全部期間）</div>
+  const tA=val(asset,1), tL=val(liab,-1), tE=val(eq,-1), tU=val(unk,1);
+  const diff=tA+tU-(tL+tE+niCumTot);
+  const openBad=cols.filter(c=>Math.abs(c.openDiff)>0);
+
+  const niRowHtml=(rows,label)=>`<tr style="font-weight:700"><td>${label}</td>${rows.map(r=>`<td class="r num" style="color:${r.ni>=0?"var(--good)":"var(--danger)"}">${fmt(r.ni)}</td>`).join("")}<td class="r num" style="font-weight:800">${fmt(rows.reduce((a,x)=>a+x.ni,0))}</td></tr>`;
+
+  const salesTable=`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">銷售彙總（同損益期間）</div>
     <div class="twrap"><div class="tscroll"><table style="font-size:13.5px">
     <thead><tr><th>公司</th><th class="r">張數</th><th class="r">銷售額</th><th class="r">稅額</th><th class="r">含稅合計</th></tr></thead>
     <tbody>${cols.map(c=>`<tr><td>${esc(c.name)}</td><td class="r num">${c.sale.n}</td><td class="r num">${fmt(c.sale.net)}</td><td class="r num">${fmt(c.sale.tax)}</td><td class="r num">${fmt(c.sale.net+c.sale.tax)}</td></tr>`).join("")}</tbody>
     <tfoot><tr><td>合計</td><td class="r num">${cols.reduce((a,c)=>a+c.sale.n,0)}</td><td class="r num">${fmt(cols.reduce((a,c)=>a+c.sale.net,0))}</td><td class="r num">${fmt(cols.reduce((a,c)=>a+c.sale.tax,0))}</td><td class="r num" style="font-weight:800">${fmt(cols.reduce((a,c)=>a+c.sale.net+c.sale.tax,0))}</td></tr></tfoot>
-    </table></div></div></div>`;
+    </table></div></div>
+    <div style="font-size:12px;color:var(--ink-3);margin-top:6px">本表為發票金額統計，與損益表「銷貨收入」的差異來自作廢、期間歸屬與稅額。</div></div>`;
 
   out.innerHTML=
-     `<div class="note" style="margin-bottom:14px">合併 ${cols.length} 本帳｜損益期間 ${esc(from||"不限")} ～ ${esc(to||"不限")}｜資產負債表截止 ${esc(asof||"不限")}　·　各公司獨立，未做內部交易沖銷。</div>`
-    +block("合併損益表 — 收入",inc,-1)
-    +block("合併損益表 — 營業成本",cost,1)
-    +block("合併損益表 — 營業費用",exp,1)
-    +`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">合併本期損益</div>
-      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr>${cols.map(c=>`<th class="r">${esc(c.name)}</th>`).join("")}<th class="r">合計</th></tr></thead>
-      <tbody><tr>${niRow.map(r=>`<td class="r num" style="color:${r.ni>=0?"var(--good)":"var(--danger)"}">${fmt(Math.round(r.ni))}</td>`).join("")}<td class="r num" style="font-weight:800;color:${niTot>=0?"var(--good)":"var(--danger)"}">${fmt(Math.round(niTot))}</td></tr></tbody>
-      </table></div></div></div>`
-    +block("合併資產負債表 — 資產",asset,1)
-    +block("合併資產負債表 — 負債",liab,-1)
-    +block("合併資產負債表 — 權益",eq,-1)
+     `<div class="note" style="margin-bottom:14px"><b>這不是會計準則所稱的「合併財務報表」。</b>本表是把各帳本的科目餘額逐科目相加，
+        未依持股比例合併、未沖銷公司間交易與往來、未列示非控制權益，也未檢查各公司會計政策是否一致。
+        僅供內部管理參考，不得作為對外報導、融資或稅務申報之依據；<b>各公司的營業稅與營所稅仍須分別申報</b>。<br>
+        納入 ${cols.length} 本帳：${cols.map(c=>esc(c.name)).join("、")}｜損益期間 ${esc(fromD||"不限")} ～ ${esc(toD||"不限")}｜資產負債截止 ${esc(asof||"不限")}｜產製 ${new Date().toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</div>`
+    +(openBad.length?`<div class="note" style="margin-bottom:14px;border-color:var(--warn)"><span class="bad">⚠ 期初餘額不平衡</span>　${openBad.map(c=>esc(c.name)+" 差額 "+fmt(c.openDiff)).join("；")}。請先修正該帳本的期初餘額，否則下方加總表不可使用。</div>`:"")
+    +block("各公司損益加總 — 收入",inc,-1)
+    +block("各公司損益加總 — 營業成本",cost,1)
+    +block("各公司損益加總 — 營業費用",exp,1)
+    +`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">本期損益（損益期間 ${esc(fromD||"不限")} ～ ${esc(toD||"不限")}）</div>
+      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr><th>項目</th>${cols.map(c=>`<th class="r">${esc(c.name)}</th>`).join("")}<th class="r">合計</th></tr></thead>
+      <tbody>${niRowHtml(niPeriod,"收入 − 成本 − 費用")}</tbody></table></div></div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:6px">此數字＝上方三張表的收入減成本費用，期間與上方一致。下方資產負債表權益段用的是「截至截止日的累計損益」，兩者不同，請勿互相對照。</div></div>`
+    +block("各公司資產負債加總 — 資產",asset,1)
+    +(Object.keys(unk).length?block("⚠ 未分類科目（請到會計科目設定分類，否則加總表不完整）",unk,1):"")
+    +block("各公司資產負債加總 — 負債",liab,-1)
+    +`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">各公司資產負債加總 — 權益</div>
+      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr>${head}</tr></thead>
+      <tbody>${Object.keys(eq).map(n=>{let rs=0;const tds=cols.map(c=>{const v=Math.round(-(eq[n][c.id]||0));rs+=v;return `<td class="r num">${v?fmt(v):""}</td>`;}).join("");return `<tr><td>${esc(n)}</td>${tds}<td class="r num" style="font-weight:700">${fmt(rs)}</td></tr>`;}).join("")}
+      ${niRowHtml(niCum,"累計損益（截至 "+esc(asof||"不限")+"）")}</tbody>
+      <tfoot><tr><td>權益合計</td>${cols.map(c=>{let t=0;Object.keys(eq).forEach(n=>t+=Math.round(-(eq[n][c.id]||0)));const n2=(niCum.find(x=>x.id===c.id)||{ni:0}).ni;return `<td class="r num">${fmt(t+n2)}</td>`;}).join("")}<td class="r num" style="font-weight:800">${fmt(tE+niCumTot)}</td></tr></tfoot>
+      </table></div></div>
+      <div style="font-size:12px;color:var(--ink-3);margin-top:6px">各公司的資本額與股東往來僅為數學加總，未消除公司間投資與往來，不代表集團權益。</div></div>`
+    +`<div class="note" style="margin-bottom:14px">${Math.abs(diff)<1
+        ? `<span class="ok">✓ 平衡</span>　資產總計 ${fmt(tA+tU)} ＝ 負債 ${fmt(tL)} ＋ 權益 ${fmt(tE+niCumTot)}。`
+        : `<span class="bad">⚠ 不平衡，本表不可使用</span>　資產 ${fmt(tA+tU)} vs 負債＋權益 ${fmt(tL+tE+niCumTot)}，差額 ${fmt(diff)}。常見原因是某本帳的期初餘額未輸入或不平衡、或有未分類科目。`}</div>`
     +salesTable;
 }
 function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[l.acct]=1));
@@ -1988,9 +2095,9 @@ async function prPhoto(inp){
     if(!sb||!sbUser||!bookOrgId){alert("需登入才能附照片。");return;}
     const key=bookOrgId+"/pr-"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
     const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
-    if(error){alert("上傳失敗。\n"+plainError(error));return;}
+    if(error){alert("上傳失敗。\n"+plainError(error,"upload"));return;}
     _prPhotoKey=key;const t=$("#pr_photoTag");if(t)t.textContent="✓ 已附照片";
-  }catch(e){alert("照片處理失敗。\n"+plainError(e));}}
+  }catch(e){alert("照片處理失敗。\n"+plainError(e,"upload"));}}
 function fillPrAcct(){const s2=$("#pr_acct");if(!s2)return;const cur=s2.value;const list=accountsByCat("費用")||[];s2.innerHTML=[...list].map(a=>`<option>${esc(a)}</option>`).join("");if(cur)s2.value=cur;}
 function prStatusPill(st){const M={pending:["待審","#e9a23b"],approved:["已核准","#1f7a5c"],rejected:["已退回","#d64545"],paid:["已付款","#3b76d6"]};const m=M[st]||[st,"#888"];return `<span class="tag" style="background:${m[1]};color:#fff">${m[0]}</span>`;}
 function canApprove(){return myRole==="owner"||myRole==="admin";}
@@ -2413,12 +2520,12 @@ const PRESETS=[
   {name:"提領現金",memo:"提領現金",lines:[{acct:"現金"},{acct:"銀行存款"}]},
   {name:"現金存入銀行",memo:"存入銀行",lines:[{acct:"銀行存款"},{acct:"現金"}]},
   {name:"銀行手續費",memo:"手續費",lines:[{acct:"手續費支出"},{acct:"銀行存款"}]},
-  {name:"支付應付帳款（沖銷）",memo:"付款",lines:[{acct:"應付帳款"},{acct:"銀行存款"}]},
+  {name:"支付應付帳款（沖銷）※若已在應收應付頁登錄請勿重複",memo:"付款",lines:[{acct:"應付帳款"},{acct:"銀行存款"}]},
   {name:"業主／股東投入",memo:"股東投入",lines:[{acct:"銀行存款"},{acct:"業主往來"}]},
   {name:"業主／股東提取",memo:"股東提取",lines:[{acct:"業主往來"},{acct:"銀行存款"}]},
   {name:"房租支出",memo:"租金",lines:[{acct:"租金支出"},{acct:"銀行存款"}]},
   {name:"折舊提列",memo:"折舊",lines:[{acct:"折舊費用"},{acct:"累計折舊"}]},
-  {name:"收到客戶貨款（應收→銀行）",memo:"收款",lines:[{acct:"銀行存款"},{acct:"應收帳款"}]},
+  {name:"收到客戶貨款（應收→銀行）※若已在應收應付頁登錄請勿重複",memo:"收款",lines:[{acct:"銀行存款"},{acct:"應收帳款"}]},
   {name:"銀行利息收入",memo:"利息",lines:[{acct:"銀行存款"},{acct:"利息收入"}]},
   {name:"支付勞健保",memo:"勞健保",lines:[{acct:"勞健保費"},{acct:"銀行存款"}]},
   {name:"繳納稅捐／規費",memo:"稅捐",lines:[{acct:"稅捐"},{acct:"銀行存款"}]},
@@ -2593,9 +2700,14 @@ async function writeBackup(){
     const w=await bkHandle.createWritable();await w.write(new Blob([payload],{type:"application/json"}));await w.close();
     localStorage.setItem(LS+"_bk",new Date().toISOString());
     bkLogPush({t:new Date().toISOString(),name:bkHandle.name||"卓信會計_備份.json",bytes:payload.length,
-               n:((db.purchases||[]).length+(db.sales||[]).length+(db.journal||[]).length)});
+               n:((db.purchase||[]).length+(db.sale||[]).length+(db.journal||[]).length)});
     refreshBackupUI();}
-  catch(e){console.warn("自動備份失敗",e);}}
+  catch(e){
+    console.warn("自動備份失敗",e);
+    // 失敗也要留一筆，否則使用者會以為「一直有在備份」
+    bkLogPush({t:new Date().toISOString(),name:(bkHandle&&bkHandle.name)||"—",ok:false,err:String((e&&e.message)||e).slice(0,80)});
+    try{refreshBackupUI();}catch(_){}
+  }}
 // 備份紀錄：每次成功寫檔留一筆，保留最近 50 筆。資料真的出事時，可以告訴客戶檔案叫什麼、
 // 最後一次寫入是什麼時候、當時有幾筆資料，讓他自己在電腦裡找得回來。
 function bkLogPush(rec){
@@ -2610,7 +2722,9 @@ function renderBkLog(){const el=$("#bkLogBox");if(!el)return;
   const a=bkLogGet();
   if(!a.length){el.innerHTML='<div style="font-size:12.5px;color:var(--ink-3);padding:8px 0">尚無紀錄。設定「選擇位置並備份…」之後，每次寫檔都會記一筆。</div>';return;}
   el.innerHTML='<div class="twrap"><div class="tscroll"><table style="font-size:12.5px"><thead><tr><th>時間</th><th>檔案名稱</th><th class="r">筆數</th><th class="r">大小</th></tr></thead><tbody>'
-    +a.slice(0,20).map(r=>`<tr><td class="num" style="white-space:nowrap">${new Date(r.t).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</td><td>${esc(r.name||"")}</td><td class="r num">${r.n==null?"—":r.n}</td><td class="r num">${r.bytes?Math.round(r.bytes/1024)+" KB":"—"}</td></tr>`).join("")
+    +a.slice(0,30).map(r=>r.ok===false
+       ? `<tr style="color:var(--danger)"><td class="num" style="white-space:nowrap">${new Date(r.t).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</td><td colspan="3">✗ 寫入失敗：${esc(r.err||"")}</td></tr>`
+       : `<tr><td class="num" style="white-space:nowrap">${new Date(r.t).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</td><td>${esc(r.name||"")}</td><td class="r num">${r.n==null?"—":r.n}</td><td class="r num">${r.bytes?Math.round(r.bytes/1024)+" KB":"—"}</td></tr>`).join("")
     +'</tbody></table></div></div><div style="font-size:12px;color:var(--ink-3);margin-top:6px">瀏覽器基於安全不提供完整路徑，只給檔名；在電腦的檔案總管／Finder 搜尋上面的檔案名稱就能找到。</div>';}
 function autoBackup(){if(!bkHandle||bkNeedsGrant)return;clearTimeout(bkTimer);bkTimer=setTimeout(()=>writeBackup(),600);}
 async function reGrant(){if(!bkHandle)return;if(await perm(bkHandle,true)){bkNeedsGrant=false;await writeBackup();}refreshBackupUI();}
@@ -2649,7 +2763,9 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   h+= sbUser ? row("✅","① 雲端資料庫 — 同步中","以帳號 "+esc(sbUser.email||"")+" 登入，每次存檔即時加密同步至雲端資料庫（僅您的帳號可存取，不會寄到信箱）")
              : row("⚠️","① 雲端資料庫 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
   const dk=localStorage.getItem(LS+"_dailyBk")===todayStr();
-  h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本。最新 60 版隨時可還原，另外每個月的月初、月中、月底各永久保留一版，長期都回得去。")
+  const isOwner=!(typeof bookOwnerId!=="undefined"&&bookOwnerId&&sbUser&&bookOwnerId!==sbUser.id);
+  if(sbUser&&!isOwner) h+=row("○","② 雲端歷史版本 — 由帳本擁有者的裝置建立","你目前是受邀成員，歷史版本會在帳本擁有者登入使用時自動建立。資料本身仍即時同步到雲端資料庫（第①項）。","var(--ink-3)");
+  else h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本。最新 60 版隨時可還原，另外每個月的月初、月中、月底各永久保留一版，長期都回得去。")
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
   if(!bkHandle && age===null) h+=row("○","③ 電腦備份檔（選用）— 尚未設定","雲端兩層已在保護您的帳本，這層是<b>額外的離線保險</b>。用上方「選擇位置並備份…」設定一次即可，之後每次變更自動更新（跳出詢問時選 <b>「每次造訪時允許」</b>，就不會再問第二次）。","var(--ink-3)");
@@ -2706,11 +2822,16 @@ function buildCashPlan(){
   Object.keys(bal).forEach(a=>{ if(a==="現金"||a==="零用金"||a==="銀行存款"||bn.indexOf(a)>=0){ start+=bal[a]; if(Math.abs(bal[a])>0.5)startParts.push(a+" "+fmt(bal[a])); } });
   const ev=[];
   // 應收帳款（已開票未收現）
-  (db.sale||[]).filter(x=>!x.void&&x.pay==="應收帳款").forEach(x=>{
-    ev.push({date:_dMax(_dAdd(x.date,arD),today), amt:(+x.net||0)+(+x.tax||0), label:"應收・"+(x.name||"客戶"), type:"應收"});});
+  // 起點餘額已經包含沖帳收到的現金，未來現金流就只能排「還沒收到的部分」，
+  // 否則收過款的發票會被算兩次，資金預測系統性高估。
+  openItems("ar").forEach(o=>{
+    if(o.left<=0)return;
+    ev.push({date:_dMax(_dAdd(o.date,arD),today), amt:o.left, label:"應收・"+(o.who||"客戶")+(o.paid>0?"（未收部分）":""), type:"應收"});});
   // 應付帳款（已進貨未付現）
-  (db.purchase||[]).filter(x=>x.pay==="應付帳款").forEach(x=>{
-    ev.push({date:_dMax(_dAdd(x.date,apD),today), amt:-((+x.net||0)+(+x.tax||0)), label:"應付・"+(x.name||"廠商"), type:"應付"});});
+  // 同理，應付也只排未付的部分；信用卡進貨在傳票上也掛應付帳款，過去漏掉未來流出
+  openItems("ap").forEach(o=>{
+    if(o.left<=0)return;
+    ev.push({date:_dMax(_dAdd(o.date,apD),today), amt:-o.left, label:"應付・"+(o.who||"廠商")+(o.paid>0?"（未付部分）":""), type:"應付"});});
   // 未付款的請款單
   (db.payreq||[]).filter(x=>x.status==="pending"||x.status==="approved").forEach(x=>{
     ev.push({date:_dMax(x.date||today,today), amt:-(+x.amount||0), label:"請款・"+(x.payee||""), type:"請款"});});
@@ -2871,6 +2992,19 @@ async function loadMembers(){
       '</tbody></table></div></div>';
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
 }
+// 手機螢幕窄，欄位多的表格橫向捲很難看。營運後台改成一家一張小卡，
+// 該看的重點直接疊著顯示，不必左右滑。
+function isNarrow(){ try{ return window.matchMedia("(max-width:560px)").matches; }catch(e){ return (window.innerWidth||999)<=560; } }
+function opsCard(title,sub,pairs,actions,warn){
+  return `<div class="card" style="margin-bottom:10px;padding:12px 14px${warn?";border-color:var(--warn)":""}">
+    <div style="font-weight:700;font-size:14px">${title}</div>
+    ${sub?`<div style="font-size:11.5px;color:var(--ink-3);margin-top:2px">${sub}</div>`:""}
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:12.5px;margin-top:8px">
+      ${pairs.map(([k,v])=>`<div style="color:var(--ink-3);white-space:nowrap">${k}</div><div>${v}</div>`).join("")}
+    </div>
+    ${actions?`<div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">${actions}</div>`:""}
+  </div>`;
+}
 async function loadOps(){
   const box=$("#opsList"),kp=$("#opsKpis");if(!box)return;
   box.innerHTML='<p style="font-size:13px;color:var(--ink-3)">載入中…</p>';
@@ -2884,6 +3018,24 @@ async function loadOps(){
     if(kp){const act=rows.filter(r=>r.status==="active").length,paid=rows.filter(r=>r.plan!=="trial").length;
       kp.innerHTML=`<div class="card kpi"><div class="lbl">客戶總數</div><div class="val num">${rows.length}</div></div><div class="card kpi"><div class="lbl">啟用中</div><div class="val num">${act}</div></div><div class="card kpi"><div class="lbl">付費客戶</div><div class="val num">${paid}</div></div><div class="card kpi"><div class="lbl">容量</div><div class="val num">${rows.length}/80</div><div class="sub">達80家升級Pro US$25/月</div></div>`;}
     const planName={trial:"試用",basic:"基本",standard:"標準",pro:"進階"};
+    if(isNarrow()){
+      box.innerHTML=rows.length?rows.map(r=>{
+        const hot=(+r.doc_count>2000);
+        let trialTxt="—";
+        if(r.trial_end){const d=Math.ceil((new Date(r.trial_end)-new Date())/86400000);
+          trialTxt=(r.trial_end||"").slice(0,10)+(r.plan==="trial"?(d<0?' <span style="color:var(--danger)">已到期</span>':' <span style="color:'+(d<=7?'var(--warn)':'var(--ink-3)')+'">剩'+d+'天</span>'):"");}
+        return opsCard(esc(r.name||"—"), esc(r.uni||"")+(r.owner_email?"　"+esc(r.owner_email):""),
+          [["方案",esc(planName[r.plan]||r.plan)],
+           ["狀態",r.status==="active"?'<span class="tag">啟用</span>':'<span class="tag no">'+esc(r.status)+'</span>'],
+           ["試用到期",trialTxt],
+           ["成員／憑證",r.member_count+" 人　"+r.doc_count+" 筆"+(hot?" ⚠️":"")],
+           ["建立",(r.created_at||"").slice(0,10)]],
+          `<button class="btn ghost sm" onclick="opsPlanPick('${r.id}')">開通付費</button>
+           <button class="btn ghost sm" onclick="opsExtendTrial('${r.id}')">延長試用</button>
+           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button>`,
+          hot);
+      }).join(""):'<div class="card empty">尚無客戶</div>';
+    }else{
     box.innerHTML='<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th>擁有者 Email</th><th>方案</th><th>狀態</th><th>試用到期</th><th class="r">成員</th><th class="r">憑證數</th><th>建立</th><th></th></tr></thead><tbody>'+
       (rows.length?rows.map(r=>{
         const hot=(+r.doc_count>2000);
@@ -2894,14 +3046,17 @@ async function loadOps(){
           <button class="btn ghost sm" onclick="opsPlanPick('${r.id}')">開通付費</button>
           <button class="btn ghost sm" onclick="opsExtendTrial('${r.id}')">延長試用</button>
           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="9" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
+    }
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
   try{const au=await sb.rpc("ops_ai_usage");const abox=$("#opsAI");
     if(abox&&!au.error){const ar=au.data||[];
       const dayTotal=ar.reduce((a,r)=>a+(+r.today||0),0),monTotal=ar.reduce((a,r)=>a+(+r.month||0),0);
       const used=ar.filter(r=>(+r.total||0)>0);
       abox.innerHTML=`<div class="card" style="margin-bottom:10px"><b>今日全站 ${dayTotal} 張</b>　·　本月 ${monTotal} 張<div style="font-size:12px;color:var(--ink-3);margin-top:6px">AI 辨識共用 Gemini 免費額度（每日請求數有上限）。今日若逼近上限，後面的客戶會辨識失敗，屆時可改用付費層（每 1000 張約 NT$35）。</div></div>`+
-        '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
-        (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>';}
+        (isNarrow()
+          ? (used.length?used.map(r=>opsCard(esc(r.org_name||"—"),"",[["今日",String(r.today)],["本月",String(r.month)],["累計",String(r.total)],["最後一次",esc(r.last_at||"—")]],"",(+r.today>100))).join(""):'<div class="card empty">尚無使用紀錄</div>')
+          : '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
+            (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>');}
   }catch(e){}
   try{const fb=await sb.from("feedback").select("id,created_at,email,page,message,image,images,status,handled_at").order("created_at",{ascending:false}).limit(80);
     if(!fb.error)_opsFbData=fb.data||[];
@@ -2924,7 +3079,19 @@ function renderOpsFeedback(){
   const list=(_opsFbFilter==="all")?all:all.filter(x=>(x.status||"open")===_opsFbFilter);
   const btn=(k,label)=>`<button class="btn ghost sm" style="${_opsFbFilter===k?"border-color:var(--accent-ink);color:var(--accent-ink);font-weight:700":""}" onclick="opsFbFilter('${k}')">${label}${k!=="all"?"（"+cnt(k)+"）":"（"+all.length+"）"}</button>`;
   fbox.innerHTML=`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">${btn("open","待處理")}${btn("doing","處理中")}${btn("done","已解決")}${btn("skip","不處理")}${btn("all","全部")}</div>`
-   +'<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th>Email</th><th>頁面</th><th>內容</th><th>照片</th><th>狀態</th><th>處理</th></tr></thead><tbody>'
+   +(isNarrow()
+     ? (list.length?list.map(f=>{
+         const st=f.status||"open", sc=FB_STATUS[st]||FB_STATUS.open;
+         const shots=(Array.isArray(f.images)&&f.images.length)?f.images:(f.image?[f.image]:[]);
+         return opsCard(esc(f.email||"（未留 Email）"),
+           new Date(f.created_at).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")+"　"+esc(TITLES[(f.page||"").replace("v-","")]||f.page||""),
+           [["狀態",`<b style="color:${sc.c}">${sc.t}</b>`],
+            ["內容",`<div style="white-space:pre-wrap">${esc(f.message||"")}</div>`],
+            ["照片",shots.length?shots.map(src=>`<img src="${src}" style="max-height:60px;margin:0 3px 3px 0;border-radius:6px" onclick="fbView(this.src)">`).join(""):"—"]],
+           `<select onchange="opsFbSet('${f.id}',this.value)" style="font-size:12.5px;padding:4px 8px;border-radius:8px;border:1px solid var(--border)">`
+            +Object.keys(FB_STATUS).map(k=>`<option value="${k}"${k===st?" selected":""}>${FB_STATUS[k].t}</option>`).join("")+`</select>`);
+       }).join(""):`<div class="card empty">${_opsFbFilter==="open"?"沒有待處理的回報 🎉":"此狀態沒有回報"}</div>`)
+     : '<div class="twrap"><div class="tscroll"><table><thead><tr><th>時間</th><th>Email</th><th>頁面</th><th>內容</th><th>照片</th><th>狀態</th><th>處理</th></tr></thead><tbody>'
    +(list.length?list.map(f=>{
       const st=f.status||"open", sc=FB_STATUS[st]||FB_STATUS.open;
       const shots=(Array.isArray(f.images)&&f.images.length)?f.images:(f.image?[f.image]:[]);
@@ -2938,7 +3105,7 @@ function renderOpsFeedback(){
         +Object.keys(FB_STATUS).map(k=>`<option value="${k}"${k===st?" selected":""}>${FB_STATUS[k].t}</option>`).join("")
         +`</select></td></tr>`;}).join("")
      :`<tr><td colspan="7" class="empty">${_opsFbFilter==="open"?"沒有待處理的回報 🎉":"此狀態沒有回報"}</td></tr>`)
-   +'</tbody></table></div></div>';}
+   +'</tbody></table></div></div>');}
 function fbView(src){var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();}}
 function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
   document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
@@ -2975,33 +3142,37 @@ function setCloud(state,msg){
    資料庫與瀏覽器丟出來的原文（permission denied for table…、JWT expired、
    42501、Failed to fetch）客戶看不懂，也不知道該怎麼辦。這裡統一轉成
    「發生什麼事＋你可以怎麼做」，原文只留在 console 供我們查。 */
-function plainError(e){
+function plainError(e,ctx){
   var raw = (e && (e.message || e.error_description || e.error || e.msg)) || e || "";
   raw = String(raw);
   var code = (e && (e.code || e.status)) ? String(e.code || e.status) : "";
   var t = raw.toLowerCase();
   try{ console.warn("[原始錯誤]", code, raw, e); }catch(_){}
   var map = [
-    [/jwt expired|token is expired|登入已過期|invalid jwt|session.*expired|401/, "登入時效已過，請重新登入一次就會恢復（資料不會不見）。"],
+    [/jwt expired|token is expired|登入已過期|invalid jwt|session.*expired/, "登入時效已過，請重新登入一次就會恢復（資料不會不見）。"],
     [/row-level security|violates row-level security/, "這本帳目前不允許寫入。常見原因是試用到期、或你已不是這本帳的成員。"],
     [/permission denied/, "這個帳號沒有這項資料的權限。若是剛被加入或剛升級，請重新登入一次再試。"],
-    [/failed to fetch|networkerror|network request failed|load failed/, "連不上網路。請確認網路後再試一次，資料已先存在這台裝置上。"],
+    [/failed to fetch|networkerror|network request failed|load failed/, (ctx==="upload"?"連不上網路，這張照片還沒上傳成功。請確認網路後重新選檔上傳。":"連不上網路。請確認網路後再試一次，資料已先存在這台裝置上。")],
     [/duplicate key|already exists/, "這筆資料已經存在，不需要重複新增。"],
     [/foreign key/, "關聯的資料不存在或已被刪除，請重新選一次。"],
     [/value too long|too long for type/, "輸入的字數超過欄位上限，請縮短後再存。"],
     [/payload too large|entity too large|file size/, "檔案太大。請改拍小一點或壓縮後再上傳。"],
     [/invalid login credentials/, "帳號或密碼不正確。"],
     [/rate limit|too many requests|429/, "短時間內嘗試太多次，請等一兩分鐘再試。"],
-    [/quota|exceeded/, "本日用量已達上限，請明天再試或升級方案。"],
+    [/quota exceeded|usage limit|rate exceeded/, "本日用量已達上限，請明天再試或升級方案。"],
     [/timeout|timed out/, "等待太久沒有回應，請再試一次。"],
-    [/not found|404/, "找不到這筆資料，可能已被刪除或搬移。"],
-    [/5\d\d|internal server|service unavailable/, "伺服器暫時沒有回應，請稍後再試一次。"]
+    [/not found/, "找不到這筆資料，可能已被刪除或搬移。"],
+    [/internal server|service unavailable|bad gateway/, "伺服器暫時沒有回應，請稍後再試一次。"]
   ];
   for(var i=0;i<map.length;i++){ if(map[i][0].test(t)||map[i][0].test(code)) return map[i][1]; }
   if(code==="42501") return "這個帳號沒有這項資料的權限。若是剛被加入或剛升級，請重新登入一次再試。";
   if(code==="23505") return "這筆資料已經存在，不需要重複新增。";
-  return raw ? ("發生問題：" + raw.slice(0,120) + "\n若一直發生，請用右下角「問題回報」告訴我們，我們會收到。")
-             : "發生未知的問題，請用右下角「問題回報」告訴我們。";
+  if(/^401$/.test(code)) return "登入時效已過，請重新登入一次就會恢復（資料不會不見）。";
+  if(/^403$/.test(code)) return "這個帳號沒有這項操作的權限。";
+  if(/^404$/.test(code)) return "找不到這筆資料，可能已被刪除或搬移。";
+  if(/^5\d\d$/.test(code)) return "伺服器暫時沒有回應，請稍後再試一次。";
+  // 兜不到就不要再吐英文給使用者看，原文留在 console 供我們查
+  return "系統發生問題，這筆可能沒有存成功，請重新整理後確認一次。\n若一直發生，請用右下角「問題回報」告訴我們，我們會收到詳細訊息。";
 }
 const IDLE_MIN=20; let _idleTimer=null,_idleWarnTimer=null;
 function markActive(){try{localStorage.setItem(LS+"_lastActive",String(Date.now()));}catch(e){}}
@@ -3048,6 +3219,17 @@ async function idleCheck(fromResume){
   }
 }
 setInterval(function(){idleCheck(false);},60000);
+// 視窗寬度跨過手機／桌機分界時，營運後台要重畫成對應版型
+(function(){var last=null,t=null;
+  window.addEventListener("resize",function(){
+    clearTimeout(t);
+    t=setTimeout(function(){
+      var now=isNarrow();
+      if(last===null){last=now;return;}
+      if(now!==last){last=now;try{if($("#opsList")&&$("#opsList").innerHTML)loadOps();}catch(e){}}
+    },300);
+  });
+})();
 document.addEventListener("visibilitychange",function(){if(!document.hidden)idleCheck(true);});
 window.addEventListener("focus",function(){idleCheck(true);});
 window.addEventListener("pageshow",function(){idleCheck(true);});
@@ -3697,7 +3879,15 @@ function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDed
   const ecol=je.c==="ok"?"var(--good)":(je.c==="warn"?"var(--warn)":"var(--danger)");
   el.style.display="block";el.style.borderLeftColor=col;
   el.innerHTML=`<b style="color:${col}">① 營業稅 401：${j.r}</b>　${esc(j.m)}<br><b style="color:${ecol}">② 營所稅費用：${je.r}</b>　${esc(je.m)}`;
-  const ded=$("#p_ded");if(ded){const lock19=($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0;ded.value=(j.r==="可扣抵")?"1":"0";ded.disabled=lock19;}}
+  const ded=$("#p_ded");if(ded){
+    const lock19=($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0;
+    // 掃 QR 或 AI 已依「買方統編不符」判定不可扣抵時，不可以再覆寫回可扣抵 —— 那會變成虛報進項。
+    // 只有在放寬（判為可扣抵）時才鎖定，收緊（不可扣抵）一律尊重既有判定。
+    if(_dedLockedByDoc && ded.value==="0"){ ded.disabled=lock19; }
+    else { ded.value=(j.r==="可扣抵")?"1":"0"; ded.disabled=lock19; }
+  }}
+// 由憑證本身（掃碼／AI 讀到的買方統編）判定不可扣抵時立起這支旗子，避免被後續的提示更新蓋掉
+let _dedLockedByDoc=false;
 (function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
 
@@ -3830,7 +4020,7 @@ async function scanInvoiceQR(){
       for(const c of codes){const r=parseEinvQR(c.rawValue);
         if(r){stop();
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
-          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";$("#p_ded").value=(myUni&&r.buyer===myUni)?"1":"0";
+          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
           try{const g=await fetch("https://company.g0v.ronny.tw/api/show/"+r.seller).then(x=>x.json());const nm=g&&g.data&&(g.data["公司名稱"]||g.data["名稱"]);if(nm&&$("#p_name"))$("#p_name").value=String(nm).slice(0,60);}catch(_){}
@@ -3864,7 +4054,7 @@ async function attachReceiptPhoto(inp){
   if(!sb||!sbUser||!bookOrgId){alert("已壓縮 "+Math.round(blob.size/1024)+"KB，但需登入且完成升級後才能上傳雲端。目前請自行保存照片。");return;}
   const key=bookOrgId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
   try{const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
-    if(error){alert("上傳失敗。\n"+plainError(error));return;}
+    if(error){alert("上傳失敗。\n"+plainError(error,"upload"));return;}
     const note=(prompt("這筆是什麼用途？（可留空直接按確定）\n\n寫清楚用途，AI 才能判對科目與能不能扣抵。\n例：請客戶喝飲料 → 交際費、不可扣抵\n例：公司車加油 → 燃料費、可扣抵","")||"").trim().slice(0,100);
     const nn=$("#p_note");
     if(nn){
@@ -3874,7 +4064,7 @@ async function attachReceiptPhoto(inp){
     }
     const h=$("#p_dedHint");if(h){h.style.display="block";h.innerHTML="🤖 AI 辨識中…";}
     aiRecognizeReceipt(blob,note).catch(()=>{});
-  }catch(e){alert("上傳失敗。\n"+plainError(e));}
+  }catch(e){alert("上傳失敗。\n"+plainError(e,"upload"));}
 }
 // 取一個確定還有效的存取權杖：快到期就先換新，避免呼叫後端時被判「登入已過期」。
 async function freshToken(){
@@ -3920,7 +4110,9 @@ async function aiRecognizeReceipt(blob,userNote){
     const inv=(d["發票號碼"]||"").trim();
     if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);}
     const myUni=(db.company&&db.company.uni)||"";
-    if($("#p_ded"))$("#p_ded").value=(inv&&myUni&&(d["買方統編"]||"")===myUni)?"1":"0";
+    const _aiOk=!!(inv&&myUni&&(d["買方統編"]||"")===myUni);
+    if($("#p_ded"))$("#p_ded").value=_aiOk?"1":"0";
+    _dedLockedByDoc=!_aiOk;   // 買方統編不是我們公司 → 依 §33 不得扣抵，不可被提示覆寫
     // AI 建議的會計科目：只在使用者還沒自己選過時填入，並標示為建議
     let acctMsg="";
     const sug=(d["建議科目"]||"").trim();
@@ -3990,7 +4182,10 @@ function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)ret
   if(typeof fillPAcctSel==="function")fillPAcctSel();if(p.acct)$("#p_acct").value=p.acct;
   $("#p_net").value=p.net||0;$("#p_tax").value=p.tax||0;$("#p_ded").value=p.ded?"1":"0";$("#p_pay").value=p.pay||"現金";
   if(typeof fillProjSel==="function")fillProjSel($("#p_proj"));if(p.proj)$("#p_proj").value=p.proj;
-  if($("#p_ent"))$("#p_ent").checked=false;if($("#p_emp"))$("#p_emp").checked=false;if($("#p_car"))$("#p_car").checked=false;if($("#p_nonbiz"))$("#p_nonbiz").checked=false;
+  // 還原 §19 勾選；舊資料沒有這些欄位時，若原本是不可扣抵就鎖住不要被提示翻掉
+  if($("#p_ent"))$("#p_ent").checked=!!p.ent;if($("#p_emp"))$("#p_emp").checked=!!p.emp;
+  if($("#p_car"))$("#p_car").checked=!!p.car;if($("#p_nonbiz"))$("#p_nonbiz").checked=!!p.nonbiz;
+  _dedLockedByDoc=(!p.ded && !p.ent && !p.emp && !p.car && !p.nonbiz);
   if($("#p_note"))$("#p_note").value=p.note||"";
   editPid=id;if(typeof syncPTotal==="function")syncPTotal();const b=$("#pSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
@@ -3998,6 +4193,9 @@ function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)ret
 let editSid=null,editJid=null;
 function editVoucher(t,id){if(t==="p")editPurchase(id);else if(t==="s")editSale(id);else if(t==="j")editJournal(id);}
 function editSale(id){const sd=(db.sale||[]).find(x=>x.id===id);if(!sd)return;
+  // 已作廢的發票不可編輯：現行編輯流程不會帶回作廢旗標，
+  // 存回去會變成一張 0 元的「已開立」發票，比作廢更難向國稅局解釋。
+  if(sd.void){alert("這張發票已經作廢（"+invStr(sd.code,sd.seq)+"），不可以再編輯。\n\n作廢紀錄必須保持原狀，申報時才交代得了這個號碼的去向。");return;}
   document.querySelector('#nav button[data-v="sale"]').click();
   $("#s_date").value=sd.date||"";$("#s_uni").value=sd.uni||"";$("#s_name").value=sd.name||"";$("#s_item").value=sd.item||"";
   if($("#s_taxmode"))$("#s_taxmode").value="未稅";$("#s_net").value=sd.net||0;$("#s_pay").value=sd.pay||"現金";
