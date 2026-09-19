@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1020,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.7.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.7.1";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -3350,13 +3350,23 @@ let _jsqrLoading=null;
 function loadJsQR(){
   if(window.jsQR)return Promise.resolve(true);
   if(_jsqrLoading)return _jsqrLoading;
-  _jsqrLoading=new Promise(res=>{
-    const sc=document.createElement("script");
-    sc.src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.js";
-    sc.onload=()=>res(!!window.jsQR);sc.onerror=()=>res(false);
-    document.head.appendChild(sc);
-    setTimeout(()=>res(!!window.jsQR),8000);
-  });
+  // 兩個來源輪流試：任何一個 CDN 掛掉或網址變動都還有第二條路
+  const SRCS=["https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js",
+              "https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"];
+  _jsqrLoading=(async()=>{
+    for(const url of SRCS){
+      const ok=await new Promise(res=>{
+        const sc=document.createElement("script");
+        sc.src=url;sc.async=true;
+        sc.onload=()=>res(!!window.jsQR);
+        sc.onerror=()=>res(false);
+        document.head.appendChild(sc);
+        setTimeout(()=>res(!!window.jsQR),8000);
+      });
+      if(ok)return true;
+    }
+    return false;
+  })();
   return _jsqrLoading;
 }
 async function scanInvoiceQR(){
