@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.8.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.9.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1020,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.8.1";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.9.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -2317,7 +2317,7 @@ function renderBackupHealth(){const el=$("#bkHealth");if(!el)return;
   h+= sbUser ? row("✅","① 雲端資料庫 — 同步中","以帳號 "+esc(sbUser.email||"")+" 登入，每次存檔即時加密同步至雲端資料庫（僅您的帳號可存取，不會寄到信箱）")
              : row("⚠️","① 雲端資料庫 — 未登入","目前只存在這台裝置，換裝置看不到。請點右上『登入雲端』","var(--warn)");
   const dk=localStorage.getItem(LS+"_dailyBk")===todayStr();
-  h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本，共 60 版可還原")
+  h+= sbUser ? row(dk?"✅":"⏳","② 雲端歷史版本 — 運作中"+(dk?"（今日已自動備份 ✓）":""),"每天第一次開啟自動備份一份＋每次存檔留版本。最新 60 版隨時可還原，另外每個月的月初、月中、月底各永久保留一版，長期都回得去。")
              : row("—","② 雲端歷史版本 — 待登入","登入後自動啟用");
   const age=backupAgeDays();
   if(!bkHandle && age===null) h+=row("○","③ 電腦備份檔（選用）— 尚未設定","雲端兩層已在保護您的帳本，這層是<b>額外的離線保險</b>。用上方「選擇位置並備份…」設定一次即可，之後每次變更自動更新（跳出詢問時選 <b>「每次造訪時允許」</b>，就不會再問第二次）。","var(--ink-3)");
@@ -3006,11 +3006,40 @@ async function dailyAutoBackup(){
   }catch(e){console.warn("dailyAutoBackup",e);}
 }
 let lastSnapTs=0;
+// 版本保留規則：
+//   1) 最新 60 版一律保留（日常還原用）
+//   2) 每個月的「月初、月中、月底」各留一版，永久不刪（長期回溯用）
+// 這樣即使超過 60 版，每個月仍有三個時間點可以回得去。
+// 時間一律換算成台北時間判斷，避免跨日誤判。
+function snapshotKeepSet(rows){
+  const keep=new Set();
+  const list=(rows||[]).slice().sort((a,b)=>Date.parse(b.created_at)-Date.parse(a.created_at));
+  list.slice(0,60).forEach(r=>keep.add(r.id));                    // 最新 60 版
+  const tpe=ts=>new Date(Date.parse(ts)+8*3600000);               // 換算台北時間
+  const byMonth={};
+  list.forEach(r=>{
+    const d=tpe(r.created_at);
+    const ym=d.getUTCFullYear()+"-"+String(d.getUTCMonth()+1).padStart(2,"0");
+    (byMonth[ym]=byMonth[ym]||[]).push({id:r.id,day:d.getUTCDate(),t:Date.parse(r.created_at)});
+  });
+  Object.keys(byMonth).forEach(ym=>{
+    const a=byMonth[ym].sort((x,y)=>x.t-y.t);
+    keep.add(a[0].id);                                            // 月初＝該月最早一版
+    keep.add(a[a.length-1].id);                                   // 月底＝該月最晚一版
+    const mid=a.find(x=>x.day>=15);                               // 月中＝該月 15 日起最早一版
+    if(mid)keep.add(mid.id);
+  });
+  return keep;
+}
 async function snapshotPush(){
   if(!sb||!sbUser)return;if(bookOwnerId&&bookOwnerId!==sbUser.id)return;const now=Date.now();if(now-lastSnapTs<60000)return;if(dataScore(db)<=0)return;lastSnapTs=now;
   try{await sb.from("book_snapshots").insert({user_id:sbUser.id,data:db});
     const {data}=await sb.from("book_snapshots").select("id,created_at").eq("user_id",sbUser.id).order("created_at",{ascending:false});
-    if(data&&data.length>60){const old=data.slice(60).map(r=>r.id);if(old.length)await sb.from("book_snapshots").delete().in("id",old);}
+    if(data&&data.length>60){
+      const keep=snapshotKeepSet(data);
+      const gone=data.filter(r=>!keep.has(r.id)).map(r=>r.id);
+      if(gone.length)await sb.from("book_snapshots").delete().in("id",gone);
+    }
   }catch(e){console.warn("snapshot",e);}
 }
 async function loadSnapshots(){
