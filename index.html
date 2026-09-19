@@ -243,11 +243,12 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.10.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.11.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
     <div class="top">
+      <div id="quickBar" style="display:none;grid-column:1/-1;flex-wrap:wrap;gap:6px;align-items:center;padding-top:8px;border-top:1px solid var(--border);margin-top:8px;width:100%"></div>
       <h1 id="topTitle">總覽</h1>
       <div class="period">
         <span class="pill">期別 <b class="num" id="topPeriod">—</b></span>
@@ -1033,7 +1034,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.10.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.11.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1086,6 +1087,63 @@ function openGuide(a){try{const f=document.getElementById("guideFrame");if(!f.sr
 function closeGuide(){document.getElementById("guideModal").style.display="none";}
 function expTab(b){document.querySelectorAll('#v-export .stab').forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll('#v-export .exppane').forEach(p2=>p2.style.display=(p2.id==="exp-"+b.dataset.ep)?"":"none");}
 function lawTab(b){document.querySelectorAll('#v-law .stab').forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll('#v-law .lawpane').forEach(p2=>p2.style.display=(p2.id==="law-"+b.dataset.lp)?"":"none");}
+
+/* ===== 快速作業／我的最愛 =====
+   常用功能不該讓人在選單裡找。這一列固定在標題下方，任何頁面都按得到。
+   左邊是固定的常用動作，右邊是使用者自己釘選的頁面（存在帳本設定裡，換裝置也跟著走）。 */
+const QUICK=[
+  {v:"purchase",label:"新增進項",icon:"＋",hint:"記一張進來的發票或收據"},
+  {v:"sale",label:"開立銷項",icon:"＋",hint:"開一張發票給客戶"},
+  {v:"ar",label:"收付沖帳",icon:"⇄",hint:"記客戶付款或付錢給廠商"},
+  {v:"voucher",label:"看傳票",icon:"▤",hint:"檢視自動產生的借貸分錄"},
+  {v:"tax",label:"401 試算",icon:"％",hint:"這期要繳多少營業稅"}
+];
+// 我的最愛是個人使用習慣，存在這台裝置即可，不寫進帳本資料
+let _favs=null;
+function favs(){
+  if(_favs)return _favs;
+  try{_favs=JSON.parse(localStorage.getItem(LS+"_favs")||"[]");}catch(e){_favs=[];}
+  if(!Array.isArray(_favs))_favs=[];
+  return _favs;
+}
+function favsSave(){try{localStorage.setItem(LS+"_favs",JSON.stringify(favs()));}catch(e){}}
+function isFav(v){ return favs().indexOf(v)>=0; }
+function toggleFav(v){
+  const a=favs(), i=a.indexOf(v);
+  if(i>=0)a.splice(i,1); else { if(a.length>=8){alert("我的最愛最多釘選 8 個，請先取消一個再釘。");return;} a.push(v); }
+  favsSave(); renderQuickBar(); renderFavStar();
+}
+function renderQuickBar(){
+  const el=$("#quickBar"); if(!el) return;
+  const btn=(v,label,icon,hint,fav)=>`<button class="btn ghost sm" title="${esc(hint||label)}" onclick="goView('${v}')" style="padding:5px 10px;font-size:12.5px;white-space:nowrap">${icon} ${esc(label)}${fav?'<span style="color:var(--accent-ink,#b8860b);margin-left:3px">★</span>':''}</button>`;
+  let h='<span style="font-size:11.5px;color:var(--ink-3);white-space:nowrap">快速作業</span>';
+  h+=QUICK.map(q=>btn(q.v,q.label,q.icon,q.hint,false)).join("");
+  const f=favs().filter(v=>TITLES[v]);
+  if(f.length){
+    h+='<span style="width:1px;height:18px;background:var(--border);margin:0 4px"></span>';
+    h+='<span style="font-size:11.5px;color:var(--ink-3);white-space:nowrap">我的最愛</span>';
+    h+=f.map(v=>btn(v,TITLES[v],"★","",true)).join("");
+  }
+  el.innerHTML=h; el.style.display="flex";
+}
+// 每頁標題旁的釘選鈕
+function renderFavStar(){
+  document.querySelectorAll(".view").forEach(sec=>{
+    const v=sec.id.replace(/^v-/,""); if(!TITLES[v])return;
+    const h=sec.querySelector(".sec-h"); if(!h)return;
+    let b=h.querySelector(".fav-star");
+    if(!b){
+      b=document.createElement("button"); b.className="btn ghost sm fav-star";
+      b.style.cssText="margin-left:auto;padding:3px 9px;font-size:12px;white-space:nowrap";
+      b.setAttribute("onclick","toggleFav('"+v+"')");
+      h.appendChild(b);
+    }
+    const on=isFav(v);
+    b.textContent=on?"★ 已釘選":"☆ 釘到快速列";
+    b.style.color=on?"var(--accent-ink,#b8860b)":"";
+    b.title=on?"從快速作業列移除":"釘到上方快速作業列，之後一鍵就到";
+  });
+}
 function goView(v){
   const g=groupOf(v);
   document.querySelectorAll("#nav button[data-g]").forEach(function(x){x.classList.toggle("on",x.dataset.g===g);});
@@ -1094,6 +1152,7 @@ function goView(v){
   const t=$("#topTitle");if(t)t.textContent=TITLES[v]||"";
   if(v==="users"){try{fillMemFeats();loadMembers();}catch(e){}}
   if(v==="export"){try{renderBackupHealth();}catch(e){}}if(v==="ops"){try{loadOps();}catch(e){}}
+  try{renderFavStar();}catch(e){}
   window.scrollTo(0,0);}
 $("#nav").addEventListener("click",function(e){const b=e.target.closest("button");if(!b)return;
   if(b.dataset.g){const items=visibleItems(b.dataset.g);if(items.length)goView(items[0]);return;}
@@ -1306,7 +1365,7 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
-function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();try{renderAR();}catch(e){console.warn("AR",e);}renderBalance();
+function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();try{renderAR();}catch(e){console.warn("AR",e);}try{renderQuickBar();renderFavStar();}catch(e){}renderBalance();
   renderJournalList();renderFund();try{renderCashForecast();}catch(e){}renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);const tt=$("#topTrack");if(tt)tt.textContent=t?t.code:"未設定";const tp=$("#topPeriod");if(tp)tp.textContent=curPeriod();syncSale();}
 
@@ -2930,6 +2989,9 @@ let bookOrgId=null,_lastSync=null,useTables=false,_syncTimer=null,_lastBlobPush=
 const TBL={
  purchase:{t:"purchases",to:o=>({date:o.date||null,type:o.type||null,uni:o.uni||null,name:o.name||null,item:o.item||null,cat:o.cat||null,acct:o.acct||null,net:+o.net||0,tax:+o.tax||0,ded:!!o.ded,s36:!!o.s36,pay:o.pay||null,proj:o.proj||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,date:r.date||"",type:r.type||"",uni:r.uni||"",name:r.name||"",item:r.item||"",cat:r.cat||"費用",acct:r.acct||"",net:+r.net||0,tax:+r.tax||0,ded:!!r.ded,s36:!!r.s36,pay:r.pay||"",proj:r.proj||"",note:r.note||""})},
+ settle:{t:"settlements",
+  to:o=>({kind:o.kind||null,src:o.src||null,src_id:String(o.srcId||""),date:o.date||null,amount:+o.amount||0,pay:o.pay||null,who:o.who||null,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,kind:r.kind||"ar",src:r.src||"s",srcId:r.src_id||"",date:r.date||"",amount:+r.amount||0,pay:r.pay||"",who:r.who||"",note:r.note||""})},
  sale:{t:"sales",to:o=>({code:o.code||null,seq:o.seq||0,date:o.date||null,uni:o.uni||null,name:o.name||null,item:o.item||null,net:+o.net||0,tax:+o.tax||0,pay:o.pay||null,proj:o.proj||null,note:o.note||null,void:!!o.void,void_reason:o.voidReason||null,void_orig:(o.voidOrig?Object.assign({},o.voidOrig,{voidDate:o.voidDate||null}):null)}),
   from:r=>{const o={id:r.legacy_id||r.id,code:r.code||"",seq:+r.seq||0,date:r.date||"",uni:r.uni||"",name:r.name||"",item:r.item||"",net:+r.net||0,tax:+r.tax||0,pay:r.pay||"",proj:r.proj||"",note:r.note||""};if(r.void){o.void=true;o.voidReason=r.void_reason||"";o.voidOrig=r.void_orig||null;if(o.voidOrig&&o.voidOrig.voidDate){o.voidDate=o.voidOrig.voidDate;}}return o;}},
  journal:{t:"journals",to:o=>({date:o.date||null,memo:o.memo||null,proj:o.proj||null,lines:o.lines||[]}),
