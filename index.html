@@ -235,7 +235,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.6.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.6.2</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1012,6 +1012,8 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
+const APP_VER="2.6.2";  // 版本號單一來源（頁尾與問題回報都用這個）
+try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
 (function(){try{
@@ -2986,13 +2988,13 @@ async function sendFeedback(){
   try{
     if(sb&&sbUser){
       var page=(document.querySelector(".view.on")||{}).id||"";
-      var {error}=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImages[0]||null,images:_fbImages.length?_fbImages:null,status:"open"});
-      if(error)throw error;
+      var ins=await sb.from("feedback").insert({email:sbUser.email||"",org_id:(typeof bookOrgId!=="undefined"?bookOrgId:null),message:msg.slice(0,2000),page:page,image:_fbImages[0]||null,images:_fbImages.length?_fbImages:null,status:"open"}).select("id").single();
+      if(ins.error)throw ins.error;
       // 立刻通知卓信（寄信＋LINE）；通知失敗不影響回報已送出
       try{const {data:{session}}=await sb.auth.getSession();
         if(session)fetch("https://www.zhuohsin.com/api/acc-feedback",{method:"POST",
           headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},
-          body:JSON.stringify({email:sbUser.email||"",message:msg.slice(0,2000),page:(TITLES[(page||"").replace("v-","")]||page||""),org:(db.company&&db.company.name)||"",shots:_fbImages.length})}).catch(()=>{});
+          body:JSON.stringify({id:(ins.data&&ins.data.id)||"",email:sbUser.email||"",message:msg.slice(0,2000),page:(TITLES[(page||"").replace("v-","")]||page||""),org:(db.company&&db.company.name)||"",shots:_fbImages.length,ver:APP_VER||"",ua:navigator.userAgent.slice(0,180)})}).catch(()=>{});
       }catch(_){}
     }else{
       // 未登入:暫存本機,登入後可再送(或提示登入)
