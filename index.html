@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.7.2</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1020,7 +1020,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.7.1";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.7.2";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -3414,15 +3414,37 @@ async function scanInvoiceQR(){
   video.onloadedmetadata=()=>tick();
 }
 async function compressImage(file,maxW,q){return new Promise((res,rej)=>{const img=new Image();img.onerror=()=>rej(new Error("非有效圖片"));img.onload=()=>{const sc=Math.min(1,maxW/img.width);const w=Math.round(img.width*sc),h=Math.round(img.height*sc);const cv=document.createElement("canvas");cv.width=w;cv.height=h;cv.getContext("2d").drawImage(img,0,0,w,h);cv.toBlob(b=>res(b),"image/jpeg",q||0.72);};img.src=URL.createObjectURL(file);});}
+// 拍一張新憑證＝開始一筆新的進項。表單若還留著上一筆沒存的內容，先問清楚要不要清掉，
+// 否則備註會一直接在舊的後面，100 字一滿反而是新的被截掉（使用者回報的「卡在上一份備註」）。
+function pFormDirty(){
+  return ["p_uni","p_name","p_item","p_net","p_tax","p_note"].some(id=>{const e=$("#"+id);return e&&String(e.value||"").trim()!=="";});
+}
+function pFormClear(){
+  const fm=$("#pForm");if(fm)fm.reset();
+  const t=$("#p_total");if(t)t.value="";
+  const h=$("#p_dedHint");if(h){h.style.display="none";h.innerHTML="";}
+  if(typeof updateDedHint==="function")try{updateDedHint();}catch(_){}
+  if(typeof updatePCatHint==="function")try{updatePCatHint();}catch(_){}
+}
 async function attachReceiptPhoto(inp){
   const f=inp.files&&inp.files[0];if(!f)return;inp.value="";
+  if(pFormDirty()){
+    if(confirm("表單還留著上一筆的內容（備註／金額／扣抵等）。\n\n按「確定」＝清空，用這張照片重新開始一筆（建議）\n按「取消」＝保留現有內容，照片附在這一筆上"))
+      pFormClear();
+  }else pFormClear();
   const blob=await compressImage(f,1280,0.72);
   if(!sb||!sbUser||!bookOrgId){alert("已壓縮 "+Math.round(blob.size/1024)+"KB，但需登入且完成升級後才能上傳雲端。目前請自行保存照片。");return;}
   const key=bookOrgId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
   try{const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
     if(error){alert("上傳失敗："+error.message);return;}
     const note=(prompt("這筆是什麼用途？（可留空直接按確定）\n\n寫清楚用途，AI 才能判對科目與能不能扣抵。\n例：請客戶喝飲料 → 交際費、不可扣抵\n例：公司車加油 → 燃料費、可扣抵","")||"").trim().slice(0,100);
-    const nn=$("#p_note");if(nn)nn.value=((nn.value?nn.value+";":"")+(note?note+";":"")+"📎"+key).slice(0,100);
+    const nn=$("#p_note");
+    if(nn){
+      // 先把舊的附件代碼清掉，再讓「這一筆的用途＋附件」排在最前面，確保不會被 100 字上限切掉
+      const rest=String(nn.value||"").replace(/📎\S+/g,"").replace(/;{2,}/g,";").replace(/^;|;$/g,"").trim();
+      nn.value=((note?note+";":"")+"📎"+key+(rest?";"+rest:"")).slice(0,100);
+    }
+    const h=$("#p_dedHint");if(h){h.style.display="block";h.innerHTML="🤖 AI 辨識中…";}
     aiRecognizeReceipt(blob,note).catch(()=>{});
   }catch(e){alert("上傳失敗："+e.message);}
 }
