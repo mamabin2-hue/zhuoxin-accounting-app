@@ -237,13 +237,13 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button data-g="tax"><span class="ic">％</span>稅務試算</button>
       <button data-g="law"><span class="ic">§</span>法令知識</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="ar"></button><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="ar"></button><button data-v="merge"></button><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
     <div id="orgSwitchWrap" style="display:none;padding:12px 14px 4px"><label style="font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:4px">🏢 公司切換（需驗證）</label><select id="orgSwitch" onchange="switchOrg(this)" style="width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border)"></select></div>
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.11.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.12.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -490,6 +490,25 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <thead><tr><th>日期</th><th>對象</th><th>憑證</th><th>品名</th><th class="r">原始金額</th><th class="r">已沖銷</th><th class="r">未結</th><th>狀態</th><th></th></tr></thead>
           <tbody id="arBody"></tbody><tfoot id="arFoot"></tfoot></table></div></div>
         <div class="note" id="arNote" style="margin-top:14px"></div>
+      </section>
+
+      <section class="view" id="v-merge">
+        <div class="sec-h"><h2>合併報表</h2><span class="muted">把你管理的多本帳合併起來看 · 老闆視角</span></div>
+        <div id="mergeGate"></div>
+        <div id="mergeUI" style="display:none">
+          <div class="card" style="margin-bottom:14px">
+            <div style="font-weight:700;font-size:14px;margin-bottom:8px">要合併哪幾本帳？</div>
+            <div id="mergePick" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px">
+              <div class="fld" style="margin:0"><label style="font-size:11.5px">損益期間 起</label><input type="month" id="mg_from" style="font-size:13px"></div>
+              <div class="fld" style="margin:0"><label style="font-size:11.5px">損益期間 迄</label><input type="month" id="mg_to" style="font-size:13px"></div>
+              <div class="fld" style="margin:0"><label style="font-size:11.5px">資產負債表 截止日</label><input type="date" id="mg_asof" style="font-size:13px"></div>
+              <button class="btn sm" onclick="runMerge()">產生合併報表</button>
+            </div>
+            <div style="font-size:12px;color:var(--ink-3);margin-top:10px">各公司為獨立法人，彼此開立的發票對雙方而言分別是銷貨與進貨，<b>不做內部交易沖銷</b>，直接相加。</div>
+          </div>
+          <div id="mergeOut"></div>
+        </div>
       </section>
 
       <section class="view" id="v-balance">
@@ -1034,7 +1053,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.11.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.12.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1060,10 +1079,10 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",cash:"資金預測",ar:"應收應付",balance:"餘額表",pl:"損益表",bs:"資產負債表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",cash:"資金預測",ar:"應收應付",balance:"餘額表",pl:"損益表",bs:"資產負債表",merge:"合併報表",tax:"401 試算",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
 const NAVGROUPS=[
   {g:"book",items:["dash","purchase","sale","petty","payreq","recur","journal"]},
-  {g:"report",items:["voucher","ledger","fund","cash","assets","ar","balance","pl","bs"]},
+  {g:"report",items:["voucher","ledger","fund","cash","assets","ar","balance","pl","bs","merge"]},
   {g:"tax",items:["tax"]},
   {g:"law",items:["law"]},
   {g:"setup",items:["settings","export","users","ops"]}];
@@ -1151,7 +1170,7 @@ function goView(v){
   document.querySelectorAll(".view").forEach(function(sec){sec.classList.toggle("on",sec.id==="v-"+v);});
   const t=$("#topTitle");if(t)t.textContent=TITLES[v]||"";
   if(v==="users"){try{fillMemFeats();loadMembers();}catch(e){}}
-  if(v==="export"){try{renderBackupHealth();}catch(e){}}if(v==="ops"){try{loadOps();}catch(e){}}
+  if(v==="export"){try{renderBackupHealth();}catch(e){}}if(v==="merge"){try{renderMerge();}catch(e){console.warn("merge",e);}}if(v==="ops"){try{loadOps();}catch(e){}}
   try{renderFavStar();}catch(e){}
   window.scrollTo(0,0);}
 $("#nav").addEventListener("click",function(e){const b=e.target.closest("button");if(!b)return;
@@ -1360,6 +1379,120 @@ function renderAR(){
   if(f)f.innerHTML=`<tr><td colspan="4">合計 ${list.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="2"></td></tr>`;
   const nt=$("#arNote");
   if(nt)nt.innerHTML=`點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}；這裡的未結合計會等於餘額表上「${isAP?AP_ACCT:AR_ACCT}」的餘額。`;
+}
+
+/* ===== 合併報表（進階方案）=====
+   一個人管好幾本帳時，老闆想看的是全部加起來的樣子。
+   作法：把每一本帳各自算出科目餘額，再逐科目相加，共用現有的分錄與分類邏輯，
+   不另寫一套算法，所以合併數字一定跟各本帳自己的報表對得起來。
+   各公司是獨立法人，互相開發票對雙方分別是銷貨與進貨，依使用者決定不做內部沖銷。 */
+function currentPlan(){
+  const o=(typeof myOrgs!=="undefined"&&myOrgs||[]).find(x=>x.org_id===bookOrgId);
+  return (o&&o.plan)||"";
+}
+async function loadOrgData(orgId){
+  const keys=Object.keys(TBL);
+  const rs=await Promise.all(keys.map(k=>sb.from(TBL[k].t).select("*").eq("org_id",orgId).limit(10000)));
+  const nd=DBDEF();
+  keys.forEach((k,i)=>{ if(rs[i]&&!rs[i].error) nd[k]=(rs[i].data||[]).map(TBL[k].from); });
+  const op=await sb.from("openings").select("*").eq("org_id",orgId).limit(5000);
+  if(op&&!op.error&&TBL.opening) nd.opening=(op.data||[]).map(TBL.opening.from);
+  return nd;
+}
+// 用另一本帳的資料跑同一套算式，算完立刻還原，不影響目前開著的帳本
+function withDb(tmp,fn){ const keep=db; db=tmp; try{ return fn(); } finally { db=keep; } }
+function renderMerge(){
+  const gate=$("#mergeGate"), ui=$("#mergeUI");
+  if(!gate)return;
+  const plan=currentPlan();
+  const orgs=(typeof myOrgs!=="undefined"&&myOrgs||[]);
+  if(plan!=="pro"){
+    ui.style.display="none";
+    gate.innerHTML=`<div class="card" style="border-color:var(--warn)"><div style="font-weight:700;margin-bottom:6px">合併報表是進階方案的功能</div>
+      <div style="font-size:13.5px;color:var(--ink-2);line-height:1.7">同一個人管理多本帳冊時，這裡可以把各公司的損益表、資產負債表與銷售彙總合併成一份給老闆看。<br>
+      目前這本帳的方案是「${esc(plan||"未設定")}」。升級進階方案後即可使用。</div>
+      <div class="actions" style="margin-top:12px"><a class="btn sm" href="https://acc.zhuohsin.com/pricing.html" target="_blank">看方案說明 ↗</a></div></div>`;
+    return;
+  }
+  gate.innerHTML=""; ui.style.display="";
+  const pick=$("#mergePick");
+  if(pick)pick.innerHTML=orgs.length
+    ? orgs.map(o=>`<label style="display:flex;align-items:center;gap:6px;font-size:13.5px"><input type="checkbox" class="mg-org" value="${esc(o.org_id)}" checked> ${esc(o.name||"未命名帳本")}</label>`).join("")
+    : '<span style="font-size:13px;color:var(--ink-3)">找不到你有權限的帳本。</span>';
+  const y=new Date().getFullYear();
+  const f=$("#mg_from"),t=$("#mg_to"),a=$("#mg_asof");
+  if(f&&!f.value)f.value=y+"-01"; if(t&&!t.value)t.value=y+"-12";
+  if(a&&!a.value)a.value=new Date().toISOString().slice(0,10);
+}
+async function runMerge(){
+  const out=$("#mergeOut"); if(!out)return;
+  const ids=[...document.querySelectorAll(".mg-org:checked")].map(x=>x.value);
+  if(!ids.length){alert("請至少勾選一本帳。");return;}
+  out.innerHTML='<div class="card">讀取各帳本資料中…</div>';
+  const from=($("#mg_from")||{}).value||"", to=($("#mg_to")||{}).value||"", asof=($("#mg_asof")||{}).value||"";
+  const orgs=(typeof myOrgs!=="undefined"&&myOrgs||[]);
+  const cols=[];
+  try{
+    for(const id of ids){
+      const nd=await loadOrgData(id);
+      const name=(orgs.find(o=>o.org_id===id)||{}).name||"未命名帳本";
+      const pl=withDb(nd,()=>balancesOf(flowEntries().filter(inRangeFlow(from,to))));
+      const bs=withDb(nd,()=>balancesOf(allEntries().filter(asOfFilter(asof))));
+      const plToAsof=withDb(nd,()=>balancesOf(flowEntries().filter(inRangeFlow("",asof))));
+      const sale=(nd.sale||[]).filter(x=>!x.void).reduce((acc,x)=>{acc.net+=+x.net||0;acc.tax+=+x.tax||0;acc.n++;return acc;},{net:0,tax:0,n:0});
+      cols.push({id,name,pl,bs,plToAsof,sale});
+    }
+  }catch(e){ out.innerHTML='<div class="card" style="border-color:var(--danger)">讀取失敗。'+esc(plainError(e))+'</div>'; return; }
+
+  const sumBy=(getter,kinds)=>{
+    const acc={};
+    cols.forEach(c=>{const m=getter(c);Object.keys(m).forEach(k=>{if(!kinds||kinds.indexOf(classify(k))>=0){acc[k]=acc[k]||{};acc[k][c.id]=(acc[k][c.id]||0)+m[k];}});});
+    return acc;
+  };
+  const head=`<th>會計科目</th>${cols.map(c=>`<th class="r">${esc(c.name)}</th>`).join("")}<th class="r">合計</th>`;
+  const block=(title,acc,sign)=>{
+    const names=Object.keys(acc).sort((a,b)=>((typeof ACCT_ORDER!=="undefined"&&ACCT_ORDER[a])||99)-((typeof ACCT_ORDER!=="undefined"&&ACCT_ORDER[b])||99)||a.localeCompare(b));
+    if(!names.length)return "";
+    let tot=0; const colTot={};
+    const body=names.map(n=>{
+      let rowSum=0;
+      const tds=cols.map(c=>{const v=sign*(acc[n][c.id]||0);rowSum+=v;colTot[c.id]=(colTot[c.id]||0)+v;return `<td class="r num">${v?fmt(Math.round(v)):""}</td>`;}).join("");
+      tot+=rowSum;
+      return `<tr><td>${esc(n)}</td>${tds}<td class="r num" style="font-weight:700">${fmt(Math.round(rowSum))}</td></tr>`;
+    }).join("");
+    return `<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">${title}</div>
+      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr>${head}</tr></thead><tbody>${body}</tbody>
+      <tfoot><tr><td>合計</td>${cols.map(c=>`<td class="r num">${fmt(Math.round(colTot[c.id]||0))}</td>`).join("")}<td class="r num" style="font-weight:800">${fmt(Math.round(tot))}</td></tr></tfoot>
+      </table></div></div></div>`;
+  };
+
+  const inc=sumBy(c=>c.pl,["收入"]), cost=sumBy(c=>c.pl,["成本"]), exp=sumBy(c=>c.pl,["費用"]);
+  const asset=sumBy(c=>c.bs,["資產"]), liab=sumBy(c=>c.bs,["負債"]), eq=sumBy(c=>c.bs,["權益"]);
+
+  // 本期損益＝截止日前的收入減成本費用，逐公司算再相加
+  const niRow=cols.map(c=>{let i=0,e=0;Object.keys(c.plToAsof).forEach(k=>{const cl=classify(k);if(cl==="收入")i+=-c.plToAsof[k];else if(cl==="成本"||cl==="費用")e+=c.plToAsof[k];});return {id:c.id,ni:i-e};});
+  const niTot=niRow.reduce((a,x)=>a+x.ni,0);
+
+  const salesTable=`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">銷售彙總（全部期間）</div>
+    <div class="twrap"><div class="tscroll"><table style="font-size:13.5px">
+    <thead><tr><th>公司</th><th class="r">張數</th><th class="r">銷售額</th><th class="r">稅額</th><th class="r">含稅合計</th></tr></thead>
+    <tbody>${cols.map(c=>`<tr><td>${esc(c.name)}</td><td class="r num">${c.sale.n}</td><td class="r num">${fmt(c.sale.net)}</td><td class="r num">${fmt(c.sale.tax)}</td><td class="r num">${fmt(c.sale.net+c.sale.tax)}</td></tr>`).join("")}</tbody>
+    <tfoot><tr><td>合計</td><td class="r num">${cols.reduce((a,c)=>a+c.sale.n,0)}</td><td class="r num">${fmt(cols.reduce((a,c)=>a+c.sale.net,0))}</td><td class="r num">${fmt(cols.reduce((a,c)=>a+c.sale.tax,0))}</td><td class="r num" style="font-weight:800">${fmt(cols.reduce((a,c)=>a+c.sale.net+c.sale.tax,0))}</td></tr></tfoot>
+    </table></div></div></div>`;
+
+  out.innerHTML=
+     `<div class="note" style="margin-bottom:14px">合併 ${cols.length} 本帳｜損益期間 ${esc(from||"不限")} ～ ${esc(to||"不限")}｜資產負債表截止 ${esc(asof||"不限")}　·　各公司獨立，未做內部交易沖銷。</div>`
+    +block("合併損益表 — 收入",inc,-1)
+    +block("合併損益表 — 營業成本",cost,1)
+    +block("合併損益表 — 營業費用",exp,1)
+    +`<div class="card" style="margin-bottom:14px"><div style="font-weight:700;font-size:14px;margin-bottom:8px">合併本期損益</div>
+      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px"><thead><tr>${cols.map(c=>`<th class="r">${esc(c.name)}</th>`).join("")}<th class="r">合計</th></tr></thead>
+      <tbody><tr>${niRow.map(r=>`<td class="r num" style="color:${r.ni>=0?"var(--good)":"var(--danger)"}">${fmt(Math.round(r.ni))}</td>`).join("")}<td class="r num" style="font-weight:800;color:${niTot>=0?"var(--good)":"var(--danger)"}">${fmt(Math.round(niTot))}</td></tr></tbody>
+      </table></div></div></div>`
+    +block("合併資產負債表 — 資產",asset,1)
+    +block("合併資產負債表 — 負債",liab,-1)
+    +block("合併資產負債表 — 權益",eq,-1)
+    +salesTable;
 }
 function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[l.acct]=1));
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
