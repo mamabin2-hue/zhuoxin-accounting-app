@@ -215,7 +215,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.3.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55">v2.4.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">© 卓信 · 115年第4期 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -552,6 +552,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <button class="stab" data-lp="it" onclick="lawTab(this)">🏢 營所稅重點</button>
           <button class="stab" data-lp="faq" onclick="lawTab(this)">❓ 常見問題</button>
           <button class="stab" data-lp="sop" onclick="lawTab(this)">📋 申報SOP</button>
+          <button class="stab" data-lp="acct" onclick="lawTab(this)">📒 科目對照</button>
         </div>
         <style>.lawstep{background:#e8f5ee;border-left:5px solid var(--good,#1f7a5c);border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawwarn{background:#fdf3d7;border-left:5px solid #e9a23b;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawno{background:#fdeaea;border-left:5px solid #d64545;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawtip{background:#e8f0fb;border-left:5px solid #3b76d6;border-radius:0 10px 10px 0;padding:10px 14px;margin:8px 0;font-size:13.5px}.lawcard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;margin:10px 0}.lawq{font-weight:800;color:var(--accent-ink);margin-top:14px}</style>
         <div class="lawpane" id="law-vat">
@@ -592,6 +593,59 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <p class="lawq">Q8：這期完全沒生意，可以不報嗎？</p><div class="lawno">不行！0 申報也要報，不報會被罰。</div>
           <p class="lawq">Q9：收據沒有統編可以列費用嗎？</p><div class="lawwarn">可以列帳（抵營所稅），但不能扣抵營業稅；大額盡量索取統編發票。</div>
           <p class="lawq">Q10：負責人先用自己的錢墊怎麼記？</p><div class="lawstep">付款方式選「股東往來（負責人代墊）」；日後公司還款再記「借 股東往來／貸 銀行存款」。</div>
+        </div>
+        <div class="lawpane" id="law-acct" style="display:none">
+          <h3 style="margin:0 0 8px">📒 會計科目對照表</h3>
+          <div class="lawtip">花錢的時候先問自己兩件事：<b>①這筆算哪一類</b>（進損益表的哪一段）<b>②營業稅能不能扣抵</b>。下面照著查就好。</div>
+
+          <div class="lawcard">
+            <h4 style="margin:0 0 6px">損益表長什麼樣子（由上往下算）</h4>
+            <table style="font-size:13.5px;width:100%">
+              <tbody>
+                <tr><td style="font-weight:700">營業收入</td><td>賣東西、提供服務收到的錢</td><td style="color:var(--ink-3)">銷貨收入、勞務收入、服務收入</td></tr>
+                <tr><td style="padding-left:14px">－ 營業成本</td><td>為了賣這些東西「直接」花的錢</td><td style="color:var(--ink-3)">進貨、銷貨成本、勞務成本、材料</td></tr>
+                <tr><td style="font-weight:700;border-top:1px solid var(--border)">＝ 營業毛利</td><td colspan="2" style="border-top:1px solid var(--border)">賣一次賺多少毛利</td></tr>
+                <tr><td style="padding-left:14px">－ 營業費用</td><td>維持公司營運的日常開銷</td><td style="color:var(--ink-3)">薪資、租金、水電、電信…（見下表）</td></tr>
+                <tr><td style="font-weight:700;border-top:2px solid var(--border-strong)">＝ 本期損益</td><td colspan="2" style="border-top:2px solid var(--border-strong)">真正賺或賠多少</td></tr>
+              </tbody>
+            </table>
+            <div style="font-size:13px;color:var(--ink-2);margin-top:8px"><b>成本 vs 費用怎麼分？</b>「沒有這筆錢，那個商品／服務就做不出來」＝<b>營業成本</b>；「就算這個月沒接到案子也照樣要付」＝<b>營業費用</b>。例：買原料＝成本；辦公室租金＝費用。</div>
+          </div>
+
+          <div class="lawcard">
+            <h4 style="margin:0 0 6px">常見支出 → 該記哪個科目 → 能不能扣抵</h4>
+            <div class="twrap"><div class="tscroll"><table style="font-size:13.5px">
+              <thead><tr><th>你花的錢</th><th>記這個科目</th><th>損益表歸類</th><th>營業稅扣抵</th></tr></thead>
+              <tbody>
+                <tr><td>進貨、原料、外包工資</td><td><b>進貨／勞務成本</b></td><td>營業成本</td><td>✅ 可扣抵（有統編發票）</td></tr>
+                <tr><td>員工薪水、獎金</td><td><b>薪資支出</b></td><td>營業費用</td><td>— 無發票不適用</td></tr>
+                <tr><td>勞保、健保、勞退公司負擔</td><td><b>勞健保費</b></td><td>營業費用</td><td>— 無發票不適用</td></tr>
+                <tr><td>辦公室房租</td><td><b>租金支出</b></td><td>營業費用</td><td>房東是公司→✅；個人房東→❌</td></tr>
+                <tr><td>水費、電費、瓦斯</td><td><b>水電費</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>手機、市話、網路月租</td><td><b>電信費</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>網域、主機、雲端軟體訂閱</td><td><b>網路費</b></td><td>營業費用</td><td>國內✅；<b>國外→不可扣抵，走§36填401第74欄</b></td></tr>
+                <tr><td><b>公司車加油</b>、機油</td><td><b>燃料費</b></td><td>營業費用</td><td>✅ <b>可扣抵</b>（業務用＋載公司統編）</td></tr>
+                <tr><td>車輛保養、維修</td><td><b>修繕費</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>運費、貨運、宅配</td><td><b>運費</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>出差交通、住宿、停車</td><td><b>旅費</b></td><td>營業費用</td><td>統一發票✅；計程車收據❌</td></tr>
+                <tr><td><b>請客戶吃飯、送禮</b></td><td><b>交際費</b></td><td>營業費用</td><td>❌ <b>不可扣抵</b>（§19 I③，有三聯式也不行）</td></tr>
+                <tr><td>員工聚餐、員工禮品</td><td><b>職工福利</b></td><td>營業費用</td><td>❌ 不可扣抵（§19 I④）</td></tr>
+                <tr><td>員工便當、伙食津貼</td><td><b>伙食費</b></td><td>營業費用</td><td>❌ 屬員工福利性質</td></tr>
+                <tr><td>文具、影印紙、碳粉</td><td><b>文具用品</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>郵資、快遞</td><td><b>郵電費</b></td><td>營業費用</td><td>✅ 可扣抵</td></tr>
+                <tr><td>廣告、行銷、臉書投放</td><td><b>廣告費</b></td><td>營業費用</td><td>國內✅；國外平台走§36</td></tr>
+                <tr><td>公司登記規費、工商憑證</td><td><b>規費</b></td><td>營業費用</td><td>❌ 政府規費無統一發票</td></tr>
+                <tr><td>銀行手續費、匯費</td><td><b>手續費</b></td><td>營業費用</td><td>❌ 多無統一發票</td></tr>
+                <tr><td>電腦、設備（可用超過2年）</td><td><b>電腦設備</b>（資產）</td><td>不進損益，逐年折舊</td><td>✅ 可扣抵</td></tr>
+                <tr><td>設備每月折舊</td><td><b>折舊費用</b></td><td>營業費用</td><td>— 無發票不適用</td></tr>
+                <tr><td>拜拜、金紙、供品</td><td><b>雜項費用</b></td><td>營業費用</td><td>❌ 不可扣抵</td></tr>
+              </tbody>
+            </table></div></div>
+          </div>
+
+          <div class="lawno">🚫 <b>三種最常被國稅局剔除的錯誤</b>：①<b>交際費拿去扣抵</b>（§19 I③，即使拿三聯式發票也不行）②<b>發票沒打公司統編</b>就扣抵（§33 要件不符）③<b>公司成立前或個人名義</b>的發票拿來列帳。</div>
+          <div class="lawstep">💡 <b>別多繳稅的一點</b>：不可扣抵的只有「買 9 人座以下乘人小客車<b>車輛本身</b>」；那台車的<b>加油與修理費，業務使用就可以扣抵</b>（財政部80/11/30台財稅第800453828號函）。很多人記反了白白多繳。</div>
+          <div class="lawtip">📌 不可扣抵 ≠ 不能列費用。交際費、計程車費雖然<b>營業稅不能扣抵</b>，但<b>營所稅仍可列為費用</b>（交際費有限額），兩件事不要混在一起。</div>
         </div>
         <div class="lawpane" id="law-sop" style="display:none">
           <div class="sec-h"><h2>📋 每期 401 申報 SOP（照做就對）</h2></div>
@@ -1936,12 +1990,16 @@ const COA={
   "資本":"權益","業主資本":"權益","業主往來":"權益","股東往來":"權益","保留盈餘":"權益",
   "銷貨收入":"收入","勞務收入":"收入","服務收入":"收入","利息收入":"收入","其他收入":"收入",
   "進貨":"成本","銷貨成本":"成本",
-  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用","網路費":"費用","廣告費":"費用"};
+  "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用","網路費":"費用","廣告費":"費用",
+  "電信費":"費用","規費":"費用","燃料費":"費用","運費":"費用","修繕費":"費用","伙食費":"費用","職工福利":"費用","訓練費":"費用","佣金支出":"費用","捐贈":"費用","手續費":"費用","車輛費用":"費用","書報雜誌":"費用","清潔費":"費用","勞務成本":"成本","材料":"成本","製造費用":"成本"};
 function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_cu)return _cu.cat;if(COA[a])return COA[a];
   if(/累計折舊/.test(a))return "資產減";
   if(/收入|銷貨收/.test(a))return "收入";
   if(/(銷貨)?成本/.test(a))return "成本";
-  if(/費用|支出|薪資|租金|折舊|水電|保險|交際|旅費|郵電|文具|稅捐|勞健保|手續費/.test(a))return "費用";
+  if(!/^(應付|預付|應收|預收|存出|存入)/.test(a)){
+    if(/費用|支出|薪資|租金|折舊|水電|保險|交際|旅費|郵電|文具|稅捐|勞健保|手續費/.test(a))return "費用";
+    if(/費$|規費|燃料|油料|運費|修繕|伙食|福利|訓練|佣金|捐贈|攤提|攤銷/.test(a))return "費用";
+  }
   if(/現金|銀行|存款|應收|預付|存出|設備|財產|進項稅額|存貨|零用金/.test(a))return "資產";
   if(/應付|借款|貸款|信用卡|銷項稅額|預收|代扣|代收/.test(a))return "負債";
   if(/資本|股東|業主|權益|盈餘|公積/.test(a))return "權益";
@@ -2974,7 +3032,7 @@ function saleNetTax(){const raw=Math.round(+$("#s_net").value||0);const mode=$("
 function updateSaleAmt(){const r=saleNetTax();const t=$("#s_tax");if(t)t.value=r.tax?fmt(r.tax):"";const h=$("#s_amtHint");if(h)h.textContent=(+$("#s_net").value)?("未稅 "+fmt(r.net)+"・含稅 "+fmt(r.total)):"";}
 function fillPAcctSel(){const s=$("#p_acct");if(!s)return;const cur=s.value;const list=accountsByCat("費用");
   s.innerHTML='<option value="">— 自動：營業費用 —</option>'+list.map(a=>`<option${a===cur?" selected":""}>${esc(a)}</option>`).join("");if(cur&&list.includes(cur))s.value=cur;}
-const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"],[/(拜拜|祭祀|金紙|香燭|供品|牲禮|犒軍|尾牙)/,"雜項費用"]];
+const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(加油|油資|汽油|柴油|中油|台塑石化|油料|燃料|加油站)/,"燃料費"],[/(運費|貨運|物流|宅配)/,"運費"],[/(修繕|維修|修理)/,"修繕費"],[/(便當|餐盒|伙食)/,"伙食費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"],[/(拜拜|祭祀|金紙|香燭|供品|牲禮|犒軍|尾牙)/,"雜項費用"]];
 function suggestAcct(it){for(const p of ACCT_SUGGEST)if(p[0].test(it||""))return p[1];return "";}
 (function(){const pi=$("#p_item"),pc=$("#p_cat"),pa=$("#p_acct");
   function sug(){if(!pa||!pc||pc.value!=="費用")return;const a=suggestAcct(pi.value);if(a&&accountsByCat("費用").includes(a))pa.value=a;}
@@ -3056,17 +3114,17 @@ async function attachReceiptPhoto(inp){
   const key=bookOrgId+"/"+Date.now()+"-"+Math.random().toString(36).slice(2,8)+".jpg";
   try{const {error}=await sb.storage.from("receipts").upload(key,blob,{contentType:"image/jpeg"});
     if(error){alert("上傳失敗："+error.message);return;}
-    const nn=$("#p_note");if(nn)nn.value=((nn.value?nn.value+";":"")+"📎"+key).slice(0,100);
-    aiRecognizeReceipt(blob).catch(()=>{});
-    alert("✅ 憑證照片已上傳（"+Math.round(blob.size/1024)+"KB）。AI 辨識中，稍後自動帶入欄位…");
+    const note=(prompt("這筆是什麼用途？（可留空直接按確定）\n\n寫清楚用途，AI 才能判對科目與能不能扣抵。\n例：請客戶喝飲料 → 交際費、不可扣抵\n例：公司車加油 → 燃料費、可扣抵","")||"").trim().slice(0,100);
+    const nn=$("#p_note");if(nn)nn.value=((nn.value?nn.value+";":"")+(note?note+";":"")+"📎"+key).slice(0,100);
+    aiRecognizeReceipt(blob,note).catch(()=>{});
   }catch(e){alert("上傳失敗："+e.message);}
 }
-async function aiRecognizeReceipt(blob){
+async function aiRecognizeReceipt(blob,userNote){
   try{
     const {data:{session}}=await sb.auth.getSession();
     if(!session)return;
     const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.readAsDataURL(blob);});
-    const resp=await fetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image:b64,mime:"image/jpeg"})});
+    const resp=await fetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+session.access_token},body:JSON.stringify({image:b64,mime:"image/jpeg",note:userNote||""})});
     const j=await resp.json();
     if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc((j&&j.error)||"辨識失敗，請手動填寫");}return;}
     try{ if(typeof bookOrgId!=="undefined"&&bookOrgId) sb.from("ai_usage").insert({org_id:bookOrgId,kind:"receipt"}).then(()=>{},()=>{}); }catch(_){}
@@ -3081,8 +3139,25 @@ async function aiRecognizeReceipt(blob){
     if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);}
     const myUni=(db.company&&db.company.uni)||"";
     if($("#p_ded"))$("#p_ded").value=(inv&&myUni&&(d["買方統編"]||"")===myUni)?"1":"0";
+    // AI 建議的會計科目：只在使用者還沒自己選過時填入，並標示為建議
+    let acctMsg="";
+    const sug=(d["建議科目"]||"").trim();
+    if(sug){const el=$("#p_acct");
+      if(el&&el.tagName==="SELECT"){const hit=[...el.options].find(o=>o.value===sug||o.text===sug);
+        if(hit){if(!el.value||el.value==="營業費用"){el.value=hit.value;acctMsg="建議科目：<b>"+esc(sug)+"</b>";}else acctMsg="AI 建議科目為 <b>"+esc(sug)+"</b>（你目前選的是 "+esc(el.value)+"）";}
+        else acctMsg="AI 建議科目：<b>"+esc(sug)+"</b>（系統無此科目，可到設定→會計科目自訂新增）";}
+      else acctMsg="AI 建議科目：<b>"+esc(sug)+"</b>";}
+    // 扣抵判斷：法定不可扣抵一律鎖成不可扣抵，避免誤扣被國稅局剔除
+    let dedMsg="";
+    const ded=(d["可否扣抵"]||"").trim(), why=(d["扣抵理由"]||"").trim();
+    if(ded==="不可扣抵"){if($("#p_ded"))$("#p_ded").value="0";dedMsg="⛔ 研判<b>不可扣抵</b>"+(why?"："+esc(why):"");}
+    else if(ded==="可扣抵")dedMsg="✅ 研判可扣抵"+(why?"："+esc(why):"");
+    else if(ded)dedMsg="⚠️ 扣抵與否<b>需你人工判斷</b>"+(why?"："+esc(why):"");
     if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
-    const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI 已自動帶入（"+esc(d["賣方名稱"]||"")+" "+fmt(total||net+tax)+"），<b>請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
+    const t=$("#p_dedHint");if(t){t.style.display="block";
+      t.innerHTML="🤖 AI 已帶入（"+esc(d["賣方名稱"]||"")+" "+fmt(total||net+tax)+"）"
+        +(acctMsg?"<br>"+acctMsg:"")+(dedMsg?"<br>"+dedMsg:"")
+        +"<br><b>以上為 AI 建議，請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
   }catch(e){console.warn("aiRecognizeReceipt",e);}
 }
 async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗："+e.message);}}
