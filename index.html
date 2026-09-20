@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.16.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.17.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1060,7 +1060,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.16.1";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.17.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -3227,15 +3227,30 @@ async function loadOps(){
           <button class="btn ghost sm" onclick="opsSet('${r.id}','status','${r.status==="active"?"suspended":"active"}')">${r.status==="active"?"停權":"復權"}</button></td></tr>`;}).join(""):'<tr><td colspan="9" class="empty">尚無客戶</td></tr>')+'</tbody></table></div></div>';
     }
   }catch(e){box.innerHTML='<p style="font-size:13px;color:var(--danger)">載入失敗。</p>';}
-  try{const au=await sb.rpc("ops_ai_usage");const abox=$("#opsAI");
+  try{
+    // 先試新版統計（含成功率與耗時），舊環境沒有就退回舊版
+    let au=await sb.rpc("ops_ai_usage2");
+    let hasQ=!au.error;
+    if(au.error)au=await sb.rpc("ops_ai_usage");
+    const abox=$("#opsAI");
     if(abox&&!au.error){const ar=au.data||[];
       const dayTotal=ar.reduce((a,r)=>a+(+r.today||0),0),monTotal=ar.reduce((a,r)=>a+(+r.month||0),0);
       const used=ar.filter(r=>(+r.total||0)>0);
-      abox.innerHTML=`<div class="card" style="margin-bottom:10px"><b>今日全站 ${dayTotal} 張</b>　·　本月 ${monTotal} 張<div style="font-size:12px;color:var(--ink-3);margin-top:6px">AI 辨識共用 Gemini 免費額度（每日請求數有上限）。今日若逼近上限，後面的客戶會辨識失敗，屆時可改用付費層（每 1000 張約 NT$35）。</div></div>`+
+      const okAll=ar.reduce((a,r)=>a+(+r.ok_total||0),0),failAll=ar.reduce((a,r)=>a+(+r.fail_total||0),0);
+      const rate=(okAll+failAll)?Math.round(okAll*1000/(okAll+failAll))/10:null;
+      abox.innerHTML=`<div class="card" style="margin-bottom:10px"><b>今日全站 ${dayTotal} 張</b>　·　本月 ${monTotal} 張`
+        +(hasQ&&rate!==null?`　·　<b style="color:${rate>=90?"var(--good)":rate>=70?"var(--warn)":"var(--danger)"}">辨識成功率 ${rate}%</b>（成功 ${okAll}／失敗 ${failAll}）`:"")
+        +`<div style="font-size:12px;color:var(--ink-3);margin-top:6px">AI 辨識共用 Gemini 免費額度（每日請求數有上限）。今日若逼近上限，後面的客戶會辨識失敗，屆時可改用付費層（每 1000 張約 NT$35）。${hasQ?"成功率偏低代表憑證拍攝品質或辨識模型有問題，可按下方「查失敗明細」看原因。":""}</div>`
+        +(hasQ?`<div style="margin-top:8px"><button class="btn ghost sm" onclick="opsAiFails()">查失敗明細</button><div id="opsAiFailBox" style="margin-top:8px"></div></div>`:"")
+        +`</div>`+
         (isNarrow()
           ? (used.length?used.map(r=>opsCard(esc(r.org_name||"—"),"",[["今日",String(r.today)],["本月",String(r.month)],["累計",String(r.total)],["最後一次",esc(r.last_at||"—")]],"",(+r.today>100))).join(""):'<div class="card empty">尚無使用紀錄</div>')
-          : '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
-            (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>');}
+          : '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th>'+(hasQ?'<th class="r">成功率</th><th class="r">平均耗時</th>':'')+'<th>最後一次</th></tr></thead><tbody>'+
+            (used.length?used.map(r=>{
+              const o=+r.ok_total||0,f=+r.fail_total||0,rr=(o+f)?Math.round(o*1000/(o+f))/10:null;
+              return `<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td>`
+                +(hasQ?`<td class="r num"${rr!==null&&rr<70?' style="color:var(--danger);font-weight:700"':''}>${rr===null?"—":rr+"%"}</td><td class="r num">${r.avg_ms?(Math.round(r.avg_ms/100)/10+" 秒"):"—"}</td>`:"")
+                +`<td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`;}).join(""):'<tr><td colspan="'+(hasQ?7:5)+'" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>');}
   }catch(e){}
   // 自動把客戶清單同步到官網後台，不必再按按鈕。失敗不影響畫面，最多下次再同步。
   // ⚠️ 2026-09-20 暫時關閉：官網後台的資料表還沒加上對應欄位（使用者要求近期不異動官網）。
@@ -3257,6 +3272,21 @@ async function loadOps(){
     renderOpsFeedback();
   }catch(e){}}
 
+// AI 辨識失敗明細：客戶說「辨識不準」時，這裡看得到實際的錯誤原因
+async function opsAiFails(){
+  const box=$("#opsAiFailBox"); if(!box)return;
+  box.innerHTML='<span style="font-size:12.5px;color:var(--ink-3)">讀取中…</span>';
+  try{
+    const r=await sb.rpc("ops_ai_fails");
+    if(r.error)throw r.error;
+    const a=r.data||[];
+    box.innerHTML=a.length
+      ? '<div class="twrap"><div class="tscroll"><table style="font-size:12.5px"><thead><tr><th>時間</th><th>公司</th><th>類型</th><th>失敗原因</th><th>模型</th></tr></thead><tbody>'
+        +a.map(x=>`<tr><td class="num" style="white-space:nowrap">${new Date(x.created_at).toLocaleString("zh-TW",{hour12:false}).replace(/:\d\d$/,"")}</td><td>${esc(x.org_name||"")}</td><td>${esc(x.kind||"")}</td><td style="color:var(--danger)">${esc(x.err||"")}</td><td style="font-size:11.5px;color:var(--ink-3)">${esc(x.model||"")}</td></tr>`).join("")
+        +'</tbody></table></div></div>'
+      : '<div style="font-size:12.5px;color:var(--good)">沒有辨識失敗的紀錄 🎉</div>';
+  }catch(e){ box.innerHTML='<span style="font-size:12.5px;color:var(--danger)">讀取失敗。'+esc(plainError(e))+'</span>'; }
+}
 let _opsFbData=[], _opsFbFilter="open";
 const FB_STATUS={open:{t:"待處理",c:"var(--warn)"},doing:{t:"處理中",c:"var(--accent-ink)"},done:{t:"已解決",c:"var(--good)"},skip:{t:"不處理",c:"var(--ink-3)"}};
 function opsFbFilter(v){_opsFbFilter=v;renderOpsFeedback();}
@@ -4295,14 +4325,27 @@ async function apiFetch(url,opt,body){
   }
   return resp;
 }
+// AI 辨識一律留一筆紀錄（成功或失敗都留），這是服務品質的唯一依據。
+// 沒有這筆紀錄，客戶說「辨識不準」我們無從查起，也不知道該不該計費。
+async function aiLog(kind,ok,err,ms,model,pages){
+  try{
+    if(typeof bookOrgId==="undefined"||!bookOrgId)return;
+    await sb.from("ai_usage").insert({org_id:bookOrgId,kind:kind||"receipt",ok:!!ok,
+      err:ok?null:String(err||"").slice(0,200),ms:Math.round(ms||0),
+      model:String(model||"").slice(0,40)||null,pages:pages||1});
+  }catch(e){ console.warn("ai_usage",e); }
+}
 async function aiRecognizeReceipt(blob,userNote){
+  const _t0=Date.now();
   try{
     const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.readAsDataURL(blob);});
     const resp=await apiFetch("https://www.zhuohsin.com/api/receipt-ocr",{method:"POST"},{image:b64,mime:"image/jpeg",note:userNote||""});
-    if(!resp){const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI：尚未登入雲端，請先登入再辨識。";}return;}
+    if(!resp){const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI：尚未登入雲端，請先登入再辨識。";}
+      aiLog("receipt",false,"未登入",Date.now()-_t0,"",1);return;}
     const j=await resp.json();
-    if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc(j&&j.error?plainError({message:j.error}):"這張看不清楚，請手動填寫金額與品名。");}return;}
-    try{ if(typeof bookOrgId!=="undefined"&&bookOrgId) sb.from("ai_usage").insert({org_id:bookOrgId,kind:"receipt"}).then(()=>{},()=>{}); }catch(_){}
+    if(!j||!j.ok||!j.data){console.warn("AI辨識",j&&j.error);const t=$("#p_dedHint");if(t){t.style.display="block";t.innerHTML="🤖 AI："+esc(j&&j.error?plainError({message:j.error}):"這張看不清楚，請手動填寫金額與品名。");}
+      aiLog("receipt",false,(j&&j.error)||"辨識不出內容",Date.now()-_t0,(j&&j.model)||"",1);return;}
+    aiLog("receipt",true,"",Date.now()-_t0,j.model||"",1);
     const d=j.data;const setIf=(id,v)=>{const e=$("#"+id);if(e&&!e.value&&v)e.value=v;};
     setIf("p_date",d["日期"]);setIf("p_name",d["賣方名稱"]);setIf("p_uni",d["賣方統編"]);setIf("p_item",d["品名摘要"]);
     const total=+String(d["總計"]||"").replace(/[^\d.]/g,"")||0;
@@ -4336,7 +4379,7 @@ async function aiRecognizeReceipt(blob,userNote){
       t.innerHTML="🤖 AI 已帶入（"+esc(d["賣方名稱"]||"")+" "+fmt(total||net+tax)+"）"
         +(acctMsg?"<br>"+acctMsg:"")+(dedMsg?"<br>"+dedMsg:"")
         +"<br><b>以上為 AI 建議，請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
-  }catch(e){console.warn("aiRecognizeReceipt",e);}
+  }catch(e){console.warn("aiRecognizeReceipt",e);aiLog("receipt",false,(e&&e.message)||String(e),Date.now()-_t0,"",1);}
 }
 async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗。\n"+plainError(e));}}
 
