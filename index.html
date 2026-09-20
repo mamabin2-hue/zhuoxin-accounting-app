@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.14.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.15.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -488,8 +488,10 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         </div>
         <div class="note" id="arHow" style="margin-bottom:12px;font-size:12.5px"></div>
         <div class="grid" id="arKpi" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px"></div>
+        <div id="arAging" style="margin-bottom:12px"></div>
+        <div id="arBatchBar" style="display:none;margin-bottom:12px"></div>
         <div class="twrap"><div class="tscroll"><table>
-          <thead><tr><th>日期</th><th>對象</th><th>憑證</th><th>品名</th><th class="r">原始金額</th><th class="r">已沖銷</th><th class="r">未結</th><th>狀態</th><th></th></tr></thead>
+          <thead><tr><th style="width:28px"><input type="checkbox" onclick="arSelAll(this.checked)" title="全選未結清"></th><th>日期</th><th>對象</th><th>憑證</th><th>品名</th><th class="r">原始金額</th><th class="r">已沖銷</th><th class="r">未結</th><th>帳齡</th><th>狀態</th><th></th></tr></thead>
           <tbody id="arBody"></tbody><tfoot id="arFoot"></tfoot></table></div></div>
         <div class="note" id="arNote" style="margin-top:14px"></div>
       </section>
@@ -1056,7 +1058,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.14.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.15.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1299,9 +1301,18 @@ function settleEntries(){
     const no="S"+String(i+1).padStart(3,"0");
     const acct=x.kind==="ap"?AP_ACCT:AR_ACCT;
     const cash=x.pay||"銀行存款";
+    // 尾差：實際收到的錢比發票少（匯費、折讓、呆帳），差額要有去處，
+    // 否則那筆永遠掛著結不掉。amount＝沖掉的帳款，fee＝尾差，實際現金＝amount−fee。
+    const fee=Math.round((+x.fee||0)*100)/100;
+    const feeAcct=x.feeAcct||(x.kind==="ap"?"進貨折讓":"手續費支出");
+    const net=Math.round((x.amount-fee)*100)/100;
     const lines=x.kind==="ap"
-      ? [{acct:acct,debit:x.amount,credit:0},{acct:cash,debit:0,credit:x.amount}]
-      : [{acct:cash,debit:x.amount,credit:0},{acct:acct,debit:0,credit:x.amount}];
+      ? [{acct:acct,debit:x.amount,credit:0},{acct:cash,debit:0,credit:net}]
+      : [{acct:cash,debit:net,credit:0},{acct:acct,debit:0,credit:x.amount}];
+    if(fee>0){
+      if(x.kind==="ap")lines.push({acct:feeAcct,debit:0,credit:fee});   // 廠商折讓＝成本減少
+      else lines.push({acct:feeAcct,debit:fee,credit:0});               // 匯費／折讓／呆帳＝費用或收入減少
+    }
     return {no,date:x.date,proj:"",srcType:"x",srcId:x.id,
             memo:(x.kind==="ap"?"付款沖銷 · ":"收款沖銷 · ")+(x.who||"")+(x.note?" "+x.note:""),lines};
   });
@@ -1320,7 +1331,10 @@ function openItems(kind){
         no:invStr(x.code,x.seq),item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
     });
   }
+  const _today=todayStr();
   out.forEach(o=>{
+    o.age=o.date?Math.floor((Date.parse(_today)-Date.parse(o.date))/86400000):0;
+    o.ageBand=o.age<=0?"未到期":o.age<=30?"30天內":o.age<=60?"31–60天":o.age<=90?"61–90天":o.age<=180?"91–180天":o.age<=365?"半年–1年":o.age<=730?"1–2年":"超過2年";
     o.rows=(db.settle||[]).filter(t=>t.src===o.src&&t.srcId===o.id).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
     o.paid=o.rows.filter(t=>!t.voided).reduce((a,t)=>a+(+t.amount||0),0);
     o.left=Math.round((o.total-o.paid)*100)/100;
@@ -1336,8 +1350,12 @@ function arAdd(src,id){
   const list=openItems(_arKind),o=list.find(x=>x.src===src&&x.id===id);
   if(!o)return;
   const d=$("#ar_d_"+id),a=$("#ar_a_"+id),pz=$("#ar_p_"+id),n=$("#ar_n_"+id);
+  const mth=$("#ar_m_"+id),ref=$("#ar_r_"+id),du=$("#ar_u_"+id),fe=$("#ar_f_"+id),fa=$("#ar_fa_"+id);
   const date=(d&&d.value)||todayStr();
   let amt=Math.round((+(a&&a.value)||0)*100)/100;
+  const fee=Math.round((+(fe&&fe.value)||0)*100)/100;
+  if(fee<0){alert("尾差不可以是負數。");return;}
+  if(fee>amt){alert("尾差（"+fmt(fee)+"）不可以大於沖抵金額（"+fmt(amt)+"）。");return;}
   if(!(amt>0)){alert("金額必須大於 0。\n\n若要沖正先前記錯的一筆，請直接把那筆作廢，不要用負數。");return;}
   if(o.date&&date<o.date){
     if(!confirm((_arKind==="ap"?"付款":"收款")+"日（"+date+"）早於憑證日期（"+o.date+"）。\n這會讓中間期間的餘額變成負數，確定嗎？"))return;
@@ -1346,7 +1364,9 @@ function arAdd(src,id){
     if(!confirm("這次金額 "+fmt(amt)+" 超過未結的 "+fmt(o.left)+"，多出 "+fmt(amt-o.left)+"。\n\n財報上多收的部分應列為「預收款項」（負債）、多付的應列為「預付費用」，\n本系統目前會留在"+(_arKind==="ap"?"應付":"應收")+"帳款並顯示為負數，期末需自行調整。\n\n確定要這樣記嗎？"))return;
   }
   db.settle.push({id:uid(),kind:_arKind,src:src,srcId:id,date:date,amount:amt,
-                  pay:(pz&&pz.value)||"銀行存款",who:o.who,note:((n&&n.value)||"").slice(0,60)});
+                  pay:(pz&&pz.value)||"銀行存款",who:o.who,note:((n&&n.value)||"").slice(0,60),
+                  method:(mth&&mth.value)||"匯款",ref:((ref&&ref.value)||"").slice(0,20),
+                  due:(du&&du.value)||"",fee:fee,feeAcct:(fa&&fa.value)||""});
   save();renderAR();
 }
 function arDel(sid){
@@ -1359,6 +1379,81 @@ function arDel(sid){
   save();renderAR();
 }
 function arGoto(kind){_arKind=kind;_arOpen="";goView("ar");}
+
+// ── 批次沖帳 ────────────────────────────────────────────────────────────
+// 客戶一次匯一筆錢付清好幾張發票，是每個月都會發生的事。
+// 勾選多筆 → 輸入實收金額 → 由最舊的一筆開始自動分配，不用自己算。
+let _arSel={};
+function arSelToggle(id,on){ if(on)_arSel[id]=true; else delete _arSel[id]; renderArBatchBar(); }
+function arSelAll(on){
+  const list=(_arShowDone?openItems(_arKind):openItems(_arKind).filter(o=>Math.abs(o.left)>0.004));
+  _arSel={}; if(on)list.forEach(o=>{if(o.left>0)_arSel[o.id]=true;});
+  renderAR();
+}
+function arSelClear(){ _arSel={}; renderAR(); }
+function renderArBatchBar(){
+  const bar=$("#arBatchBar"); if(!bar)return;
+  const list=openItems(_arKind).filter(o=>_arSel[o.id]);
+  if(!list.length){ bar.style.display="none"; return; }
+  const isAP=_arKind==="ap";
+  const sum=Math.round(list.reduce((a,o)=>a+o.left,0)*100)/100;
+  let _pl=[];try{ if(typeof bankNames==="function")_pl=bankNames()||[]; }catch(e){}
+  const payOpts=[...new Set([..._pl,"銀行存款","現金"])].map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
+  const feeOpts=(isAP?["","進貨折讓","其他收入"]:["","手續費支出","銷貨折讓","呆帳損失"])
+    .map(v=>`<option value="${esc(v)}">${v?esc(v):"不處理"}</option>`).join("");
+  bar.style.display="block";
+  bar.innerHTML=`<div class="card" style="border-color:var(--accent-ink);padding:12px 14px">
+    <div style="font-weight:700;font-size:14px;margin-bottom:8px">已選 ${list.length} 筆　應${isAP?"付":"收"}合計 <b class="num">${fmt(sum)}</b> 元</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end">
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}日</label><input type="date" id="arB_d" value="${todayStr()}" style="font-size:13px"></div>
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">實際${isAP?"付出":"收到"}金額</label><input type="number" step="1" min="1" id="arB_a" value="${sum}" style="font-size:13px;width:120px"></div>
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}帳戶</label><select id="arB_p" style="font-size:13px">${payOpts}</select></div>
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">方式</label><select id="arB_m" style="font-size:13px"><option>匯款</option><option>現金</option><option>支票</option><option>轉帳</option></select></div>
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">票號／末五碼</label><input id="arB_r" maxlength="20" style="font-size:13px;width:110px"></div>
+      <div class="fld" style="margin:0"><label style="font-size:11.5px">差額怎麼處理</label><select id="arB_fa" style="font-size:13px">${feeOpts}</select></div>
+      <button class="btn sm" onclick="arBatch()">一次${isAP?"付款":"收款"}</button>
+      <button class="btn ghost sm" onclick="arSelClear()">取消選取</button>
+    </div>
+    <div style="font-size:12px;color:var(--ink-3);margin-top:8px">實收金額若少於應收合計（例如客戶匯款被扣手續費），差額會依「差額怎麼處理」記成一筆分錄；選「不處理」則差額留在帳上未結。</div>
+  </div>`;
+}
+function arBatch(){
+  if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法沖帳。");return;}
+  const isAP=_arKind==="ap";
+  const list=openItems(_arKind).filter(o=>_arSel[o.id]&&o.left>0).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
+  if(!list.length){alert("請先勾選要沖銷的項目。");return;}
+  const date=($("#arB_d")||{}).value||todayStr();
+  let cash=Math.round((+($("#arB_a")||{}).value||0)*100)/100;
+  if(!(cash>0)){alert("請輸入實際"+(isAP?"付出":"收到")+"的金額。");return;}
+  const sum=Math.round(list.reduce((a,o)=>a+o.left,0)*100)/100;
+  const feeAcct=($("#arB_fa")||{}).value||"";
+  let diff=Math.round((sum-cash)*100)/100;
+  if(diff<0){alert("實際金額 "+fmt(cash)+" 大於應"+(isAP?"付":"收")+"合計 "+fmt(sum)+"。\n\n超出的部分請另外單筆處理，批次沖帳不接受超收超付。");return;}
+  if(diff>0&&!feeAcct){
+    if(!confirm("實際金額比應"+(isAP?"付":"收")+"合計少 "+fmt(diff)+" 元。\n\n你沒有選「差額怎麼處理」，這 "+fmt(diff)+" 元會留在帳上沒有結掉。\n\n確定要這樣嗎？"))return;
+  }
+  const pay=($("#arB_p")||{}).value||"銀行存款";
+  const method=($("#arB_m")||{}).value||"匯款";
+  const ref=(($("#arB_r")||{}).value||"").slice(0,20);
+  // 由最舊的一筆開始分配；有選差額科目時，差額也按比例落在最後一筆
+  let remain=cash, feeLeft=(feeAcct?diff:0);
+  const batchId=uid().slice(0,6);
+  list.forEach((o,i)=>{
+    const last=(i===list.length-1);
+    let take=last?Math.min(o.left,remain+feeLeft):Math.min(o.left,remain);
+    if(take<=0)return;
+    let fee=0;
+    if(feeAcct&&last){ fee=Math.min(feeLeft,take); }
+    const cashPart=Math.round((take-fee)*100)/100;
+    remain=Math.round((remain-cashPart)*100)/100;
+    feeLeft=Math.round((feeLeft-fee)*100)/100;
+    db.settle.push({id:uid(),kind:_arKind,src:o.src,srcId:o.id,date:date,amount:Math.round(take*100)/100,
+      pay:pay,who:o.who,note:"批次"+batchId+(list.length>1?("／"+(i+1)+"of"+list.length):""),
+      method:method,ref:ref,due:"",fee:fee,feeAcct:fee>0?feeAcct:""});
+  });
+  _arSel={}; save(); renderAR();
+  alert("✅ 已"+(isAP?"付款":"收款")+" "+fmt(cash)+" 元，沖銷 "+list.length+" 筆"+(diff>0&&feeAcct?("，差額 "+fmt(diff)+" 元記入「"+feeAcct+"」"):"")+"。");
+}
 function renderAR(){
   const body=$("#arBody");if(!body)return;
   const isAP=_arKind==="ap";
@@ -1383,7 +1478,7 @@ function renderAR(){
     +`${isAP?"進貨":"開發票"}時若選了現金或銀行存款，代表當場${isAP?"付清":"收訖"}，不會出現在這裡。`
     +`　<button class="btn ghost sm" style="padding:2px 8px;font-size:11.5px" onclick="arToggleDone()">${_arShowDone?"只看未結清":"顯示已結清（"+(all.length-unpaid.length)+"）"}</button>`;
   if(!list.length){
-    body.innerHTML=`<tr><td colspan="9" class="empty">${_arShowDone?("目前沒有"+(isAP?"應付":"應收")+"項目。"):"沒有未結清的項目 🎉"}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="11" class="empty">${_arShowDone?("目前沒有"+(isAP?"應付":"應收")+"項目。"):"沒有未結清的項目 🎉"}</td></tr>`;
     const f=$("#arFoot");if(f)f.innerHTML="";
   }else{
   let _pl=[];try{ if(typeof bankNames==="function")_pl=bankNames()||[]; }catch(e){}
@@ -1393,7 +1488,9 @@ function renderAR(){
     const over=o.left<-0.004;
     const st=done?'<span class="ok">已結清</span>':over?'<span class="bad">超'+(isAP?"付":"收")+'</span>':(o.paid>0?'<span style="color:var(--warn)">部分'+(isAP?"付款":"收款")+'</span>':'<span style="color:var(--ink-2)">未'+(isAP?"付":"收")+'</span>');
     const opened=_arOpen===o.id;
+    const ageCol=o.age>730?"var(--danger)":o.age>365?"var(--warn)":o.age>90?"var(--accent-ink)":"var(--ink-3)";
     let h=`<tr style="cursor:pointer" onclick="arToggle('${o.id}')">
+      <td onclick="event.stopPropagation()">${done?"":`<input type="checkbox" ${_arSel[o.id]?"checked":""} onclick="arSelToggle('${o.id}',this.checked)">`}</td>
       <td class="num" style="white-space:nowrap">${esc(o.date)}</td>
       <td>${esc(o.who)}</td>
       <td style="font-size:12.5px">${esc(o.no)}</td>
@@ -1401,15 +1498,16 @@ function renderAR(){
       <td class="r num">${fmt(o.total)}</td>
       <td class="r num">${o.paid?fmt(o.paid):"—"}</td>
       <td class="r num" style="font-weight:700;color:${done?"var(--ink-3)":"var(--warn)"}">${fmt(o.left)}</td>
+      <td style="white-space:nowrap;font-size:12px;color:${ageCol};font-weight:${o.age>365?"700":"400"}">${done?"—":esc(o.ageBand)}</td>
       <td style="white-space:nowrap">${st}</td>
       <td style="white-space:nowrap;font-size:12px;color:var(--ink-3)">${opened?"▾ 收合":"▸ 明細／沖帳"}</td></tr>`;
     if(opened){
       const rows=o.rows.length
         ? o.rows.map(t=>t.voided
             ? `<tr style="opacity:.55"><td class="num" style="white-space:nowrap;text-decoration:line-through">${esc(t.date)}</td><td style="text-decoration:line-through">${esc(t.pay||"")}</td><td class="r num" style="text-decoration:line-through">${fmt(t.amount)}</td><td style="font-size:12px">已作廢 ${esc(t.voidDate||"")}　原因：${esc(t.voidReason||"")}</td><td></td></tr>`
-            : `<tr><td class="num" style="white-space:nowrap">${esc(t.date)}</td><td>${esc(t.pay||"")}</td><td class="r num">${fmt(t.amount)}</td><td style="font-size:12.5px">${esc(t.note||"")}</td><td><button class="btn ghost sm" onclick="arDel('${t.id}')">作廢</button></td></tr>`).join("")
+            : `<tr><td class="num" style="white-space:nowrap">${esc(t.date)}</td><td>${esc(t.pay||"")}${t.method?'<br><span style="font-size:11px;color:var(--ink-3)">'+esc(t.method)+(t.ref?" "+esc(t.ref):"")+(t.due?"　到期 "+esc(t.due):"")+'</span>':""}</td><td class="r num">${fmt(t.amount)}${t.fee>0?'<br><span style="font-size:11px;color:var(--ink-3)">含尾差 '+fmt(t.fee)+' → '+esc(t.feeAcct||"")+'</span>':""}</td><td style="font-size:12.5px">${esc(t.note||"")}</td><td><button class="btn ghost sm" onclick="arDel('${t.id}')">作廢</button></td></tr>`).join("")
         : `<tr><td colspan="5" class="empty" style="padding:8px">還沒有${isAP?"付款":"收款"}紀錄。</td></tr>`;
-      h+=`<tr><td colspan="9" style="background:var(--surface);padding:12px 14px">
+      h+=`<tr><td colspan="11" style="background:var(--surface);padding:12px 14px">
         <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">${esc(o.who)}　${esc(o.no)}　原始 ${fmt(o.total)}　未結 <b style="color:${done?"var(--ink-3)":"var(--warn)"}">${fmt(o.left)}</b></div>
         <div class="twrap"><div class="tscroll"><table style="font-size:13px">
           <thead><tr><th>${isAP?"付款":"收款"}日</th><th>${isAP?"付款":"收款"}帳戶</th><th class="r">金額</th><th>備註</th><th></th></tr></thead>
@@ -1418,7 +1516,12 @@ function renderAR(){
           <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}日</label><input type="date" id="ar_d_${o.id}" value="${todayStr()}" style="font-size:13px"></div>
           <div class="fld" style="margin:0"><label style="font-size:11.5px">金額</label><input type="number" step="1" min="1" id="ar_a_${o.id}" value="${done?"":Math.max(0,o.left)}" onkeydown="if(event.key==='Enter'){event.preventDefault();arAdd('${o.src}','${o.id}');}" style="font-size:13px;width:120px"></div>
           <div class="fld" style="margin:0"><label style="font-size:11.5px">${isAP?"付款":"收款"}帳戶</label><select id="ar_p_${o.id}" style="font-size:13px">${payOpts}</select></div>
-          <div class="fld" style="margin:0;flex:1;min-width:140px"><label style="font-size:11.5px">備註（可略）</label><input id="ar_n_${o.id}" placeholder="例：第 3 期" style="font-size:13px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">方式</label><select id="ar_m_${o.id}" style="font-size:13px" onchange="document.getElementById('ar_uw_${o.id}').style.display=(this.value==='支票'?'':'none')"><option>匯款</option><option>現金</option><option>支票</option><option>轉帳</option></select></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">票號／末五碼</label><input id="ar_r_${o.id}" maxlength="20" style="font-size:13px;width:110px"></div>
+          <div class="fld" style="margin:0;display:none" id="ar_uw_${o.id}"><label style="font-size:11.5px">票據到期日</label><input type="date" id="ar_u_${o.id}" style="font-size:13px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">尾差金額</label><input type="number" step="1" min="0" id="ar_f_${o.id}" value="0" style="font-size:13px;width:90px"></div>
+          <div class="fld" style="margin:0"><label style="font-size:11.5px">尾差科目</label><select id="ar_fa_${o.id}" style="font-size:13px">${(isAP?["","進貨折讓","其他收入"]:["","手續費支出","銷貨折讓","呆帳損失"]).map(v=>`<option value="${esc(v)}">${v?esc(v):"—"}</option>`).join("")}</select></div>
+          <div class="fld" style="margin:0;flex:1;min-width:120px"><label style="font-size:11.5px">備註（可略）</label><input id="ar_n_${o.id}" placeholder="例：第 3 期" style="font-size:13px"></div>
           <button class="btn sm" onclick="arAdd('${o.src}','${o.id}')">記一筆${isAP?"付款":"收款"}</button>
         </div>
         <div style="font-size:12px;color:var(--ink-3);margin-top:8px">每記一筆就自動產生一張傳票（${isAP?"借 應付帳款／貸 付款帳戶":"借 收款帳戶／貸 應收帳款"}），餘額表與報表會同步更新。</div>
@@ -1428,14 +1531,26 @@ function renderAR(){
   }).join("");
   }
   const f=$("#arFoot");
-  if(f)f.innerHTML=`<tr><td colspan="4">合計 ${all.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="2"></td></tr>`;
+  if(f)f.innerHTML=`<tr><td colspan="5">合計 ${all.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="3"></td></tr>`;
   // 明細與總帳要真的勾稽給使用者看，不能用一句話保證相等：
   // 期初餘額、代墊款進項、週期憑證、手動分錄都會打到應收／應付，但不會出現在這份清單。
   const acctName=isAP?AP_ACCT:AR_ACCT;
   let ledger=0; try{ const mm=balancesOf(allEntries()); ledger=isAP?-(mm[acctName]||0):(mm[acctName]||0); }catch(e){}
   const gap=Math.round((ledger-sumLeft)*100)/100;
+  // 帳齡摘要：逾期滿兩年且經催收未收取者，才符合認列呆帳損失的條件
+  const ag=$("#arAging");
+  if(ag){
+    const bands=["未到期","30天內","31–60天","61–90天","91–180天","半年–1年","1–2年","超過2年"];
+    const m={};unpaid.forEach(o=>{m[o.ageBand]=m[o.ageBand]||{n:0,amt:0};m[o.ageBand].n++;m[o.ageBand].amt+=o.left;});
+    const used=bands.filter(b=>m[b]);
+    ag.innerHTML=used.length?`<div class="twrap"><div class="tscroll"><table style="font-size:12.5px">
+      <thead><tr><th>帳齡</th>${used.map(b=>`<th class="r"${b==="超過2年"?' style="color:var(--danger)"':b==="1–2年"?' style="color:var(--warn)"':""}>${b}</th>`).join("")}</tr></thead>
+      <tbody><tr><td>未結金額</td>${used.map(b=>`<td class="r num"${b==="超過2年"?' style="color:var(--danger);font-weight:700"':""}>${fmt(Math.round(m[b].amt))}<br><span style="font-size:11px;color:var(--ink-3)">${m[b].n} 筆</span></td>`).join("")}</tr></tbody>
+      </table></div></div>${m["超過2年"]?'<div style="font-size:12px;color:var(--danger);margin-top:6px">⚠ 有 '+m["超過2年"].n+' 筆逾期超過兩年（共 '+fmt(Math.round(m["超過2年"].amt))+' 元）。依營所稅查核準則，債權逾期兩年、經催收仍未收取本金或利息者，得列為呆帳損失 —— 但必須保留催收證明（存證信函、法院文書等）。</div>':""}`:"";
+  }
+  renderArBatchBar();
   const nt=$("#arNote");
-  if(nt)nt.innerHTML=`點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}（已作廢的不算）。<br>`
+  if(nt)nt.innerHTML=`勾選多筆可以一次沖帳（客戶一次匯款付清多張發票）。點任一列可展開明細並就地沖帳。未結金額＝原始金額 − 歷次${isAP?"付款":"收款"}（已作廢的不算）。<br>`
     +`本頁未結合計 <b class="num">${fmt(sumLeft)}</b>；餘額表「${acctName}」餘額 <b class="num">${fmt(ledger)}</b>　`
     +(Math.abs(gap)<0.5
       ? `<span class="ok">✓ 明細與總帳相符</span>`
@@ -2509,7 +2624,7 @@ const COA={
   "現金":"資產","零用金":"資產","銀行存款":"資產","應收帳款":"資產","應收票據":"資產","進項稅額":"資產","預付費用":"資產","存出保證金":"資產","存貨":"資產","生財設備":"資產","運輸設備":"資產","辦公設備":"資產","累計折舊":"資產減",
   "應付帳款":"負債","應付票據":"負債","應付費用":"負債","銷項稅額":"負債","代扣稅款":"負債","代收款項":"負債","預收款項":"負債","短期借款":"負債","信用卡":"負債",
   "資本":"權益","業主資本":"權益","業主往來":"權益","股東往來":"權益","保留盈餘":"權益",
-  "銷貨收入":"收入","勞務收入":"收入","服務收入":"收入","利息收入":"收入","其他收入":"收入",
+  "銷貨收入":"收入","勞務收入":"收入","服務收入":"收入","利息收入":"收入","其他收入":"收入","銷貨折讓":"收入","進貨折讓":"成本","呆帳損失":"費用",
   "進貨":"成本","銷貨成本":"成本",
   "營業費用":"費用","薪資支出":"費用","租金支出":"費用","水電費":"費用","文具用品":"費用","郵電費":"費用","旅費":"費用","交際費":"費用","保險費":"費用","勞健保費":"費用","折舊費用":"費用","手續費支出":"費用","稅捐":"費用","雜項費用":"費用","開辦費":"費用","開辦費用":"費用","網路費":"費用","廣告費":"費用",
   "電信費":"費用","規費":"費用","燃料費":"費用","運費":"費用","修繕費":"費用","伙食費":"費用","職工福利":"費用","訓練費":"費用","佣金支出":"費用","捐贈":"費用","手續費":"費用","車輛費用":"費用","書報雜誌":"費用","清潔費":"費用","勞務成本":"成本","材料":"成本","製造費用":"成本"};
