@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.13.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.14.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -289,6 +289,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>可否扣抵</label><select id="p_ded"><option value="1">可扣抵</option><option value="0">不可扣抵</option></select></div>
+            <div class="fld" id="p_invWrap" style="display:none"><label>發票號碼 <span style="color:var(--danger)">*</span></label><input id="p_inv" placeholder="例：AB12345678" maxlength="12" style="text-transform:uppercase"><div id="p_invHint" style="font-size:11.5px;color:var(--ink-3);margin-top:3px">要扣抵營業稅就必須申報發票號碼</div></div>
             <div class="fld"><label>付款方式</label><select id="p_pay"><option>現金</option><option>銀行存款</option><option>應付帳款</option><option>信用卡</option></select></div>
             <div class="fld"><label>專案（可略）</label><select id="p_proj"></select></div>
             <div class="fld"><label>總計（含稅）</label><input id="p_total" readonly></div>
@@ -746,6 +747,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <section class="view" id="v-tax">
         <div class="sec-h"><h2>401 營業稅試算</h2><span class="muted">一般稅額計算 · 每二月一期</span><span class="sp"></span>
           <label style="font-size:13px;color:var(--ink-2)">期別 <select id="taxPeriodSel" style="padding:6px 10px;border:1px solid var(--border-strong);border-radius:8px;background:var(--bg);color:var(--ink)" onchange="taxPeriod=this.value;renderTax();"></select></label></div>
+        <div id="taxInvWarn" style="display:none;margin-bottom:14px"></div>
         <div class="grid" style="grid-template-columns:1.3fr .9fr;gap:16px" id="taxWrap"></div>
         <div class="sec-h" style="margin-top:22px"><h2>401 申報書欄位對照檢查表</h2>
           <span class="muted">每一張憑證進到哪一欄，逐欄核對用</span><span class="sp"></span>
@@ -1054,7 +1056,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.13.1";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.14.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1215,10 +1217,16 @@ $("#pForm").addEventListener("submit",e=>{e.preventDefault();const net=+$("#p_ne
   const _obj={id:editPid||uid(),date:$("#p_date").value,type:$("#p_type").value,uni:$("#p_uni").value.trim(),name:$("#p_name").value.trim(),item:$("#p_item").value.trim(),cat:$("#p_cat").value,net,tax,ded:(($("#p_cat").value==="業主提取"||($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0)?false:($("#p_ded").value==="1")),pay:$("#p_pay").value,s36:$("#p_type").value.indexOf("國外invoice")>=0,acct:($("#p_cat").value==="費用"?($("#p_acct").value||""):""),proj:($("#p_proj")||{}).value||"",note:(($("#p_note")||{}).value||"").slice(0,100),
     // §19 各款的勾選要存下來，否則回頭編輯時會被清空，不可扣抵會靜靜變成可扣抵
     ent:!!($("#p_ent")&&$("#p_ent").checked),emp:!!($("#p_emp")&&$("#p_emp").checked),
-    car:!!($("#p_car")&&$("#p_car").checked),nonbiz:!!($("#p_nonbiz")&&$("#p_nonbiz").checked)};
+    car:!!($("#p_car")&&$("#p_car").checked),nonbiz:!!($("#p_nonbiz")&&$("#p_nonbiz").checked),
+    invNo:(($("#p_inv")||{}).value||"").replace(/[^A-Za-z0-9]/g,"").toUpperCase()};
+  // 要扣抵就一定要有發票號碼，否則申報媒體檔會漏掉這筆，401 試算與上傳檔對不起來
+  if(_obj.ded){
+    if(!_obj.invNo){alert("這筆勾了「可扣抵」，必須填發票號碼。\n\n沒有發票號碼的憑證（收據、免用統一發票）請把「可否扣抵」改成不可扣抵，\n它仍然會記進帳、列入費用，只是不申報扣抵營業稅。");$("#p_inv")&&$("#p_inv").focus();return;}
+    if(!/^[A-Z]{2}\d{8}$/.test(_obj.invNo)){alert("發票號碼格式應為 2 個英文字母＋8 位數字，例如 AB12345678。\n目前填的是："+_obj.invNo);$("#p_inv")&&$("#p_inv").focus();return;}
+  }
   if(editPid){const i=db.purchase.findIndex(x=>x.id===editPid);if(i>=0)db.purchase[i]=_obj;editPid=null;const b=$("#pSubmitBtn");if(b)b.textContent="＋ 新增並切傳票";}
   else{db.purchase.push(_obj);if(autoAddVendorOn()){const nm=_obj.name,u=_obj.uni;if(nm&&!(db.vendors||[]).some(v=>v.name===nm||(u&&v.uni===u)))db.vendors.push({id:uid(),uni:u,name:nm,note:""});}}
-  e.target.reset();$("#p_total").value="";_dedLockedByDoc=false;if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
+  e.target.reset();$("#p_total").value="";_dedLockedByDoc=false;if(typeof syncInvField==="function")syncInvField();if($("#p_dedHint"))$("#p_dedHint").style.display="none";save();});
 const _ps=$("#pSample");if(_ps)_ps.addEventListener("click",()=>{$("#p_date").value="2026-03-29";$("#p_type").value="載具";$("#p_name").value="GoDaddy.com, LLC";$("#p_item").value="網域(個人雲端發票 YC22758274·公司成立前·不可扣抵)";$("#p_cat").value="費用";$("#p_net").value=581;$("#p_tax").value=0;$("#p_ded").value="0";syncPTotal();if(typeof updateDedHint==="function")updateDedHint();});
 
 /* sale */
@@ -1683,6 +1691,24 @@ function renderBalance(){const rows=balanceRows();const b=$("#balBody");
     :`<span class="bad">⚠ 借貸不平衡</span>　借方 ${fmt(sd)} / 貸方 ${fmt(sc)}，請檢查資料。`;}
 
 function renderTax(){
+  // 可扣抵卻沒有發票號碼的憑證，媒體檔會略過但 401 試算仍算進去，兩邊會對不起來。
+  // 在申報前就把它揪出來，不要等上傳被退件。
+  try{
+    const _P=taxPeriod||curPeriod();
+    const bad=(db.purchase||[]).filter(x=>x.ded&&inPeriod(x.date,_P)&&!_mfInvFromNote(x));
+    const w=$("#taxInvWarn");
+    if(w){
+      if(!bad.length)w.style.display="none";
+      else{
+        w.style.display="block";
+        w.className="note";
+        w.style.borderColor="var(--warn)";
+        w.innerHTML=`<span class="bad">⚠ 有 ${bad.length} 筆可扣抵進項沒有發票號碼</span>　這些筆<b>不會進申報媒體檔</b>，但 401 試算已經算進可扣抵稅額，兩邊會對不起來（共 ${fmt(bad.reduce((a,x)=>a+(+x.tax||0),0))} 元稅額）。<br>`
+          +`請到「進項憑證」補上發票號碼；若本來就沒有發票（收據、免用統一發票），請把該筆改成「不可扣抵」。<br>`
+          +`<div style="margin-top:6px;font-size:12.5px;color:var(--ink-2)">`+bad.slice(0,8).map(x=>esc(x.date+"　"+(x.name||"（未填）")+"　"+fmt((+x.net||0)+(+x.tax||0))+" 元")).join("<br>")+(bad.length>8?"<br>…另 "+(bad.length-8)+" 筆":"")+`</div>`;
+      }
+    }
+  }catch(e){}
   const sel=$("#taxPeriodSel");if(sel){const ps=allPeriods();const cur=taxPeriod||curPeriod();sel.innerHTML=ps.map(p=>`<option value="${p}"${p===cur?" selected":""}>${p}</option>`).join("");if(!taxPeriod)taxPeriod=cur;}
   const pb=$("#periodBody");if(pb){
     const pfEl=$("#ph_from"),ptEl=$("#ph_to");
@@ -3058,6 +3084,21 @@ async function loadOps(){
           : '<div class="twrap"><div class="tscroll"><table><thead><tr><th>公司</th><th class="r">今日</th><th class="r">本月</th><th class="r">累計</th><th>最後一次</th></tr></thead><tbody>'+
             (used.length?used.map(r=>`<tr><td>${esc(r.org_name||"—")}</td><td class="r num"${(+r.today>100)?' style="color:var(--warn);font-weight:700"':''}>${r.today}</td><td class="r num">${r.month}</td><td class="r num">${r.total}</td><td class="num" style="font-size:12px">${esc(r.last_at||"—")}</td></tr>`).join(""):'<tr><td colspan="5" class="empty">尚無使用紀錄</td></tr>')+'</tbody></table></div></div>');}
   }catch(e){}
+  // 自動把客戶清單同步到官網後台，不必再按按鈕。失敗不影響畫面，最多下次再同步。
+  // ⚠️ 2026-09-20 暫時關閉：官網後台的資料表還沒加上對應欄位（使用者要求近期不異動官網）。
+  //    等官網那邊確認可以動、欄位加好之後，把下面這行改成 true 就會開始自動同步。
+  const MEMBER_SYNC_ON=false;
+  try{
+    const last=+(localStorage.getItem(LS+"_memSyncAt")||0);
+    if(!MEMBER_SYNC_ON)throw new Error("會員同步暫時關閉");
+    if(Array.isArray(data)&&data.length&&Date.now()-last>1800000){   // 最快半小時一次，不要每次切頁都打
+      const r=await apiFetch("https://www.zhuohsin.com/api/acc-members-sync",{method:"POST"},
+        {orgs:data.map(x=>({id:x.id,name:x.name,uni:x.uni,owner_email:x.owner_email,plan:x.plan,status:x.status,trial_end:x.trial_end}))});
+      if(r&&r.ok){localStorage.setItem(LS+"_memSyncAt",String(Date.now()));
+        const j=await r.json().catch(()=>null);
+        console.log("[會員同步]",j);}
+    }
+  }catch(e){console.warn("會員同步",e);}
   try{const fb=await sb.from("feedback").select("id,created_at,email,page,message,image,images,status,handled_at").order("created_at",{ascending:false}).limit(80);
     if(!fb.error)_opsFbData=fb.data||[];
     renderOpsFeedback();
@@ -3888,8 +3929,16 @@ function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDed
   }}
 // 由憑證本身（掃碼／AI 讀到的買方統編）判定不可扣抵時立起這支旗子，避免被後續的提示更新蓋掉
 let _dedLockedByDoc=false;
-(function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",updateDedHint);});
-  const pu=$("#p_uni");if(pu)pu.addEventListener("input",updateDedHint);})();
+// 只有要扣抵營業稅的憑證才需要發票號碼；收據、不可扣抵的一律不顯示，不要卡住使用者
+function syncInvField(){
+  const w=$("#p_invWrap"),d=$("#p_ded");if(!w||!d)return;
+  const need=(d.value==="1");
+  w.style.display=need?"":"none";
+  if(!need){const i=$("#p_inv");if(i)i.value="";}
+}
+(function(){const d=$("#p_ded");if(d)d.addEventListener("change",syncInvField);})();
+(function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",()=>{updateDedHint();syncInvField();});});
+  const pu=$("#p_uni");if(pu)pu.addEventListener("input",()=>{updateDedHint();syncInvField();});})();
 
 /* ===== 銷項含稅/未稅四捨五入 + 建議費用科目 ===== */
 function saleNetTax(){const raw=Math.round(+$("#s_net").value||0);const mode=$("#s_taxmode")?$("#s_taxmode").value:"未稅";
@@ -4022,6 +4071,7 @@ async function scanInvoiceQR(){
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
           let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
+          if($("#p_inv"))$("#p_inv").value=r.no;
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
           try{const g=await fetch("https://company.g0v.ronny.tw/api/show/"+r.seller).then(x=>x.json());const nm=g&&g.data&&(g.data["公司名稱"]||g.data["名稱"]);if(nm&&$("#p_name"))$("#p_name").value=String(nm).slice(0,60);}catch(_){}
           alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer===((db.company&&db.company.uni)||"")?"符合":"＝"+r.buyer+"，請確認")+"。");
@@ -4108,7 +4158,8 @@ async function aiRecognizeReceipt(blob,userNote){
     if(!net&&total){net=Math.round(total/1.05);tax=total-net;}
     if(net&&!$("#p_net").value){$("#p_net").value=net;$("#p_tax").value=tax;}
     const inv=(d["發票號碼"]||"").trim();
-    if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);}
+    if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);
+      if($("#p_inv")&&!$("#p_inv").value)$("#p_inv").value=inv.replace(/[^A-Za-z0-9]/g,"").toUpperCase();}
     const myUni=(db.company&&db.company.uni)||"";
     const _aiOk=!!(inv&&myUni&&(d["買方統編"]||"")===myUni);
     if($("#p_ded"))$("#p_ded").value=_aiOk?"1":"0";
@@ -4186,6 +4237,8 @@ function editPurchase(id){const p=(db.purchase||[]).find(x=>x.id===id);if(!p)ret
   if($("#p_ent"))$("#p_ent").checked=!!p.ent;if($("#p_emp"))$("#p_emp").checked=!!p.emp;
   if($("#p_car"))$("#p_car").checked=!!p.car;if($("#p_nonbiz"))$("#p_nonbiz").checked=!!p.nonbiz;
   _dedLockedByDoc=(!p.ded && !p.ent && !p.emp && !p.car && !p.nonbiz);
+  if($("#p_inv"))$("#p_inv").value=p.invNo||"";
+  if(typeof syncInvField==="function")syncInvField();
   if($("#p_note"))$("#p_note").value=p.note||"";
   editPid=id;if(typeof syncPTotal==="function")syncPTotal();const b=$("#pSubmitBtn");if(b)b.textContent="✔ 更新此筆";window.scrollTo(0,0);}
 
