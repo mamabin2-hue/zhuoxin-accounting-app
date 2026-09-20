@@ -154,14 +154,42 @@
     .top{padding:8px 12px}
     .tabs button{padding:6px 10px;font-size:13px}
     .sec-h h2{font-size:17px}
-    /* 手機：登出收到 LOGO 那一排，不要自己佔掉一整行 */
-    .side{display:flex;flex-wrap:wrap;align-items:center}
-    .side .brand{order:1;flex:1 1 auto;padding-bottom:0}
-    #acctBox{order:2;width:auto;padding:0!important;margin:0;border-top:0!important}
-    #acctBox .btn{width:auto!important;padding:5px 10px;font-size:12.5px}
-    .nav{order:3;width:100%}
-    #orgSwitchWrap{order:4;width:100%}
-    .side .foot{order:5;width:100%}
+
+    /* ── 手機版面 ──────────────────────────────────────────────────────
+       螢幕就這麼小，原則是：一排只放必要的東西、不要橫向捲、不要重疊。
+       公司名稱那一排右上角放登出，不另外佔一行。 */
+    html,body{max-width:100%;overflow-x:hidden}
+    *{min-width:0}
+    .side{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}
+    .side .brand{order:1;flex:1 1 auto;min-width:0;padding:2px 0 2px 2px}
+    .side .brand b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+    #acctBox{order:2;flex:0 0 auto;width:auto!important;padding:0!important;margin:0!important;border-top:0!important}
+    #acctBox .btn{width:auto!important;padding:4px 9px;font-size:12px;white-space:nowrap}
+    .nav{order:3;flex:0 0 100%;width:100%;display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .nav::-webkit-scrollbar{display:none}
+    .nav button{flex:0 0 auto}
+    #orgSwitchWrap{order:4;flex:0 0 100%;width:100%}
+    .side .foot{order:5;flex:0 0 100%;width:100%}
+
+    /* 標題列：期別與字軌在手機上沒必要一直佔位置，收起來 */
+    .top{padding:8px 12px;gap:8px}
+    .period .pill{display:none}
+    .period{margin-left:auto;gap:6px}
+
+    /* 快速作業在手機上只留最常用的三個，其餘靠「我的最愛」自己釘 */
+    #quickBar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-top:6px;margin-top:6px}
+    #quickBar::-webkit-scrollbar{display:none}
+    #quickBar > *{flex:0 0 auto}
+    #quickBar .qb-more{display:none}
+
+    /* 表單一律單欄，避免日期與下拉擠在一起互相重疊 */
+    .frow{grid-template-columns:1fr!important;gap:10px}
+    .fld input,.fld select,.fld textarea{width:100%;box-sizing:border-box;max-width:100%}
+
+    /* 分頁列可橫向滑動，不要擠成兩三行 */
+    .tabs,.settabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+    .tabs::-webkit-scrollbar,.settabs::-webkit-scrollbar{display:none}
+    .tabs button,.settabs .stab{flex:0 0 auto}
     .ovl{align-items:flex-start;padding:14px 12px 28px}
     #fbModal{align-items:flex-start!important;padding:14px 12px 28px!important}
     .modal{padding:18px}
@@ -243,7 +271,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.18.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.19.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -469,7 +497,22 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 
       <!-- VOUCHER -->
       <section class="view" id="v-voucher">
-        <div class="sec-h"><h2>傳票</h2><span class="muted">每張憑證自動產生借貸分錄</span><span class="sp"></span><button class="btn ghost sm" onclick="window.print()">🖨 列印</button></div>
+        <div class="sec-h"><h2>傳票</h2><span class="muted">每張憑證自動產生借貸分錄 · 最新的在最上面</span><span class="sp"></span><button class="btn ghost sm" onclick="window.print()">🖨 列印</button></div>
+        <div class="card" style="margin-bottom:12px">
+          <div class="frow">
+            <div class="fld" style="margin:0"><label style="font-size:11.5px">起</label><input type="date" id="v_from" onchange="renderVouchers()"></div>
+            <div class="fld" style="margin:0"><label style="font-size:11.5px">迄</label><input type="date" id="v_to" onchange="renderVouchers()"></div>
+            <div class="fld" style="margin:0"><label style="font-size:11.5px">關鍵字（傳票號碼／廠商／客戶／品名）</label><input id="v_q" placeholder="例：V003、中油、文具" oninput="renderVouchers()"></div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;align-items:center">
+            <span style="font-size:11.5px;color:var(--ink-3)">快速切換</span>
+            <button class="btn ghost sm" onclick="vRange('m')">本月</button>
+            <button class="btn ghost sm" onclick="vRange('p')">本期</button>
+            <button class="btn ghost sm" onclick="vRange('y')">今年</button>
+            <button class="btn ghost sm" onclick="vRange('all')">全部</button>
+            <span id="vCount" style="font-size:12px;color:var(--ink-3);margin-left:auto"></span>
+          </div>
+        </div>
         <div id="vList"></div>
       </section>
 
@@ -1072,7 +1115,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.18.1";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.19.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1152,11 +1195,13 @@ function toggleFav(v){
 }
 function renderQuickBar(){
   const el=$("#quickBar"); if(!el) return;
-  const btn=(v,label,icon,hint,fav)=>`<button class="btn ghost sm" title="${esc(hint||label)}" onclick="goView('${v}')" style="padding:5px 10px;font-size:12.5px;white-space:nowrap">${icon} ${esc(label)}${fav?'<span style="color:var(--accent-ink,#b8860b);margin-left:3px">★</span>':''}</button>`;
+  // 手機上只留前三個最常用的（其餘標成 qb-more，由 CSS 收起來），
+  // 使用者想要別的可以自己「釘到快速列」。
+  const btn=(v,label,icon,hint,fav,more)=>`<button class="btn ghost sm${more?" qb-more":""}" title="${esc(hint||label)}" onclick="goView('${v}')" style="padding:5px 10px;font-size:12.5px;white-space:nowrap">${icon} ${esc(label)}${fav?'<span style="color:var(--accent-ink,#b8860b);margin-left:3px">★</span>':''}</button>`;
   // 快速列不可以繞過功能權限：選單看不到的，這裡也不能給
   const allowed=v=>{try{return visibleItems(groupOf(v)).indexOf(v)>=0;}catch(e){return true;}};
   let h='<span style="font-size:11.5px;color:var(--ink-3);white-space:nowrap">快速作業</span>';
-  h+=QUICK.filter(q=>allowed(q.v)).map(q=>btn(q.v,q.label,q.icon,q.hint,false)).join("");
+  h+=QUICK.filter(q=>allowed(q.v)).map((q,i)=>btn(q.v,q.label,q.icon,q.hint,false,i>=3)).join("");
   const f=favs().filter(v=>TITLES[v]&&allowed(v));
   if(f.length){
     h+='<span style="width:1px;height:18px;background:var(--border);margin:0 4px"></span>';
@@ -2016,8 +2061,43 @@ function renderSale(){const b=$("#sBody");
     <td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.net)||0)}</s>`:fmt(s.net)}</td><td class="r num">${s.void?`<s>${fmt((s.voidOrig&&s.voidOrig.tax)||0)}</s>`:fmt(s.tax)}</td><td class="r" style="white-space:nowrap"><button class="del" onclick="voidSale('${s.id}')" title="${s.void?'取消作廢':'作廢'}" style="color:var(--danger)">⊘</button><button class="del" onclick="editSale('${s.id}')" title="編輯" style="color:var(--accent-ink)">✎</button><button class="del" onclick="del('sale','${s.id}')" title="刪除">✕</button></td></tr>`).join(""):`<tr><td colspan="7" class="empty">尚無銷項。用上方表單開立，字軌自動帶號。</td></tr>`;
   $("#sSum").textContent=`合計(全部·不含作廢) 銷售額 ${fmt(db.sale.filter(x=>!x.void).reduce((a,x)=>a+x.net,0))} · 稅額 ${fmt(db.sale.filter(x=>!x.void).reduce((a,x)=>a+x.tax,0))}`;}
 
-function renderVouchers(){const vs=allEntries();const el=$("#vList");
-  if(!vs.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">新增進項或銷項後自動產生傳票。</div>`;return;}
+// 快速切換區間
+function vRange(kind){
+  const f=$("#v_from"),t=$("#v_to"); if(!f||!t)return;
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  const iso=d=>d.toISOString().slice(0,10);
+  if(kind==="all"){f.value="";t.value="";}
+  else if(kind==="m"){f.value=iso(new Date(y,m,1));t.value=iso(new Date(y,m+1,0));}
+  else if(kind==="y"){f.value=y+"-01-01";t.value=y+"-12-31";}
+  else if(kind==="p"){ // 本期＝營業稅期別的兩個月
+    const s2=(m%2===0)?m:m-1; f.value=iso(new Date(y,s2,1)); t.value=iso(new Date(y,s2+2,0));
+  }
+  renderVouchers();
+}
+function renderVouchers(){
+  const el=$("#vList"); if(!el)return;
+  const f=$("#v_from"),t=$("#v_to"),q=$("#v_q");
+  // 預設只看本月：帳久了傳票會很多，一進來就滑不完
+  if(f&&t&&!f.dataset.init){ f.dataset.init="1";
+    const now=new Date(),y=now.getFullYear(),m=now.getMonth();
+    const iso=d=>d.toISOString().slice(0,10);
+    if(!f.value)f.value=iso(new Date(y,m,1));
+    if(!t.value)t.value=iso(new Date(y,m+1,0));
+  }
+  const from=(f&&f.value)||"",to=(t&&t.value)||"",kw=((q&&q.value)||"").trim().toLowerCase();
+  let vs=allEntries().filter(v=>{
+    if(v.no==="OB")return !from;                       // 期初只在「全部」時顯示
+    const d=v.date||"";
+    if(from&&d&&d<from)return false;
+    if(to&&d&&d>to)return false;
+    if(kw){ const hay=((v.no||"")+" "+(v.memo||"")+" "+v.lines.map(l=>l.acct).join(" ")).toLowerCase();
+      if(hay.indexOf(kw)<0)return false; }
+    return true;
+  });
+  // 新的排最上面，不用一直往下滑
+  vs=vs.slice().sort((a,b)=>(b.date||"").localeCompare(a.date||"")||(b.no||"").localeCompare(a.no||""));
+  const cnt=$("#vCount"); if(cnt)cnt.textContent=vs.length?("顯示 "+vs.length+" 張"+(from||to?"（"+(from||"不限")+" ～ "+(to||"不限")+"）":"")):"";
+  if(!vs.length){el.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">${allEntries().length?"這個條件下沒有傳票，換個期間或按「全部」看看。":"新增進項或銷項後自動產生傳票。"}</div>`;return;}
   el.innerHTML=vs.map(v=>{const dt=v.lines.reduce((a,l)=>a+l.debit,0),ct=v.lines.reduce((a,l)=>a+l.credit,0);
     return `<div class="vch"><div class="vh"><span class="vno">${v.no}</span><span class="num">${v.date||"—"}</span><span style="color:var(--ink-3)">${esc(v.memo)}</span>${v.srcType?`<button class="del" onclick="editVoucher('${v.srcType}','${v.srcId}')" title="編輯來源" style="color:var(--accent-ink);margin-left:auto">✎</button>`:""}</div>
     <table><thead><tr><th>會計科目</th><th class="r">借方</th><th class="r">貸方</th></tr></thead>
@@ -4368,6 +4448,24 @@ function syncInvField(){
   if(!need){const i=$("#p_inv");if(i)i.value="";}
 }
 (function(){const d=$("#p_ded");if(d)d.addEventListener("change",syncInvField);})();
+// 勾「交際應酬」或「員工福利」＝使用者已經明確說了這筆的性質，
+// 費用科目就該跟著跳過去，不要讓人再自己去下拉找（AI 先前可能猜成別的）。
+function applyFlagAcct(flagId,acct){
+  const f=$("#"+flagId),sel=$("#p_acct");
+  if(!f||!sel||!f.checked)return;
+  if(typeof fillPAcctSel==="function")fillPAcctSel();
+  const hit=[...sel.options].find(o=>o.value===acct||o.text===acct);
+  if(hit&&sel.value!==acct){
+    sel.value=hit.value;
+    const t=$("#p_dedHint");
+    if(t){t.style.display="block";
+      t.innerHTML='🔁 已把費用科目改成「<b>'+esc(acct)+'</b>」（因為你勾了'+(flagId==="p_ent"?"交際應酬":"員工福利")+'）。'+(t.innerHTML?"<br>"+t.innerHTML:"");}
+  }
+}
+(function(){
+  const e=$("#p_ent");if(e)e.addEventListener("change",()=>applyFlagAcct("p_ent","交際費"));
+  const m=$("#p_emp");if(m)m.addEventListener("change",()=>applyFlagAcct("p_emp","職工福利"));
+})();
 // 表單預設就是「可扣抵」，一載入就要把發票號碼欄顯示出來，
 // 不能等使用者切換下拉才出現，否則送出被擋卻找不到欄位可填。
 try{syncInvField();}catch(e){}
@@ -4435,6 +4533,24 @@ function delProject(id){if(!confirm("刪除此專案？（已標記的交易會�
   const pp=$("#pl_proj");if(pp)pp.addEventListener("change",renderPL);})();
 
 /* ===== 掃發票QR + 拍照憑證 ===== */
+// 由統編查賣方名稱。公司行號在「公司名稱」，分公司與加油站這類營業人
+// 則在「財政部 → 營業人名稱」底下，只讀前者會查不到（實測 10162361 就是這種）。
+async function fillSellerName(uni,force){
+  const el=$("#p_name"); if(!el)return "";
+  if(el.value&&!force)return el.value;
+  const u=String(uni||"").replace(/\D/g,"");
+  if(!/^\d{8}$/.test(u))return "";
+  try{
+    const g=await fetch("https://company.g0v.ronny.tw/api/show/"+u).then(x=>x.json());
+    const d=(g&&g.data)||{};
+    const mof=d["財政部"]||{};
+    const nm=d["公司名稱"]||d["名稱"]||mof["營業人名稱"]||d["商業名稱"]||"";
+    if(nm){ el.value=String(nm).slice(0,60); return el.value; }
+  }catch(_){}
+  return "";
+}
+// 手動輸入統編後離開欄位，也自動幫忙查名稱，不用自己打
+(function(){ const u=$("#p_uni"); if(u)u.addEventListener("blur",()=>{ fillSellerName(u.value); }); })();
 function parseEinvQR(t){
   t=String(t||"").trim();
   if(t.length<50)return null;
@@ -4480,10 +4596,22 @@ async function scanInvoiceQR(){
       inp.onchange=async()=>{alert("這台裝置無法即時掃碼（也載不到備援掃碼元件），已改為拍照存檔，金額請手動輸入。");attachReceiptPhoto(inp);};inp.click();return;}
   }
   const ovl=document.createElement("div");ovl.style.cssText="position:fixed;inset:0;background:#000;z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center";
-  ovl.innerHTML='<video autoplay playsinline style="max-width:96vw;max-height:70vh;border-radius:12px"></video><p style="color:#fff;margin:14px;font-size:14px">對準發票<b>左側</b>那個 QR Code（右邊那個不是）<br><span id="qrTip" style="opacity:.7;font-size:12px">掃描中…</span></p><button class="btn" style="background:#fff">取消</button>';
+  ovl.innerHTML='<video autoplay playsinline style="max-width:96vw;max-height:62vh;border-radius:12px"></video>'
+    +'<p style="color:#fff;margin:12px 14px 6px;font-size:14px;text-align:center;line-height:1.7">對準發票<b>左側</b>那個 QR Code（右邊那個不是）<br><span id="qrTip" style="opacity:.75;font-size:12px">掃描中…</span></p>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:0 14px 8px">'
+    +'<button id="qrCancel" style="background:#fff;color:#0A1628;border:0;border-radius:12px;padding:12px 26px;font-size:16px;font-weight:700;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer">✕ 取消，回上一頁</button>'
+    +'<button id="qrManual" style="background:transparent;color:#fff;border:1px solid rgba(255,255,255,.6);border-radius:12px;padding:12px 20px;font-size:15px;cursor:pointer">掃不到？改用拍照</button>'
+    +'</div>'
+    +'<p style="color:#fff;opacity:.6;font-size:12px;margin:2px 14px 0;text-align:center">掃不到時：把發票攤平、光線充足、鏡頭離 QR 約 10～15 公分</p>';
   document.body.appendChild(ovl);
   const video=ovl.querySelector("video");let stream=null,stop=()=>{if(stream)stream.getTracks().forEach(t=>t.stop());ovl.remove();};
-  ovl.querySelector("button").onclick=stop;
+  ovl.querySelector("#qrCancel").onclick=stop;
+  ovl.querySelector("#qrManual").onclick=()=>{ stop();
+    const inp=document.createElement("input");inp.type="file";inp.accept="image/*";inp.capture="environment";
+    inp.onchange=()=>attachReceiptPhoto(inp);inp.click(); };
+  // 手機習慣按返回鍵／滑退，也要能關掉掃碼畫面
+  const esc=e=>{ if(e.key==="Escape"){stop();document.removeEventListener("keydown",esc);} };
+  document.addEventListener("keydown",esc);
   try{stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});video.srcObject=stream;}
   catch(e){stop();alert("無法開啟相機："+e.message);return;}
   const det=hasNative?new BarcodeDetector({formats:["qr_code"]}):null;
@@ -4507,7 +4635,7 @@ async function scanInvoiceQR(){
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if($("#p_inv"))$("#p_inv").value=r.no;
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
-          try{const g=await fetch("https://company.g0v.ronny.tw/api/show/"+r.seller).then(x=>x.json());const nm=g&&g.data&&(g.data["公司名稱"]||g.data["名稱"]);if(nm&&$("#p_name"))$("#p_name").value=String(nm).slice(0,60);}catch(_){}
+          await fillSellerName(r.seller);
           alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer===((db.company&&db.company.uni)||"")?"符合":"＝"+r.buyer+"，請確認")+"。");
           return;}}
     }catch(_){ }
