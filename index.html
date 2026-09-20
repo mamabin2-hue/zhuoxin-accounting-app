@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.17.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.18.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -264,6 +264,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <!-- DASH -->
       <section class="view on" id="v-dash">
         <div class="grid kpis" id="kpis"></div>
+        <div id="wzHint" style="display:none;margin-bottom:12px"></div>
         <div class="note" id="dashNote"></div>
         <div class="sec-h"><h2>本期憑證概況</h2></div>
         <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px" id="dashSplit"></div>
@@ -826,7 +827,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <p style="font-size:12px;color:var(--ink-3);margin-top:14px">依個資法您可隨時要求刪除帳號與資料：<a href="mailto:service@zhuohsin.com?subject=刪除帳號申請&body=請刪除我的帳號與全部資料。註冊Email：" style="color:var(--accent-ink)">申請刪除帳號</a>（7 個工作天內完成並通知）。</p>
         </div>
         <div class="setpane" id="set-company">
-        <div class="sec-h"><h2>公司資料</h2><span class="muted">用於存證發票、報表抬頭；開帳日供期初起算</span><span class="sp"></span><button class="btn ghost sm" type="button" onclick="$('#setupOvl').classList.add('on')">🚀 開帳精靈</button></div>
+        <div class="sec-h"><h2>公司資料</h2><span class="muted">用於存證發票、報表抬頭；開帳日供期初起算</span><span class="sp"></span><button class="btn ghost sm" type="button" onclick="openWizard()">🚀 開帳精靈</button></div>
         <form class="form" id="coForm">
           <div class="frow">
             <div class="fld"><label>統一編號</label><input id="co_uni" inputmode="numeric" placeholder="8 碼"></div>
@@ -1039,6 +1040,17 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 
 <button id="fbBtn" onclick="openFeedback()" title="問題回報" style="position:fixed;right:16px;bottom:16px;z-index:9000;background:#0A1628;color:#fff;border:0;border-radius:24px;padding:10px 16px;font-size:13px;box-shadow:0 6px 18px rgba(0,0,0,.25);cursor:pointer">💬 問題回報</button>
+<div id="wzModal" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(10,22,40,.55);align-items:flex-start;justify-content:center;padding:20px;overflow-y:auto">
+  <div style="background:var(--surface,#fff);border-radius:16px;max-width:680px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
+    <div style="display:flex;justify-content:space-between;align-items:center"><b id="wzTitle" style="font-size:16px">開帳精靈</b><button class="btn ghost sm" onclick="closeWizard()">✕</button></div>
+    <div id="wzBar" style="display:flex;gap:4px;margin:10px 0 16px"></div>
+    <div id="wzBody"></div>
+    <div class="actions" style="margin-top:16px;display:flex;gap:8px">
+      <button class="btn ghost sm" id="wzPrev" onclick="wzGo(_wzStep-1)">← 上一步</button>
+      <button class="btn sm" id="wzNext" onclick="wzGo(_wzStep+1)">下一步 →</button>
+    </div>
+  </div>
+</div>
 <div id="fbModal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(10,22,40,.5);align-items:center;justify-content:center;padding:20px;overflow-y:auto">
   <div style="background:var(--surface,#fff);border-radius:14px;max-width:440px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35)">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px"><b style="font-size:16px">💬 問題回報 / 建議</b><button class="btn ghost sm" onclick="closeFeedback()">✕</button></div>
@@ -1060,7 +1072,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.17.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.18.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1077,7 +1089,7 @@ const fmt=n=>Math.round(n).toLocaleString("en-US");
 const uid=()=>Math.random().toString(36).slice(2,9);
 const $=s=>document.querySelector(s);
 const esc=s=>(s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-let db={tracks:[],purchase:[],sale:[],settle:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
+let db={tracks:[],purchase:[],sale:[],settle:[],openAR:[],openAP:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[]};
 
 function load(){try{const r=localStorage.getItem(LS);if(r)db=Object.assign(db,JSON.parse(r));}catch(e){}
   db.tracks=dedupeTracks(db.tracks||[]);}
@@ -1338,7 +1350,16 @@ function openItems(kind){
       out.push({kind:kind,src:"p",id:x.id,date:x.date||"",who:x.name||"（未填廠商）",
         no:(x.note||"").replace(/📎\S+/g,"").split(";")[0].trim()||"—",item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
     });
+    (db.openAP||[]).forEach(x=>{
+      if(kind!=="ap")return;
+      out.push({kind:"ap",src:"o",id:x.id,date:x.date||((db.company||{}).openDate)||"",who:x.who||"（未填廠商）",
+        no:"期初",item:x.note||"開帳時既有的應付",total:+x.amount||0});
+    });
   }else{
+    (db.openAR||[]).forEach(x=>{
+      out.push({kind:"ar",src:"o",id:x.id,date:x.date||((db.company||{}).openDate)||"",who:x.who||"（未填客戶）",
+        no:"期初",item:x.note||"開帳時既有的應收",total:+x.amount||0});
+    });
     (db.sale||[]).filter(x=>!x.void&&x.pay===AR_ACCT).forEach(x=>{
       out.push({kind:"ar",src:"s",id:x.id,date:x.date||"",who:x.name||"（未填客戶）",
         no:invStr(x.code,x.seq),item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
@@ -1746,11 +1767,223 @@ function accounts(){const set={};allEntries().forEach(v=>v.lines.forEach(l=>set[
   return Object.keys(set).sort((a,b)=>(ACCT_ORDER[a]||99)-(ACCT_ORDER[b]||99)||a.localeCompare(b));}
 
 /* render */
+
+/* ===== 智慧開帳精靈 =========================================================
+   給沒有會計底子的人用。全程用白話問，不出現借貸、科目這些字眼，
+   問完由系統換算成期初分錄，差額自動落在保留盈餘並說明那是什麼。
+   期初的應收應付是逐筆登錄對象的，所以開完帳就能直接在「應收應付」沖帳。 */
+let _wzStep=0, _wzData=null;
+const WZ_STEPS=["準備備份","公司基本資料","銀行帳戶","目前有多少錢、多少帳","確認完成"];
+function wzInit(){
+  const co=db.company||{};
+  _wzData={
+    uni:co.uni||"", name:co.name||"", addr:co.addr||"", tel:co.tel||"",
+    openDate:co.openDate||new Date().toISOString().slice(0,10),
+    banks:(db.banks||[]).map(b=>({name:b.name||b,amount:0})),
+    cash:0, ar:[], ap:[], equip:0, capital:0
+  };
+  if(!_wzData.banks.length)_wzData.banks=[{name:"",amount:0}];
+}
+function openWizard(){
+  if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法開帳。");return;}
+  wzInit(); _wzStep=0; $("#wzModal").style.display="flex"; renderWizard();
+}
+function closeWizard(){ const m=$("#wzModal"); if(m)m.style.display="none"; }
+function wzGo(n){
+  if(n>_wzStep && !wzValidate())return;
+  _wzStep=Math.max(0,Math.min(WZ_STEPS.length-1,n)); renderWizard();
+}
+function wzCollect(){
+  const g=id=>{const e=$("#"+id);return e?e.value:"";};
+  if(_wzStep===1){ _wzData.uni=g("wz_uni").trim(); _wzData.name=g("wz_name").trim();
+    _wzData.addr=g("wz_addr").trim(); _wzData.tel=g("wz_tel").trim(); _wzData.openDate=g("wz_open"); }
+  if(_wzStep===2){ _wzData.banks=[...document.querySelectorAll(".wz-bank")].map(r=>({
+      name:(r.querySelector(".wz-bn").value||"").trim(), amount:+(r.querySelector(".wz-ba").value||0)})); }
+  if(_wzStep===3){
+    _wzData.cash=+g("wz_cash")||0; _wzData.equip=+g("wz_equip")||0; _wzData.capital=+g("wz_capital")||0;
+    _wzData.ar=[...document.querySelectorAll(".wz-ar")].map(r=>({who:(r.querySelector(".wz-w").value||"").trim(),amount:+(r.querySelector(".wz-a").value||0)})).filter(x=>x.who||x.amount);
+    _wzData.ap=[...document.querySelectorAll(".wz-ap")].map(r=>({who:(r.querySelector(".wz-w").value||"").trim(),amount:+(r.querySelector(".wz-a").value||0)})).filter(x=>x.who||x.amount);
+  }
+}
+function wzValidate(){
+  wzCollect();
+  if(_wzStep===1){
+    if(!_wzData.name){alert("請填公司名稱。");return false;}
+    if(_wzData.uni&&!/^\d{8}$/.test(_wzData.uni)){alert("統一編號應為 8 位數字。");return false;}
+    if(!_wzData.openDate){alert("請選開帳日。這是「從哪一天開始記這本帳」，之前的事一律不入帳。");return false;}
+  }
+  return true;
+}
+function wzAddRow(kind){
+  wzCollect();
+  if(kind==="bank")_wzData.banks.push({name:"",amount:0});
+  if(kind==="ar")_wzData.ar.push({who:"",amount:0});
+  if(kind==="ap")_wzData.ap.push({who:"",amount:0});
+  renderWizard();
+}
+function wzDelRow(kind,i){
+  wzCollect();
+  if(kind==="bank")_wzData.banks.splice(i,1);
+  if(kind==="ar")_wzData.ar.splice(i,1);
+  if(kind==="ap")_wzData.ap.splice(i,1);
+  renderWizard();
+}
+function wzTotals(){
+  const d=_wzData;
+  const bank=(d.banks||[]).reduce((a,b)=>a+(+b.amount||0),0);
+  const ar=(d.ar||[]).reduce((a,x)=>a+(+x.amount||0),0);
+  const ap=(d.ap||[]).reduce((a,x)=>a+(+x.amount||0),0);
+  const assets=bank+(+d.cash||0)+ar+(+d.equip||0);
+  const liab=ap;
+  const cap=+d.capital||0;
+  const retained=assets-liab-cap;   // 差額＝以前賺的或賠的，落在保留盈餘
+  return {bank,ar,ap,assets,liab,cap,retained};
+}
+function renderWizard(){
+  const b=$("#wzBody"); if(!b)return;
+  const d=_wzData, t=wzTotals();
+  $("#wzTitle").textContent="開帳精靈　"+(_wzStep+1)+" / "+WZ_STEPS.length+"　"+WZ_STEPS[_wzStep];
+  $("#wzBar").innerHTML=WZ_STEPS.map((x,i)=>`<span style="flex:1;height:4px;border-radius:2px;background:${i<=_wzStep?"var(--accent-ink,#1f7a5c)":"var(--border)"}"></span>`).join("");
+  let h="";
+  if(_wzStep===0){
+    const age=(typeof backupAgeDays==="function")?backupAgeDays():null;
+    h=`<p style="font-size:14px;line-height:1.8">開帳之前先把備份準備好。帳一旦開始記，資料就是你的心血，先有備份再動手比較安心。</p>
+      <div class="card" style="margin:12px 0">
+        <div style="font-weight:700;margin-bottom:6px">${sbUser?"✅ 已登入雲端":"⚠️ 尚未登入雲端"}</div>
+        <div style="font-size:13px;color:var(--ink-2);line-height:1.7">${sbUser
+          ? "資料會即時加密同步到雲端資料庫，每天自動留一版，最新 60 版隨時可還原，每個月的月初、月中、月底另外永久保留。"
+          : "現在打的資料只存這台裝置，換手機或電腦看不到，也沒有雲端備份。<b>強烈建議先登入再開帳。</b>"}</div>
+      </div>
+      <div class="card">
+        <div style="font-weight:700;margin-bottom:6px">${age===null?"○ 還沒設定電腦備份檔（選用）":"✅ 電腦備份檔正常"}</div>
+        <div style="font-size:13px;color:var(--ink-2);line-height:1.7">這是額外的離線保險，設定一次之後每次存檔自動更新。可以現在設，也可以之後到「匯出／備份」再設。</div>
+        <div class="actions" style="margin-top:10px"><button class="btn ghost sm" onclick="closeWizard();goView('export')">前往設定備份</button></div>
+      </div>`;
+  }
+  if(_wzStep===1){
+    h=`<p style="font-size:14px;line-height:1.8">先填公司基本資料。<b>開帳日</b>是「從哪一天開始記這本帳」—— 這一天以前的交易一律不入帳，只用一筆期初餘額代表。</p>
+      <div class="frow"><div class="fld"><label>公司名稱 <span style="color:var(--danger)">*</span></label><input id="wz_name" value="${esc(d.name)}" placeholder="例：卓信人資整合有限公司"></div>
+        <div class="fld"><label>統一編號</label><input id="wz_uni" value="${esc(d.uni)}" maxlength="8" placeholder="8 位數字"></div></div>
+      <div class="frow"><div class="fld"><label>公司地址</label><input id="wz_addr" value="${esc(d.addr)}"></div>
+        <div class="fld"><label>電話</label><input id="wz_tel" value="${esc(d.tel)}"></div></div>
+      <div class="frow"><div class="fld"><label>開帳日 <span style="color:var(--danger)">*</span></label><input type="date" id="wz_open" value="${esc(d.openDate)}"><div style="font-size:11.5px;color:var(--ink-3);margin-top:3px">通常是公司成立日，或你決定開始用這套系統的那個月 1 號</div></div><div class="fld"></div></div>`;
+  }
+  if(_wzStep===2){
+    h=`<p style="font-size:14px;line-height:1.8">公司有哪些銀行帳戶？填銀行與分行就好，金額下一步再問。</p>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:10px">📷 拍存摺封面自動辨識的功能還在做，現在請手動填。</div>`
+      +d.banks.map((bk,i)=>`<div class="frow wz-bank" style="margin-bottom:8px">
+        <div class="fld" style="flex:2"><label>銀行／分行</label><input class="wz-bn" value="${esc(bk.name)}" placeholder="例：玉山銀行 台南分行"></div>
+        <input type="hidden" class="wz-ba" value="${+bk.amount||0}">
+        <div style="display:flex;align-items:flex-end"><button class="btn ghost sm" onclick="wzDelRow('bank',${i})" ${d.banks.length<2?'disabled':''}>移除</button></div>
+      </div>`).join("")
+      +`<button class="btn ghost sm" onclick="wzAddRow('bank')">＋ 再加一個帳戶</button>`;
+  }
+  if(_wzStep===3){
+    h=`<p style="font-size:14px;line-height:1.8">用白話問幾個問題，系統會自動換算成會計該有的樣子。<b>開帳日那天</b>的狀況就好。</p>
+      <div class="card" style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:8px">① 公司帳戶裡各有多少錢？</div>`
+      +d.banks.filter(x=>x.name).map((bk,i)=>`<div class="frow wz-bank" style="margin-bottom:6px">
+        <input type="hidden" class="wz-bn" value="${esc(bk.name)}">
+        <div class="fld"><label>${esc(bk.name)}</label><input type="number" class="wz-ba" value="${+bk.amount||0}"></div></div>`).join("")
+      +`<div class="fld"><label>公司手邊的現金</label><input type="number" id="wz_cash" value="${+d.cash||0}"></div></div>
+
+      <div class="card" style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">② 有沒有客戶還沒付你錢？</div>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:8px">逐筆填，開完帳這些會出現在「應收應付」，收到錢直接在那裡沖掉。</div>`
+      +(d.ar.length?d.ar:[{who:"",amount:0}]).map((x,i)=>`<div class="frow wz-ar" style="margin-bottom:6px">
+        <div class="fld" style="flex:2"><label>客戶</label><input class="wz-w" value="${esc(x.who)}" placeholder="客戶名稱"></div>
+        <div class="fld"><label>還沒收的金額</label><input type="number" class="wz-a" value="${+x.amount||0}"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn ghost sm" onclick="wzDelRow('ar',${i})">移除</button></div></div>`).join("")
+      +`<button class="btn ghost sm" onclick="wzAddRow('ar')">＋ 再加一筆</button></div>
+
+      <div class="card" style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">③ 有沒有還沒付給廠商的？</div>
+      <div style="font-size:12.5px;color:var(--ink-3);margin-bottom:8px">同樣逐筆填，付款時在「應收應付」沖掉。</div>`
+      +(d.ap.length?d.ap:[{who:"",amount:0}]).map((x,i)=>`<div class="frow wz-ap" style="margin-bottom:6px">
+        <div class="fld" style="flex:2"><label>廠商</label><input class="wz-w" value="${esc(x.who)}" placeholder="廠商名稱"></div>
+        <div class="fld"><label>還沒付的金額</label><input type="number" class="wz-a" value="${+x.amount||0}"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn ghost sm" onclick="wzDelRow('ap',${i})">移除</button></div></div>`).join("")
+      +`<button class="btn ghost sm" onclick="wzAddRow('ap')">＋ 再加一筆</button></div>
+
+      <div class="card"><div style="font-weight:700;margin-bottom:8px">④ 其他</div>
+        <div class="frow">
+          <div class="fld"><label>買過的設備、電腦等值多少</label><input type="number" id="wz_equip" value="${+d.equip||0}"><div style="font-size:11.5px;color:var(--ink-3);margin-top:3px">用現在還值多少估就好，之後可到「固定資產」設折舊</div></div>
+          <div class="fld"><label>老闆投入的資本額</label><input type="number" id="wz_capital" value="${+d.capital||0}"><div style="font-size:11.5px;color:var(--ink-3);margin-top:3px">公司登記的資本額</div></div>
+        </div></div>`;
+  }
+  if(_wzStep===4){
+    const r=t.retained;
+    h=`<p style="font-size:14px;line-height:1.8">這是系統依你填的內容換算出來的開帳狀態。確認沒問題就按下面的按鈕寫進帳本。</p>
+      <div class="twrap"><div class="tscroll"><table style="font-size:13.5px">
+        <thead><tr><th>項目</th><th class="r">金額</th></tr></thead><tbody>
+        ${(d.banks||[]).filter(x=>x.name&&x.amount).map(x=>`<tr><td>銀行存款－${esc(x.name)}</td><td class="r num">${fmt(x.amount)}</td></tr>`).join("")}
+        ${d.cash?`<tr><td>現金</td><td class="r num">${fmt(d.cash)}</td></tr>`:""}
+        ${t.ar?`<tr><td>應收帳款（${d.ar.length} 位客戶）</td><td class="r num">${fmt(t.ar)}</td></tr>`:""}
+        ${d.equip?`<tr><td>生財設備</td><td class="r num">${fmt(d.equip)}</td></tr>`:""}
+        <tr style="font-weight:700;border-top:1px solid var(--border-strong)"><td>公司有的（資產）</td><td class="r num">${fmt(t.assets)}</td></tr>
+        ${t.ap?`<tr><td>應付帳款（${d.ap.length} 家廠商）</td><td class="r num">${fmt(t.ap)}</td></tr>`:""}
+        ${t.cap?`<tr><td>資本額</td><td class="r num">${fmt(t.cap)}</td></tr>`:""}
+        <tr><td>${r>=0?"以前累積賺的":"以前累積賠的"}（保留盈餘）</td><td class="r num" style="color:${r>=0?"var(--good)":"var(--danger)"}">${fmt(r)}</td></tr>
+        <tr style="font-weight:700;border-top:1px solid var(--border-strong)"><td>公司欠的＋股東的（負債＋權益）</td><td class="r num">${fmt(t.liab+t.cap+r)}</td></tr>
+        </tbody></table></div></div>
+      <div class="note" style="margin-top:12px"><span class="ok">✓ 借貸平衡</span>　資產 ${fmt(t.assets)} ＝ 負債 ${fmt(t.liab)} ＋ 權益 ${fmt(t.cap+r)}。
+        <br><span style="font-size:12.5px;color:var(--ink-2)">「保留盈餘」是系統自動算出來的差額，代表公司從成立到開帳日之間累積賺了或賠了多少。這個數字對不對不影響往後記帳，日後有正確數字再到「期初餘額」調整即可。</span></div>
+      <div class="actions" style="margin-top:14px"><button class="btn" onclick="wzFinish()">✔ 確認，寫進帳本</button></div>`;
+  }
+  b.innerHTML=h;
+  $("#wzPrev").style.display=_wzStep>0?"":"none";
+  $("#wzNext").style.display=_wzStep<WZ_STEPS.length-1?"":"none";
+}
+function wzFinish(){
+  wzCollect();
+  const d=_wzData,t=wzTotals();
+  if(!confirm("要把開帳資料寫進帳本嗎？\n\n寫入後仍可到「期初餘額」修改，不會鎖死。"))return;
+  try{
+    db.company=Object.assign({},db.company||{},{uni:d.uni,name:d.name,addr:d.addr,tel:d.tel,openDate:d.openDate});
+    // 銀行科目
+    db.banks=db.banks||[];
+    (d.banks||[]).filter(x=>x.name).forEach(x=>{ if(!db.banks.some(b=>(b.name||b)===x.name))db.banks.push({id:uid(),name:x.name}); });
+    // 期初：先清掉舊的自動產生列，再重建，避免重複開帳變兩倍
+    db.opening=(db.opening||[]).filter(o=>!o.byWizard);
+    const add=(acct,side,amount)=>{ if(Math.round(amount)!==0)db.opening.push({id:uid(),acct,side,amount:Math.round(amount),byWizard:true}); };
+    (d.banks||[]).filter(x=>x.name&&x.amount).forEach(x=>add("銀行存款－"+x.name,"借",x.amount));
+    add("現金","借",d.cash);
+    add("生財設備","借",d.equip);
+    add("資本","貸",d.capital);
+    add("保留盈餘",t.retained>=0?"貸":"借",Math.abs(t.retained));
+    // 期初往來逐筆（總額由 openingEntries 自動加，這裡不再另外記期初列）
+    db.openAR=(d.ar||[]).filter(x=>x.who&&x.amount).map(x=>({id:uid(),who:x.who,date:d.openDate,amount:Math.round(x.amount),note:"開帳時既有"}));
+    db.openAP=(d.ap||[]).filter(x=>x.who&&x.amount).map(x=>({id:uid(),who:x.who,date:d.openDate,amount:Math.round(x.amount),note:"開帳時既有"}));
+    // 客戶／廠商名單也一併建起來
+    db.customers=db.customers||[];db.vendors=db.vendors||[];
+    (d.ar||[]).filter(x=>x.who).forEach(x=>{if(!db.customers.some(c=>c.name===x.who))db.customers.push({id:uid(),uni:"",name:x.who,addr:"",contact:"",phone:"",email:"",note:""});});
+    (d.ap||[]).filter(x=>x.who).forEach(x=>{if(!db.vendors.some(v=>v.name===x.who))db.vendors.push({id:uid(),uni:"",name:x.who,note:""});});
+    try{localStorage.setItem(LS+"_wizDone","1");}catch(e){}
+    save();closeWizard();
+    alert("✅ 開帳完成。\n\n接下來可以開始記帳了。還沒設定的項目（發票字軌、報稅設定）可以到「設定管理」補，系統會在需要時提醒你。");
+    goView("dash");
+  }catch(e){ alert("寫入失敗。\n"+plainError(e)); }
+}
 function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();try{renderAR();}catch(e){console.warn("AR",e);}try{renderQuickBar();renderFavStar();}catch(e){}renderBalance();
   renderJournalList();renderFund();try{renderCashForecast();}catch(e){}renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);const tt=$("#topTrack");if(tt)tt.textContent=t?t.code:"未設定";const tp=$("#topPeriod");if(tp)tp.textContent=curPeriod();syncSale();}
 
-function renderKpis(){const t=totals();const owe=t.payable>=0;
+function renderKpis(){
+  // 空帳本第一眼就給一條明路，不要讓人不知道從哪開始
+  try{
+    const hint=$("#wzHint");
+    if(hint){
+      const empty=((db.purchase||[]).length+(db.sale||[]).length+(db.journal||[]).length+(db.opening||[]).length)===0;
+      const done=localStorage.getItem(LS+"_wizDone")==="1";
+      if(empty&&!done){
+        hint.style.display="block";
+        hint.innerHTML=`<div class="card" style="border-color:var(--accent-ink)">
+          <div style="font-weight:700;font-size:15px;margin-bottom:6px">🚀 還沒開帳？先花三分鐘設定好</div>
+          <div style="font-size:13.5px;color:var(--ink-2);line-height:1.8">開帳精靈會用白話問幾個問題（帳戶裡有多少錢、誰還沒付你錢、你還欠誰），
+            系統自動換算成會計該有的樣子，不用懂借貸也能完成。填完的應收應付可以直接沖帳。</div>
+          <div class="actions" style="margin-top:10px"><button class="btn sm" onclick="openWizard()">開始開帳</button>
+          <button class="btn ghost sm" onclick="try{localStorage.setItem(LS+'_wizDone','1');}catch(e){};this.closest('#wzHint').style.display='none'">我自己來，不用提醒</button></div></div>`;
+      }else hint.style.display="none";
+    }
+  }catch(e){}
+  const t=totals();const owe=t.payable>=0;
   $("#kpis").innerHTML=`
     <div class="card kpi"><div class="lbl">▲ 銷項稅額</div><div class="val num">${fmt(t.salesTax)}<small> 元</small></div><div class="sub num">銷售額 ${fmt(t.salesNet)}</div></div>
     <div class="card kpi"><div class="lbl">▼ 進項可扣抵稅額</div><div class="val num">${fmt(t.inTaxDed)}<small> 元</small></div><div class="sub num">進項 ${fmt(t.inNet)}</div></div>
@@ -2675,8 +2908,17 @@ function classify(a){const _cu=(db.accountsCustom||[]).find(o=>o.name===a);if(_c
   if(/資本|股東|業主|權益|盈餘|公積/.test(a))return "權益";
   return "未分類";}
 
-function openingEntries(){const ops=db.opening||[];if(!ops.length)return [];
-  return [{no:"OB",date:"期初",memo:"期初餘額",lines:ops.map(o=>({acct:o.acct,debit:o.side==="借"?+o.amount||0:0,credit:o.side==="貸"?+o.amount||0:0}))}];}
+function openingEntries(){
+  const ops=db.opening||[];
+  const lines=ops.map(o=>({acct:o.acct,debit:o.side==="借"?+o.amount||0:0,credit:o.side==="貸"?+o.amount||0:0}));
+  // 期初的應收／應付是逐筆登錄對象與金額的，總額由系統自己加，
+  // 這樣它們才能出現在「應收應付」頁被沖帳，明細也才跟總帳對得起來。
+  const arSum=(db.openAR||[]).reduce((a,x)=>a+(+x.amount||0),0);
+  const apSum=(db.openAP||[]).reduce((a,x)=>a+(+x.amount||0),0);
+  if(arSum)lines.push({acct:AR_ACCT,debit:arSum,credit:0});
+  if(apSum)lines.push({acct:AP_ACCT,debit:0,credit:apSum});
+  if(!lines.length)return [];
+  return [{no:"OB",date:"期初",memo:"期初餘額",lines}];}
 function manualEntries(){return (db.journal||[]).map((j,i)=>({no:"J"+String(i+1).padStart(3,"0"),date:j.date,proj:j.proj||"",srcType:"j",srcId:j.id,memo:j.memo||"手動分錄",lines:(j.lines||[]).map(l=>({acct:l.acct,debit:+l.debit||0,credit:+l.credit||0}))}));}
 function flowEntries(){return [...vouchersFor(),...manualEntries()];}
 function allEntries(){const mid=[...vouchersFor(),...manualEntries(),...settleEntries()].sort((a,b)=>(a.date||"").localeCompare(b.date||""));return [...openingEntries(),...mid];}
@@ -3088,7 +3330,7 @@ function drawCashChart(P){
 /* org_settings 舊環境沒有 filing_json 欄位時的判斷 */
 function _colMissing(e){const c=String(e&&e.code||""),m=String(e&&e.message||"");
   return c==="42703"||c==="PGRST204"||/filing_json/.test(m);}
-const DBDEF=()=>({tracks:[],purchase:[],sale:[],settle:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],recurs:[],deleted:[]});
+const DBDEF=()=>({tracks:[],purchase:[],sale:[],settle:[],openAR:[],openAP:[],prevCredit:0,journal:[],opening:[],accountsCustom:[],banks:[],vendors:[],customers:[],projects:[],settings:{autoAddVendor:true},petty:[],pettyCfg:{amount:0,keeper:""},payreq:[],jtpl:[],assets:[],recurs:[],deleted:[]});
 function autoAddVendorOn(){return !(db.settings&&db.settings.autoAddVendor===false);}
 function dataScore(d){if(!d)return 0;return (d.purchase&&d.purchase.length||0)+(d.sale&&d.sale.length||0)+(d.journal&&d.journal.length||0)+(d.opening&&d.opening.length||0)+(d.banks&&d.banks.length||0)+(d.accountsCustom&&d.accountsCustom.length||0)+(d.petty&&d.petty.length||0)+(d.vendors&&d.vendors.length||0)+(d.customers&&d.customers.length||0);}
 /* 聯集合併:以 id 去重,雲端(a)優先、保留本機獨有(b),永不互相覆蓋丟資料 */
@@ -3352,7 +3594,7 @@ async function opsSet(id,field,val){
   if(error){alert("操作失敗。\n"+plainError(error));return;}
   loadOps();}
 async function delMember(id){if(!confirm("移除此成員？對方將無法再存取本帳。"))return;try{await sb.from("members").delete().eq("id",id);}catch(e){}loadMembers();}
-function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});db.tracks=dedupeTracks(db.tracks||[]);if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];if(!Array.isArray(db.settle))db.settle=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
+function adopt(obj){try{const prev=localStorage.getItem(LS);const nxt=JSON.stringify(Object.assign(DBDEF(),obj||{}));if(prev&&prev!==nxt)localStorage.setItem(LS+"_presync",prev);}catch(e){}db=Object.assign(DBDEF(),obj||{});db.tracks=dedupeTracks(db.tracks||[]);if(!Array.isArray(db.journal))db.journal=[];if(!Array.isArray(db.opening))db.opening=[];if(!Array.isArray(db.settle))db.settle=[];if(!Array.isArray(db.openAR))db.openAR=[];if(!Array.isArray(db.openAP))db.openAP=[];localStorage.setItem(LS,JSON.stringify(db));renderAll();}
 function cloudDot(cls,txt){const b=$("#cloudBtn");if(!b)return;b.innerHTML=`<span class="cloud-dot ${cls}"></span>${txt}`;}
 function setCloud(state,msg){
   if(state==="in"){cloudDot("on","已同步");}
@@ -3528,6 +3770,12 @@ let bookOrgId=null,_lastSync=null,useTables=false,_syncTimer=null,_lastBlobPush=
 const TBL={
  purchase:{t:"purchases",to:o=>({date:o.date||null,type:o.type||null,uni:o.uni||null,name:o.name||null,item:o.item||null,cat:o.cat||null,acct:o.acct||null,net:+o.net||0,tax:+o.tax||0,ded:!!o.ded,s36:!!o.s36,pay:o.pay||null,proj:o.proj||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,date:r.date||"",type:r.type||"",uni:r.uni||"",name:r.name||"",item:r.item||"",cat:r.cat||"費用",acct:r.acct||"",net:+r.net||0,tax:+r.tax||0,ded:!!r.ded,s36:!!r.s36,pay:r.pay||"",proj:r.proj||"",note:r.note||""})},
+ openAR:{t:"opening_ar",
+  to:o=>({who:o.who||null,date:o.date||null,amount:+o.amount||0,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,who:r.who||"",date:r.date||"",amount:+r.amount||0,note:r.note||""})},
+ openAP:{t:"opening_ap",
+  to:o=>({who:o.who||null,date:o.date||null,amount:+o.amount||0,note:o.note||null}),
+  from:r=>({id:r.legacy_id||r.id,who:r.who||"",date:r.date||"",amount:+r.amount||0,note:r.note||""})},
  settle:{t:"settlements",
   to:o=>({kind:o.kind||null,src:o.src||null,src_id:String(o.srcId||""),date:o.date||null,amount:+o.amount||0,pay:o.pay||null,who:o.who||null,note:o.note||null}),
   from:r=>({id:r.legacy_id||r.id,kind:r.kind||"ar",src:r.src||"s",srcId:r.src_id||"",date:r.date||"",amount:+r.amount||0,pay:r.pay||"",who:r.who||"",note:r.note||""})},
