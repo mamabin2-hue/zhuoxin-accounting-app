@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.15.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.16.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -485,6 +485,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <div class="tabs" style="margin-bottom:12px">
           <button id="arTabAR" class="on" onclick="arSetKind('ar')">應收帳款（客戶欠我們）</button>
           <button id="arTabAP" onclick="arSetKind('ap')">應付帳款（我們欠廠商）</button>
+          <button id="arTabCC" onclick="arSetKind('cc')">信用卡（月底一次繳）</button>
         </div>
         <div class="note" id="arHow" style="margin-bottom:12px;font-size:12.5px"></div>
         <div class="grid" id="arKpi" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:14px"></div>
@@ -835,6 +836,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <div class="frow" style="margin-top:12px">
             <div class="fld" style="grid-column:span 3"><label>公司地址</label><input id="co_addr" placeholder="例：臺北市中正區忠孝東路一段1號"></div>
             <div class="fld"><label>電話</label><input id="co_tel" placeholder="06-xxxxxxxx"></div>
+            <div class="fld"><label>課稅方式</label><select id="co_vat"><option value="pure">專營應稅（一般公司選這個）</option><option value="mixed">兼營免稅或零稅率</option></select><div style="font-size:11.5px;color:var(--ink-3);margin-top:3px">有利息收入、土地租金、醫療、外銷零稅率等免稅收入才選兼營</div></div>
           </div>
 
           <div class="frow" style="margin-top:12px">
@@ -1058,7 +1060,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.15.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.16.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1285,7 +1287,8 @@ function vouchersFor(){const out=[];let seq=1;
     if(r.k==="p"){const p=r.d;const acc=p.cat==="進貨"?"進貨":p.cat==="資產(設備)"?"生財設備":p.cat==="預付費用"?"預付費用":p.cat==="代墊款"?"應收帳款":p.cat==="業主提取"?"業主往來":(p.acct||"營業費用");const L=[];
       if(p.ded){L.push({acct:acc,debit:p.net,credit:0});L.push({acct:"進項稅額",debit:p.tax,credit:0});}
       else L.push({acct:acc,debit:p.net+p.tax,credit:0});
-      const pay=p.pay==="信用卡"?"應付帳款":p.pay;L.push({acct:pay,debit:0,credit:p.net+p.tax});
+      // 刷卡不是欠廠商錢，是欠發卡銀行；記到獨立的「信用卡」科目，月底一次結清
+      const pay=p.pay;L.push({acct:pay,debit:0,credit:p.net+p.tax});
       out.push({no,date:p.date,proj:p.proj||"",srcType:"p",srcId:p.id,memo:`進項 · ${p.name||"—"} ${p.item||""}`.trim(),lines:L});
     }else{const s=r.d;out.push({no,date:s.date,proj:s.proj||"",srcType:"s",srcId:s.id,memo:`銷項 · ${invStr(s.code,s.seq)} ${s.name||""}`.trim(),
       lines:[{acct:s.pay,debit:s.net+s.tax,credit:0},{acct:"銷貨收入",debit:0,credit:s.net},{acct:"銷項稅額",debit:0,credit:s.tax}]});}});
@@ -1295,11 +1298,17 @@ function vouchersFor(){const out=[];let seq=1;
    結構上沿用既有傳票機制：沖帳只是再產生一張傳票，
    所以餘額表、分類帳、資產負債表全部自動跟著變，不會有第二套數字。
    應收＝銷項憑證的收款方式選「應收帳款」；應付＝進項憑證選「應付帳款」或「信用卡」。 */
-const AR_ACCT="應收帳款", AP_ACCT="應付帳款";
+const AR_ACCT="應收帳款", AP_ACCT="應付帳款", CC_ACCT="信用卡";
+// 刷卡的進項掛「信用卡」、賒帳的掛「應付帳款」。依來源憑證判斷，舊沖帳紀錄也會自動對到正確科目。
+function _apAcctOf(x){
+  if(x.kind==="cc")return CC_ACCT;
+  if(x.src==="p"){const p=(db.purchase||[]).find(y=>y.id===x.srcId);if(p&&p.pay==="信用卡")return CC_ACCT;}
+  return AP_ACCT;
+}
 function settleEntries(){
   return (db.settle||[]).filter(x=>!x.voided).map((x,i)=>{
     const no="S"+String(i+1).padStart(3,"0");
-    const acct=x.kind==="ap"?AP_ACCT:AR_ACCT;
+    const acct=(x.kind==="ar")?AR_ACCT:_apAcctOf(x);
     const cash=x.pay||"銀行存款";
     // 尾差：實際收到的錢比發票少（匯費、折讓、呆帳），差額要有去處，
     // 否則那筆永遠掛著結不掉。amount＝沖掉的帳款，fee＝尾差，實際現金＝amount−fee。
@@ -1320,9 +1329,10 @@ function settleEntries(){
 // 未結清項目：原始金額扣掉歷次沖帳
 function openItems(kind){
   const out=[];
-  if(kind==="ap"){
-    (db.purchase||[]).filter(x=>x.pay===AP_ACCT||x.pay==="信用卡").forEach(x=>{
-      out.push({kind:"ap",src:"p",id:x.id,date:x.date||"",who:x.name||"（未填廠商）",
+  if(kind==="ap"||kind==="cc"){
+    const want=(kind==="cc")?"信用卡":AP_ACCT;
+    (db.purchase||[]).filter(x=>x.pay===want).forEach(x=>{
+      out.push({kind:kind,src:"p",id:x.id,date:x.date||"",who:x.name||"（未填廠商）",
         no:(x.note||"").replace(/📎\S+/g,"").split(";")[0].trim()||"—",item:x.item||"",total:(+x.net||0)+(+x.tax||0)});
     });
   }else{
@@ -1395,7 +1405,7 @@ function renderArBatchBar(){
   const bar=$("#arBatchBar"); if(!bar)return;
   const list=openItems(_arKind).filter(o=>_arSel[o.id]);
   if(!list.length){ bar.style.display="none"; return; }
-  const isAP=_arKind==="ap";
+  const isAP=(_arKind==="ap"||_arKind==="cc");
   const sum=Math.round(list.reduce((a,o)=>a+o.left,0)*100)/100;
   let _pl=[];try{ if(typeof bankNames==="function")_pl=bankNames()||[]; }catch(e){}
   const payOpts=[...new Set([..._pl,"銀行存款","現金"])].map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join("");
@@ -1419,7 +1429,7 @@ function renderArBatchBar(){
 }
 function arBatch(){
   if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法沖帳。");return;}
-  const isAP=_arKind==="ap";
+  const isAP=(_arKind==="ap"||_arKind==="cc");
   const list=openItems(_arKind).filter(o=>_arSel[o.id]&&o.left>0).sort((a,b)=>(a.date||"").localeCompare(b.date||""));
   if(!list.length){alert("請先勾選要沖銷的項目。");return;}
   const date=($("#arB_d")||{}).value||todayStr();
@@ -1456,9 +1466,12 @@ function arBatch(){
 }
 function renderAR(){
   const body=$("#arBody");if(!body)return;
-  const isAP=_arKind==="ap";
-  const t1=$("#arTabAR"),t2=$("#arTabAP");
-  if(t1)t1.className=isAP?"":"on"; if(t2)t2.className=isAP?"on":"";
+  const isAP=(_arKind==="ap"||_arKind==="cc");
+  const isCC=(_arKind==="cc");
+  const t1=$("#arTabAR"),t2=$("#arTabAP"),t3=$("#arTabCC");
+  if(t1)t1.className=(_arKind==="ar")?"on":"";
+  if(t2)t2.className=(_arKind==="ap")?"on":"";
+  if(t3)t3.className=isCC?"on":"";
   const all=openItems(_arKind);
   const unpaid=all.filter(o=>Math.abs(o.left)>0.004);
   // 用久了已結清的會把畫面塞滿，預設只顯示還沒結清的
@@ -1474,11 +1487,13 @@ function renderAR(){
     +`<div class="card kpi"><div class="lbl">${isAP?"尚未付款":"尚未收款"}</div><div class="val num" style="color:${sumLeft>0?"var(--warn)":"var(--good)"}">${fmt(sumLeft)}<small> 元</small></div><div class="sub num">${unpaid.length} 筆未結清</div></div>`;
   // 「東西怎麼跑進來」這句話要一直看得到，不能只在清單全空時出現
   const howEl=$("#arHow");
-  if(howEl)howEl.innerHTML=`這裡只列出${isAP?"付款方式選「應付帳款」或「信用卡」的<b>進項憑證</b>":"收款方式選「應收帳款」的<b>銷項憑證</b>"}。`
-    +`${isAP?"進貨":"開發票"}時若選了現金或銀行存款，代表當場${isAP?"付清":"收訖"}，不會出現在這裡。`
+  if(howEl)howEl.innerHTML=(isCC
+      ? `這裡只列出付款方式選「<b>信用卡</b>」的進項憑證。刷卡不是當場付錢，是欠發卡銀行；月底繳卡費時<b>勾選整個月一次沖掉</b>即可。`
+      : `這裡只列出${isAP?"付款方式選「應付帳款」的<b>進項憑證</b>":"收款方式選「應收帳款」的<b>銷項憑證</b>"}。`
+        +`${isAP?"進貨":"開發票"}時若選了現金或銀行存款，代表當場${isAP?"付清":"收訖"}，不會出現在這裡。`)
     +`　<button class="btn ghost sm" style="padding:2px 8px;font-size:11.5px" onclick="arToggleDone()">${_arShowDone?"只看未結清":"顯示已結清（"+(all.length-unpaid.length)+"）"}</button>`;
   if(!list.length){
-    body.innerHTML=`<tr><td colspan="11" class="empty">${_arShowDone?("目前沒有"+(isAP?"應付":"應收")+"項目。"):"沒有未結清的項目 🎉"}</td></tr>`;
+    body.innerHTML=`<tr><td colspan="11" class="empty">${_arShowDone?("目前沒有"+(isCC?"信用卡":(isAP?"應付":"應收"))+"項目。"):"沒有未結清的項目 🎉"}</td></tr>`;
     const f=$("#arFoot");if(f)f.innerHTML="";
   }else{
   let _pl=[];try{ if(typeof bankNames==="function")_pl=bankNames()||[]; }catch(e){}
@@ -1534,7 +1549,7 @@ function renderAR(){
   if(f)f.innerHTML=`<tr><td colspan="5">合計 ${all.length} 筆</td><td class="r num">${fmt(sumTotal)}</td><td class="r num">${fmt(sumPaid)}</td><td class="r num" style="font-weight:800">${fmt(sumLeft)}</td><td colspan="3"></td></tr>`;
   // 明細與總帳要真的勾稽給使用者看，不能用一句話保證相等：
   // 期初餘額、代墊款進項、週期憑證、手動分錄都會打到應收／應付，但不會出現在這份清單。
-  const acctName=isAP?AP_ACCT:AR_ACCT;
+  const acctName=isCC?CC_ACCT:(isAP?AP_ACCT:AR_ACCT);
   let ledger=0; try{ const mm=balancesOf(allEntries()); ledger=isAP?-(mm[acctName]||0):(mm[acctName]||0); }catch(e){}
   const gap=Math.round((ledger-sumLeft)*100)/100;
   // 帳齡摘要：逾期滿兩年且經催收未收取者，才符合認列呆帳損失的條件
@@ -1810,6 +1825,12 @@ function renderTax(){
   // 在申報前就把它揪出來，不要等上傳被退件。
   try{
     const _P=taxPeriod||curPeriod();
+    if(typeof isMixedVat==="function"&&isMixedVat()){
+      const mw=$("#taxInvWarn");
+      if(mw){mw.style.display="block";mw.className="note";mw.style.borderColor="var(--danger)";
+        mw.innerHTML=`<span class="bad">⚠ 這本帳設定為「兼營免稅或零稅率」</span>　本頁的試算與媒體檔<b>不適用</b>於兼營營業人：兼營者的進項稅額必須依不得扣抵比例調整，本系統目前只支援專營應稅。<br>請改由記帳士、會計師或報稅軟體辦理申報。帳務記錄與財務報表功能不受影響。`;}
+      return;
+    }
     const bad=(db.purchase||[]).filter(x=>x.ded&&inPeriod(x.date,_P)&&!_mfInvFromNote(x));
     const w=$("#taxInvWarn");
     if(w){
@@ -2483,7 +2504,17 @@ function renderFilingCheck(){
     box.innerHTML='<div class="lawno">⚠️ <b>還缺以下資料，無法產生媒體檔：</b><br>· '+miss.join("<br>· ")+'</div>';
   }
 }
+function isMixedVat(){ return ((db.company||{}).vatMode||"pure")==="mixed"; }
 function exportTaxMedia(){
+  // 兼營免稅／零稅率的進項要按比例計算不得扣抵，本系統目前只支援專營應稅。
+  // 與其產出一份錯的申報檔，不如直接擋下並說清楚。
+  if(isMixedVat()){
+    alert("這本帳設定為「兼營免稅或零稅率」，本系統目前不支援兼營的申報計算。\n\n"
+      +"兼營營業人的進項稅額必須依不得扣抵比例調整，系統若直接全額扣抵會造成短漏報。\n"
+      +"請改由記帳士、會計師或報稅軟體辦理本期申報。\n\n"
+      +"（帳務記錄、傳票與財務報表功能不受影響，仍可正常使用。）");
+    return;
+  }
   if(typeof canFeature==="function"&&!canFeature("filing")){alert("「401 電子申報」功能尚未對您開啟。\n請管理者到「使用者管理」勾選此功能後再使用。");return;}
   var co=db.company||{}, fl=db.filing||{};
   var miss=filingReady();
@@ -2973,6 +3004,10 @@ function buildCashPlan(){
   openItems("ap").forEach(o=>{
     if(o.left<=0)return;
     ev.push({date:_dMax(_dAdd(o.date,apD),today), amt:-o.left, label:"應付・"+(o.who||"廠商")+(o.paid>0?"（未付部分）":""), type:"應付"});});
+  // 刷卡的未付款同樣是未來要流出的錢，不能因為換了科目就漏掉
+  openItems("cc").forEach(o=>{
+    if(o.left<=0)return;
+    ev.push({date:_dMax(_dAdd(o.date,apD),today), amt:-o.left, label:"信用卡・"+(o.who||"")+(o.paid>0?"（未付部分）":""), type:"應付"});});
   // 未付款的請款單
   (db.payreq||[]).filter(x=>x.status==="pending"||x.status==="approved").forEach(x=>{
     ev.push({date:_dMax(x.date||today,today), amt:-(+x.amount||0), label:"請款・"+(x.payee||""), type:"請款"});});
@@ -4380,7 +4415,8 @@ function editJournal(id){const j=(db.journal||[]).find(x=>x.id===id);if(!j)retur
 
 (function(){const t=$("#settabs");if(t)t.addEventListener("click",e=>{const b=e.target.closest(".stab");if(!b)return;t.querySelectorAll(".stab").forEach(x=>x.classList.toggle("on",x===b));document.querySelectorAll("#v-settings .setpane").forEach(p=>p.classList.toggle("on",p.id==="set-"+b.dataset.p));});})();
 /* ===== 公司資料 + 開帳精靈 ===== */
-function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
+function renderCompany(){const co=db.company||{};const set=(id,v)=>{const e=$("#"+id);if(e&&document.activeElement!==e)e.value=v||"";};set("co_uni",co.uni);set("co_name",co.name);set("co_addr",co.addr);set("co_tel",co.tel);set("co_open",co.openDate);
+  {const v=$("#co_vat");if(v&&document.activeElement!==v)v.value=co.vatMode||"pure";}const pv=document.getElementById("co_logoPreview");if(pv){if(co.logo){pv.src=co.logo;pv.style.display="";}else{pv.src="";pv.style.display="none";}}}
 function onbGo(view,settab){try{var o=document.getElementById("setupOvl");if(o)o.classList.remove("on");}catch(e){}
   try{goView(view);}catch(e){}
   if(view==="settings"&&settab){setTimeout(function(){var b=document.querySelector('#v-settings .stab[data-p="'+settab+'"]');if(b)b.click();},120);}
@@ -4402,7 +4438,7 @@ function maybeShowSetup(){if(typeof myRole!=="undefined"&&myRole&&myRole!=="owne
     db.filing.cert=$("#fl_cert").value;
     db.filing.prevCredit=($("#fl_credit").value||"").replace(/\D/g,"");
     save();renderFilingCheck();alert("已儲存報稅設定。");});
-  const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
+  const cf=$("#coForm");if(cf)cf.addEventListener("submit",e=>{e.preventDefault();if(!db.company)db.company={};db.company.uni=($("#co_uni").value||"").trim();db.company.name=($("#co_name").value||"").trim();db.company.addr=($("#co_addr").value||"").trim();db.company.tel=($("#co_tel").value||"").trim();db.company.vatMode=($("#co_vat")||{}).value||"pure";db.company.openDate=$("#co_open").value||"";save();alert("已儲存公司資料。");});
   const sg=$("#setupGo");if(sg)sg.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");const nb=document.querySelector('#nav button[data-v="settings"]');if(nb)nb.click();const cb=document.querySelector('#settabs .stab[data-p="company"]');if(cb)cb.click();});
   const ss=$("#setupSkip");if(ss)ss.addEventListener("click",()=>{$("#setupOvl").classList.remove("on");if(!db.company)db.company={};db.setupSkipped=true;save();});
 })();
