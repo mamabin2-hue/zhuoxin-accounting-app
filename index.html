@@ -265,13 +265,13 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <button data-g="tax"><span class="ic">％</span>稅務試算</button>
       <button data-g="law"><span class="ic">§</span>法令知識</button>
       <button data-g="setup"><span class="ic">⚙</span>設定管理</button>
-      <div id="navCompat" style="display:none"><button data-v="ar"></button><button data-v="wht"></button><button data-v="merge"></button><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
+      <div id="navCompat" style="display:none"><button data-v="ar"></button><button data-v="wht"></button><button data-v="recon"></button><button data-v="merge"></button><button data-v="dash"></button><button data-v="purchase"></button><button data-v="sale"></button><button data-v="voucher"></button><button data-v="journal"></button><button data-v="ledger"></button><button data-v="fund"></button><button data-v="petty"></button><button data-v="balance"></button><button data-v="pl"></button><button data-v="bs"></button><button data-v="tax"></button><button data-v="settings"></button><button data-v="export"></button><button data-v="users"></button><button data-v="ops"></button><button data-v="payreq"></button><button data-v="assets"></button><button data-v="law"></button><button data-v="recur"></button></div>
     </nav>
     <div id="orgSwitchWrap" style="display:none;padding:12px 14px 4px"><label style="font-size:11.5px;color:var(--ink-3);display:block;margin-bottom:4px">🏢 公司切換（需驗證）</label><select id="orgSwitch" onchange="switchOrg(this)" style="width:100%;font-size:13px;padding:6px 8px;border-radius:8px;border:1px solid var(--border)"></select></div>
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.22.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.23.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -293,6 +293,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       <section class="view on" id="v-dash">
         <div class="grid kpis" id="kpis"></div>
         <div id="wzHint" style="display:none;margin-bottom:12px"></div>
+        <div id="whtHint" style="display:none;margin-bottom:12px"></div>
         <div class="note" id="dashNote"></div>
         <div class="sec-h"><h2>本期憑證概況</h2></div>
         <div class="grid" style="grid-template-columns:1fr 1fr;gap:14px" id="dashSplit"></div>
@@ -548,6 +549,22 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
       </section>
 
       <!-- BALANCE -->
+      <section class="view" id="v-recon">
+        <div class="sec-h"><h2>銀行對帳</h2><span class="muted">拍存摺 · 自動驗算 · 缺漏會跳出來告訴你</span></div>
+        <div class="card" style="margin-bottom:12px">
+          <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end">
+            <div class="fld" style="margin:0;min-width:180px"><label style="font-size:11.5px">要對哪個帳戶</label><select id="rc_acct" onchange="renderRecon()"></select></div>
+            <div class="fld" style="margin:0"><label style="font-size:11.5px">從哪一天開始對</label><input type="date" id="rc_from" onchange="renderRecon()"><div style="font-size:11.5px;color:var(--ink-3);margin-top:3px">這天以前的存摺紀錄不處理</div></div>
+            <label class="btn sm" style="display:inline-block;cursor:pointer">📷 拍存摺內頁<input type="file" accept="image/*" capture="environment" style="display:none" onchange="reconPhoto(this)"></label>
+            <button class="btn ghost sm" onclick="reconAddRow()">⌨️ 手動加一列</button>
+            <button class="btn ghost sm" onclick="reconClear()">清空重來</button>
+          </div>
+          <div id="rc_status" style="font-size:12.5px;color:var(--ink-3);margin-top:8px"></div>
+        </div>
+        <div id="rc_check"></div>
+        <div id="rc_body"></div>
+      </section>
+
       <section class="view" id="v-wht">
         <div class="sec-h"><h2>各類所得清冊</h2><span class="muted">扣繳暨免扣繳憑單 · 次年 1 月底前申報</span><span class="sp"></span>
           <button class="btn ghost sm" onclick="window.print()">🖨 列印</button>
@@ -1158,7 +1175,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.22.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.23.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1184,10 +1201,10 @@ function save(){if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀
 load();
 
 /* nav */
-const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",petty:"零用金",cash:"資金預測",ar:"應收應付",balance:"餘額表",pl:"損益表",bs:"資產負債表",merge:"合併報表",tax:"401 試算",wht:"各類所得清冊",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
+const TITLES={dash:"總覽",purchase:"進項憑證",sale:"銷項憑證",voucher:"傳票",journal:"手動分錄",ledger:"分類帳",fund:"資金／銀行簿",recon:"銀行對帳",petty:"零用金",cash:"資金預測",ar:"應收應付",balance:"餘額表",pl:"損益表",bs:"資產負債表",merge:"合併報表",tax:"401 試算",wht:"各類所得清冊",settings:"設定",export:"匯出／備份",users:"使用者管理",ops:"營運後台",payreq:"請款單",assets:"固定資產",law:"法令知識",recur:"週期憑證"};
 const NAVGROUPS=[
   {g:"book",items:["dash","purchase","sale","petty","payreq","recur","journal"]},
-  {g:"report",items:["voucher","ledger","fund","cash","assets","ar","balance","pl","bs","merge"]},
+  {g:"report",items:["voucher","ledger","fund","recon","cash","assets","ar","balance","pl","bs","merge"]},
   {g:"tax",items:["tax","wht"]},
   {g:"law",items:["law"]},
   {g:"setup",items:["settings","export","users","ops"]}];
@@ -1278,7 +1295,7 @@ function goView(v){
   document.querySelectorAll(".view").forEach(function(sec){sec.classList.toggle("on",sec.id==="v-"+v);});
   const t=$("#topTitle");if(t)t.textContent=TITLES[v]||"";
   if(v==="users"){try{fillMemFeats();loadMembers();}catch(e){}}
-  if(v==="export"){try{renderBackupHealth();}catch(e){}}if(v==="merge"){try{renderMerge();}catch(e){console.warn("merge",e);}}if(v==="wht"){try{renderWht();}catch(e){console.warn("wht",e);}}if(v==="ops"){try{loadOps();}catch(e){}}
+  if(v==="export"){try{renderBackupHealth();}catch(e){}}if(v==="merge"){try{renderMerge();}catch(e){console.warn("merge",e);}}if(v==="wht"){try{renderWht();}catch(e){console.warn("wht",e);}}if(v==="recon"){try{renderRecon();}catch(e){console.warn("recon",e);}}if(v==="ops"){try{loadOps();}catch(e){}}
   try{renderFavStar();}catch(e){}
   window.scrollTo(0,0);}
 $("#nav").addEventListener("click",function(e){const b=e.target.closest("button");if(!b)return;
@@ -2144,11 +2161,232 @@ function exportWht(){
   const csv=[head,...rows].map(a=>a.map(v=>`"${String(v==null?"":v).replace(/"/g,'""')}"`).join(",")).join("\n");
   dl(new Date().toISOString().slice(0,10).replace(/-/g,"")+"001_各類所得清冊_"+y+".csv",csv,"csv");
 }
+
+/* ===== 銀行對帳 =========================================================
+   核心想法：存摺每一列都有「餘額」，那就是銀行給的答案。
+   只要驗算「前一列餘額 ＋ 存入 − 支出 ＝ 這一列餘額」，
+   對不上就代表中間有交易沒拍到或沒讀到 —— 這比相信 OCR 可靠得多，
+   也正是使用者擔心的「少了 30 萬、少了一筆利息」會被抓出來的機制。
+   對得上帳的標「已記過」不重複入帳；對不上的才建議科目讓人確認後寫分錄。 */
+let _rcRows=[];           // 存摺列（來源可能是拍照或手動）
+let _rcCarry="";          // 承前餘額
+function rcAcctList(){
+  const set=[...new Set([...bankNames(),"銀行存款",...accounts().filter(a=>/銀行|存款/.test(a))])];
+  return set.filter(Boolean);
+}
+// 民國 1150810 → 2026-08-10；也接受已經是西元的格式
+function rocToISO(v){
+  const t=String(v||"").replace(/\D/g,"");
+  if(/^\d{7}$/.test(t)){ const y=+t.slice(0,3)+1911; return y+"-"+t.slice(3,5)+"-"+t.slice(5,7); }
+  if(/^\d{8}$/.test(t)){ return t.slice(0,4)+"-"+t.slice(4,6)+"-"+t.slice(6,8); }
+  const m=String(v||"").match(/(\d{4})-(\d{2})-(\d{2})/); if(m)return m[0];
+  return "";
+}
+const RECON_RULES=[
+  [/勞保|勞退|健保|職災/,"勞健保費","付勞健保"],
+  [/利息/,"利息收入","銀行利息"],
+  [/手續費|匯費|跨行|跨轉手續/,"手續費支出","銀行手續費"],
+  [/稅|國稅局|稅捐/,"稅捐","繳稅"],
+  [/水電|台電|自來水/,"水電費","水電費"],
+  [/電信|中華電信|遠傳|台灣大/,"電信費","電信費"],
+  [/薪|薪資|薪轉/,"薪資支出","發薪"],
+  [/租/,"租金支出","房租"],
+  [/新開戶|存入資本|資本/,"業主往來","股東投入"]
+];
+function rcSuggest(row){
+  const txt=(row.memo||"")+" "+(row.party||"");
+  for(const [re,acct,memo] of RECON_RULES) if(re.test(txt)) return {acct,memo};
+  // 對方是人名（2～4 個中文字、非機構）多半是股東往來
+  if(/^[一-龥]{2,4}$/.test((row.party||"").trim())) return {acct:"業主往來",memo:"與"+row.party.trim()+"往來"};
+  return {acct:"", memo:(row.memo||row.party||"銀行交易")};
+}
+function reconClear(){ _rcRows=[]; _rcCarry=""; renderRecon(); }
+function reconAddRow(){
+  _rcRows.push({date:"",memo:"",party:"",out:0,inn:0,bal:"",manual:true});
+  renderRecon(true);
+}
+function rcCellEdit(i,f,v){
+  if(!_rcRows[i])return;
+  if(f==="out"||f==="inn")_rcRows[i][f]=Math.round(+v||0);
+  else _rcRows[i][f]=v;
+  renderRecon();
+}
+async function reconPhoto(inp){
+  const f=inp.files&&inp.files[0]; if(!f)return; inp.value="";
+  const st=$("#rc_status"); const t0=Date.now();
+  if(st)st.innerHTML="📷 辨識中…存摺行距密，通常要 5～15 秒，請稍候。";
+  try{
+    const blob=await compressImage(f,1600,0.85);
+    const b64=await new Promise(res=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(",")[1]);r.readAsDataURL(blob);});
+    const resp=await apiFetch("https://www.zhuohsin.com/api/passbook-ocr",{method:"POST"},{image:b64,mime:"image/jpeg"});
+    if(!resp){ if(st)st.innerHTML='<span style="color:var(--danger)">尚未登入雲端，請先登入再辨識。</span>'; aiLog("passbook",false,"未登入",Date.now()-t0,"",1); return; }
+    const j=await resp.json();
+    if(!j||!j.ok){ if(st)st.innerHTML='<span style="color:var(--danger)">辨識失敗：'+esc(plainError({message:(j&&j.error)||"讀不出來"}))+'</span><br><span style="font-size:12px">把存摺攤平、光線充足、整頁入鏡再試一次；也可以按「手動加一列」自己輸入。</span>';
+      aiLog("passbook",false,(j&&j.error)||"讀不出來",Date.now()-t0,"",1); return; }
+    aiLog("passbook",true,"",Date.now()-t0,j.model||"",1);
+    if(j.carry&&!_rcCarry)_rcCarry=String(j.carry).replace(/[^\d.-]/g,"");
+    (j.rows||[]).forEach(r=>{
+      _rcRows.push({date:rocToISO(r.date),memo:String(r.memo||""),party:String(r.party||""),
+        out:Math.round(+String(r.out||0).replace(/[^\d.-]/g,"")||0),
+        inn:Math.round(+String(r.in||0).replace(/[^\d.-]/g,"")||0),
+        bal:String(r.bal||"").replace(/[^\d.-]/g,"")});
+    });
+    if(st)st.innerHTML='✅ 讀到 '+((j.rows||[]).length)+' 列（耗時 '+Math.round((Date.now()-t0)/100)/10+' 秒）。<b>請務必逐列核對金額</b>，下面會自動驗算餘額。';
+    renderRecon();
+  }catch(e){ if(st)st.innerHTML='<span style="color:var(--danger)">'+esc(plainError(e,"upload"))+'</span>';
+    aiLog("passbook",false,(e&&e.message)||String(e),Date.now()-t0,"",1); }
+}
+// 驗算餘額鏈，找出缺漏
+function rcCheck(rows){
+  const out=[]; let prev=_rcCarry?Math.round(+_rcCarry):null;
+  rows.forEach((r,i)=>{
+    const bal=r.bal===""?null:Math.round(+r.bal);
+    let gap=null;
+    if(prev!==null&&bal!==null){
+      const expect=prev+(+r.inn||0)-(+r.out||0);
+      if(Math.abs(expect-bal)>0.5)gap=bal-expect;
+    }
+    out.push({i,gap,expect:(prev!==null?prev+(+r.inn||0)-(+r.out||0):null)});
+    if(bal!==null)prev=bal;
+  });
+  return out;
+}
+function renderRecon(keepScroll){
+  const sel=$("#rc_acct"); if(!sel)return;
+  const list=rcAcctList();
+  if(!sel.dataset.init||sel.options.length!==list.length){
+    const cur=sel.value; sel.innerHTML=list.map(a=>`<option>${esc(a)}</option>`).join("");
+    if(list.includes(cur))sel.value=cur; sel.dataset.init="1";
+  }
+  const acct=sel.value||list[0]||"銀行存款";
+  const from=(($("#rc_from")||{}).value||"");
+  const body=$("#rc_body"),chk=$("#rc_check");
+  const rows=_rcRows;
+  if(!rows.length){
+    if(chk)chk.innerHTML="";
+    body.innerHTML=`<div class="empty" style="background:var(--surface);border:1px solid var(--border);border-radius:12px">
+      還沒有存摺資料。按上面的「📷 拍存摺內頁」拍一頁，或用「⌨️ 手動加一列」自己輸入。<br>
+      <span style="font-size:12.5px;color:var(--ink-3)">一次拍一頁就好，讀完確認無誤再拍下一頁，錯了只要重來一頁。</span></div>`;
+    return;
+  }
+  const checks=rcCheck(rows);
+  // 帳上這個科目的既有分錄，用來比對哪些已經記過
+  const E=allEntries();
+  const bookRows=[];
+  E.forEach(v=>v.lines.filter(l=>l.acct===acct).forEach(l=>bookRows.push({date:v.date,no:v.no,memo:v.memo,inn:l.debit,out:l.credit})));
+  const used={};
+  const near=(a,b)=>{ if(!a||!b)return false; const d=Math.abs(Date.parse(a)-Date.parse(b))/86400000; return d<=3; };
+  rows.forEach((r,i)=>{
+    r._skip=(from&&r.date&&r.date<from);
+    if(r._skip){r._match=null;return;}
+    const hit=bookRows.find((b,bi)=>!used[bi]&&near(b.date,r.date)&&Math.round(b.inn)===Math.round(r.inn||0)&&Math.round(b.out)===Math.round(r.out||0)&&(r.inn||r.out));
+    if(hit){ used[bookRows.indexOf(hit)]=true; r._match=hit; } else r._match=null;
+  });
+  // 問題彙總
+  const gaps=checks.filter(c=>c.gap!==null&&!rows[c.i]._skip);
+  const noBal=rows.filter((r,i)=>!r._skip&&r.bal==="").length;
+  let warn="";
+  if(gaps.length){
+    warn+=`<div class="card" style="border-color:var(--danger);margin-bottom:12px">
+      <div style="font-weight:700;color:var(--danger);margin-bottom:6px">⚠ 有 ${gaps.length} 個地方對不起來 —— 中間可能漏了交易</div>
+      <div style="font-size:13.5px;color:var(--ink-2);line-height:1.8">
+        存摺每一列的餘額應該等於「上一列餘額 ＋ 存入 − 支出」。下面標紅的地方算不過，代表<b>那之前有一筆交易沒拍到或沒讀出來</b>。<br>
+        ${gaps.map(g=>`第 ${g.i+1} 列（${esc(rows[g.i].date||"日期未填")}）差 <b class="num">${fmt(Math.abs(g.gap))}</b> 元${g.gap>0?"（存摺比算出來的多，可能少讀了一筆存入）":"（存摺比算出來的少，可能少讀了一筆支出）"}`).join("<br>")}
+        <br><br><b>怎麼處理：</b>把存摺那幾列再拍一次或用「手動加一列」補進來；補齊之後紅字就會消失。
+      </div></div>`;
+  }
+  if(!_rcCarry&&rows.length){
+    warn+=`<div class="card" style="border-color:var(--warn);margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">沒有讀到「承前」餘額</div>
+      <div style="font-size:13.5px;color:var(--ink-2)">第一列之前的餘額不知道，所以第一列無法驗算。
+      如果這是存摺第一頁可以不用理會；否則請在這裡填上一頁最後的餘額：
+      <input type="number" id="rc_carry" value="" placeholder="上一頁最後餘額" style="width:140px;font-size:13px;margin-left:6px" onchange="_rcCarry=this.value;renderRecon()"></div></div>`;
+  }
+  if(noBal)warn+=`<div class="note" style="border-color:var(--warn);margin-bottom:12px">有 ${noBal} 列讀不到餘額，那幾列無法驗算，請自行核對金額。</div>`;
+  const use=rows.filter(r=>!r._skip);
+  const unmatched=use.filter(r=>!r._match&&(r.inn||r.out));
+  if(chk)chk.innerHTML=warn+`<div class="note" style="margin-bottom:12px">
+    這一批共 ${rows.length} 列${from?`，其中 ${rows.length-use.length} 列在起始日之前已略過`:""}。
+    已記過 <b>${use.filter(r=>r._match).length}</b> 筆、<b>待入帳 ${unmatched.length}</b> 筆。
+    ${unmatched.length?'勾選要寫入的，設好科目後按最下面的「寫入分錄」。':'沒有需要補記的，帳跟存摺是一致的 🎉'}</div>`;
+  const payOpts=[...new Set([...accounts(),"勞健保費","利息收入","手續費支出","稅捐","薪資支出","租金支出","業主往來","應收帳款","應付帳款"])].sort();
+  body.innerHTML='<div class="twrap"><div class="tscroll"><table style="font-size:13px">'
+    +'<thead><tr><th style="width:28px"></th><th>日期</th><th>摘要／對方</th><th class="r">支出</th><th class="r">存入</th><th class="r">存摺餘額</th><th>狀態</th><th>要記的科目</th></tr></thead><tbody>'
+    +rows.map((r,i)=>{
+      const c=checks[i];
+      const bad=(c.gap!==null&&!r._skip);
+      const sug=r._acct!==undefined?{acct:r._acct,memo:r._memo}:rcSuggest(r);
+      if(r._acct===undefined){r._acct=sug.acct;r._memo=sug.memo;}
+      const st=r._skip?'<span style="color:var(--ink-3)">起始日前·略過</span>'
+        :r._match?'<span class="ok">已記過</span>'
+        :(r.inn||r.out)?'<span style="color:var(--warn)">待入帳</span>':'<span style="color:var(--ink-3)">—</span>';
+      return `<tr${bad?' style="background:#fee2e2"':''}>
+        <td>${(!r._skip&&!r._match&&(r.inn||r.out))?`<input type="checkbox" ${r._pick!==false?"checked":""} onchange="_rcRows[${i}]._pick=this.checked">`:""}</td>
+        <td><input type="date" value="${esc(r.date)}" onchange="rcCellEdit(${i},'date',this.value)" style="font-size:12.5px;width:135px"></td>
+        <td><input value="${esc((r.memo||"")+(r.party?" "+r.party:""))}" onchange="rcCellEdit(${i},'memo',this.value)" style="font-size:12.5px;min-width:150px"></td>
+        <td class="r"><input type="number" value="${r.out||0}" onchange="rcCellEdit(${i},'out',this.value)" style="font-size:12.5px;width:90px;text-align:right"></td>
+        <td class="r"><input type="number" value="${r.inn||0}" onchange="rcCellEdit(${i},'inn',this.value)" style="font-size:12.5px;width:90px;text-align:right"></td>
+        <td class="r num">${esc(r.bal||"—")}${bad?`<br><span style="font-size:11px;color:var(--danger)">應為 ${fmt(c.expect)}</span>`:""}</td>
+        <td style="white-space:nowrap">${st}</td>
+        <td>${(!r._skip&&!r._match&&(r.inn||r.out))?`<select onchange="_rcRows[${i}]._acct=this.value" style="font-size:12.5px"><option value="">— 請選 —</option>${payOpts.map(a=>`<option${a===r._acct?" selected":""}>${esc(a)}</option>`).join("")}</select>`:""}</td>
+      </tr>`;}).join("")
+    +'</tbody></table></div></div>'
+    +(unmatched.length?`<div class="actions" style="margin-top:14px"><button class="btn" onclick="reconWrite()">✔ 寫入分錄（${unmatched.length} 筆）</button>
+       <span style="font-size:12.5px;color:var(--ink-3);align-self:center">只會寫入有勾選且已選科目的；寫入後可在「手動分錄」修改或刪除。</span></div>`:"");
+}
+function reconWrite(){
+  if(typeof myRole!=="undefined"&&myRole==="viewer"){alert("唯讀帳號無法寫入。");return;}
+  const acct=(($("#rc_acct")||{}).value)||"銀行存款";
+  const pick=_rcRows.filter(r=>!r._skip&&!r._match&&(r.inn||r.out)&&r._pick!==false);
+  const bad=pick.filter(r=>!r._acct);
+  if(!pick.length){alert("沒有勾選任何一筆。");return;}
+  if(bad.length){alert("有 "+bad.length+" 筆還沒選「要記的科目」，請先選好再寫入。");return;}
+  const noDate=pick.filter(r=>!r.date);
+  if(noDate.length){alert("有 "+noDate.length+" 筆沒有日期，請補上。");return;}
+  if(!confirm("要把這 "+pick.length+" 筆寫進帳裡嗎？\n\n寫入後會出現在「手動分錄」，可以修改或刪除。"))return;
+  try{
+    db.journal=db.journal||[];
+    pick.forEach(r=>{
+      const amt=Math.round((+r.inn||0)||(+r.out||0));
+      const lines=(r.inn>0)
+        ? [{acct:acct,debit:amt,credit:0},{acct:r._acct,debit:0,credit:amt}]   // 錢進來
+        : [{acct:r._acct,debit:amt,credit:0},{acct:acct,debit:0,credit:amt}];  // 錢出去
+      db.journal.push({id:uid(),date:r.date,memo:("銀行對帳 · "+(r._memo||r.memo||"")).slice(0,60),lines});
+      r._match={memo:"剛寫入"};
+    });
+    save();renderRecon();
+    alert("✅ 已寫入 "+pick.length+" 筆分錄。\n\n可以到「手動分錄」查看，或回這裡確認狀態都變成「已記過」。");
+  }catch(e){alert("寫入失敗。\n"+plainError(e));}
+}
 function renderAll(){refreshAcctList();fillPAcctSel();fillVendorSel();fillCustomerSel();renderVendorList();renderCustomerList();fillProjSel($("#p_proj"));fillProjSel($("#s_proj"));fillProjSel($("#j_proj"));fillProjSel($("#pl_proj"),true);renderProjList();renderCompany();try{renderFiling();}catch(e){}fillPettyAcct();fillPettySrc();renderPetty();fillPrAcct();renderPayreq();fillAsAcct();renderAssets();fillRcSelects();renderRecur();renderIncomeDue();renderKpis();renderPurchase();renderSale();renderTracks();renderVouchers();renderLedger();try{renderAR();}catch(e){console.warn("AR",e);}try{renderQuickBar();renderFavStar();}catch(e){}renderBalance();
   renderJournalList();renderFund();try{renderCashForecast();}catch(e){}renderPL();renderBS();renderOpeningList();renderAcList();renderBankList();fillPaySelects();renderTax();
   const t=trackForDate($("#s_date").value);const tt=$("#topTrack");if(tt)tt.textContent=t?t.code:"未設定";const tp=$("#topPeriod");if(tp)tp.textContent=curPeriod();syncSale();}
 
+function whtReminder(){
+  try{
+    const box=$("#whtHint"); if(!box)return;
+    const now=new Date(), y=now.getFullYear(), m=now.getMonth()+1;
+    // 一月是申報月：提醒去年的；其他月份提醒今年累積了幾筆，到時候要申報
+    const targetY=(m===1)?(y-1):y;
+    const list=(db.purchase||[]).filter(x=>x.wht&&(x.date||"").slice(0,4)===String(targetY));
+    if(!list.length){box.style.display="none";return;}
+    const gross=list.reduce((a,x)=>a+Math.round((+x.net||0)+(+x.tax||0)),0);
+    const tax=list.reduce((a,x)=>a+Math.round(+x.whtTax||0),0);
+    const people=new Set(list.map(x=>(x.whtId||x.uni||"")+"|"+(x.whtPayee||x.name||""))).size;
+    const urgent=(m===1);
+    box.style.display="block";
+    box.innerHTML=`<div class="card" style="border-color:${urgent?"var(--danger)":"var(--warn)"}">
+      <div style="font-weight:700;font-size:14.5px;margin-bottom:6px">${urgent?"⏰ 這個月要申報各類所得憑單":"📋 今年已累積要申報的各類所得"}</div>
+      <div style="font-size:13.5px;color:var(--ink-2);line-height:1.8">
+        ${targetY} 年度共 <b>${list.length}</b> 筆、<b>${people}</b> 位所得人，給付總額 <b class="num">${fmt(gross)}</b>、扣繳稅額 <b class="num">${fmt(tax)}</b>。<br>
+        ${urgent
+          ? "<b style=\"color:var(--danger)\">1 月底前</b>必須出具扣免繳憑單並向國稅局申報，不論有沒有扣到稅。"
+          : "明年 1 月底前要出具扣免繳憑單並申報，現在先確認資料齊全就不會臨時忙亂。"}
+      </div>
+      <div class="actions" style="margin-top:10px"><button class="btn sm" onclick="goView('wht')">看清冊</button></div></div>`;
+  }catch(e){}
+}
 function renderKpis(){
+  try{whtReminder();}catch(e){}
   // 空帳本第一眼就給一條明路，不要讓人不知道從哪開始
   try{
     const hint=$("#wzHint");
