@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.16.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.16.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1060,7 +1060,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.16.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.16.1";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -1315,15 +1315,18 @@ function settleEntries(){
     const fee=Math.round((+x.fee||0)*100)/100;
     const feeAcct=x.feeAcct||(x.kind==="ap"?"進貨折讓":"手續費支出");
     const net=Math.round((x.amount-fee)*100)/100;
-    const lines=x.kind==="ap"
-      ? [{acct:acct,debit:x.amount,credit:0},{acct:cash,debit:0,credit:net}]
-      : [{acct:cash,debit:net,credit:0},{acct:acct,debit:0,credit:x.amount}];
+    // 方向只分兩種：收錢進來（應收）＝借現金／貸應收；付錢出去（應付、信用卡）＝借負債／貸現金。
+    // 注意不能只比對 kind==="ap"，信用卡的 kind 是 "cc"，比錯會把付款記成收款。
+    const isRecv=(x.kind==="ar");
+    const lines=isRecv
+      ? [{acct:cash,debit:net,credit:0},{acct:acct,debit:0,credit:x.amount}]
+      : [{acct:acct,debit:x.amount,credit:0},{acct:cash,debit:0,credit:net}];
     if(fee>0){
-      if(x.kind==="ap")lines.push({acct:feeAcct,debit:0,credit:fee});   // 廠商折讓＝成本減少
-      else lines.push({acct:feeAcct,debit:fee,credit:0});               // 匯費／折讓／呆帳＝費用或收入減少
+      if(isRecv)lines.push({acct:feeAcct,debit:fee,credit:0});          // 匯費／折讓／呆帳＝費用或收入減少
+      else lines.push({acct:feeAcct,debit:0,credit:fee});               // 廠商折讓＝成本減少
     }
     return {no,date:x.date,proj:"",srcType:"x",srcId:x.id,
-            memo:(x.kind==="ap"?"付款沖銷 · ":"收款沖銷 · ")+(x.who||"")+(x.note?" "+x.note:""),lines};
+            memo:(isRecv?"收款沖銷 · ":(x.kind==="cc"?"繳卡費沖銷 · ":"付款沖銷 · "))+(x.who||"")+(x.note?" "+x.note:""),lines};
   });
 }
 // 未結清項目：原始金額扣掉歷次沖帳
