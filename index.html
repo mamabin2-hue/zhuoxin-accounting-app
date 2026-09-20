@@ -243,7 +243,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.18.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.18.1</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -1072,7 +1072,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.18.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.18.1";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -2004,7 +2004,7 @@ function renderTracks(){const _n=new Date(),_ym=(_n.getFullYear()-1911)*100+(_n.
   const _warn=_cov?"":`<tr><td colspan="6" style="color:var(--warn);font-weight:600">⚠️ 已進入 ${curPeriod()} 期，尚未設定本期字軌：收到國稅局配號通知後，貼到下方「貼上配號信自動解析」即可。</td></tr>`;
   $("#trkBody").innerHTML=_warn+(db.tracks.length?db.tracks.map(t=>`<tr><td class="num">${t.period}</td><td>${esc(t.category||"")}</td><td><span class="tag">${t.code}</span></td><td class="r num">${invStr(t.code,t.start)}</td><td class="r num">${invStr(t.code,t.end)}</td><td class="r num">${trackUsed(t)}/${t.end-t.start+1}</td></tr>`).join(""):(_cov?`<tr><td colspan="6" class="empty">尚無字軌，貼上配號信解析。</td></tr>`:""));}
 
-function renderPurchase(){const b=$("#pBody");
+function renderPurchase(){try{if(typeof syncInvField==="function")syncInvField();}catch(e){}const b=$("#pBody");
   b.innerHTML=db.purchase.length?db.purchase.map(p=>`<tr><td class="num">${p.date||"—"}</td><td><span class="tag">${p.type}</span></td>
     <td>${esc(p.name)||"—"}${p.uni?`<br><span class="num" style="color:var(--ink-3);font-size:11px">${esc(p.uni)}</span>`:""}</td><td>${esc(p.item)||"—"}${p.note?`<br><span style="color:var(--ink-3);font-size:11px">📝 ${esc(p.note).replace(/📎([\w\/\.\-]+)/g,'<a href="#" onclick="openReceiptPhoto(\'$1\');return false" style="color:var(--accent-ink)">📎照片</a>')}</span>`:""}</td>
     <td class="r num">${fmt(p.net)}</td><td class="r num">${fmt(p.tax)}</td><td>${p.ded?'<span class="tag">可扣抵</span>':'<span class="tag no">不可</span>'}</td>
@@ -4368,6 +4368,9 @@ function syncInvField(){
   if(!need){const i=$("#p_inv");if(i)i.value="";}
 }
 (function(){const d=$("#p_ded");if(d)d.addEventListener("change",syncInvField);})();
+// 表單預設就是「可扣抵」，一載入就要把發票號碼欄顯示出來，
+// 不能等使用者切換下拉才出現，否則送出被擋卻找不到欄位可填。
+try{syncInvField();}catch(e){}
 (function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",()=>{updateDedHint();syncInvField();});});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",()=>{updateDedHint();syncInvField();});})();
 
@@ -4500,7 +4503,7 @@ async function scanInvoiceQR(){
       for(const c of codes){const r=parseEinvQR(c.rawValue);
         if(r){stop();
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
-          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;
+          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;if(typeof syncInvField==="function")syncInvField();
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if($("#p_inv"))$("#p_inv").value=r.no;
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
@@ -4607,7 +4610,8 @@ async function aiRecognizeReceipt(blob,userNote){
     const myUni=(db.company&&db.company.uni)||"";
     const _aiOk=!!(inv&&myUni&&(d["買方統編"]||"")===myUni);
     if($("#p_ded"))$("#p_ded").value=_aiOk?"1":"0";
-    _dedLockedByDoc=!_aiOk;   // 買方統編不是我們公司 → 依 §33 不得扣抵，不可被提示覆寫
+    _dedLockedByDoc=!_aiOk;
+    if(typeof syncInvField==="function")syncInvField();   // 買方統編不是我們公司 → 依 §33 不得扣抵，不可被提示覆寫
     // AI 建議的會計科目：只在使用者還沒自己選過時填入，並標示為建議
     let acctMsg="";
     const sug=(d["建議科目"]||"").trim();
