@@ -271,7 +271,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.19.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.20.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -312,7 +312,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>品名/摘要</label><input id="p_item" placeholder="例：網域續約"></div>
             <div class="fld"><label>科目別</label><select id="p_cat"><option>費用</option><option>進貨</option><option>資產(設備)</option><option>預付費用</option><option>代墊款</option><option>業主提取</option></select><div id="p_catHint" style="display:none;font-size:12px;margin-top:4px"></div></div>
-            <div class="fld"><label>費用科目（建議·可改）</label><select id="p_acct"></select></div>
+            <div class="fld"><label>費用科目（建議·可改）<button type="button" class="btn ghost sm" style="margin-left:6px;padding:1px 7px;font-size:11px" onclick="askPurpose()" title="用白話寫這筆的用途，系統幫你判科目與可否扣抵">🤖 用途判科目</button></label><select id="p_acct"></select></div>
             <div class="fld"><label>未稅金額</label><input type="number" id="p_net" inputmode="decimal" step="1" placeholder="0" required></div>
             <div class="fld"><label>稅額 (5%)</label><input type="number" id="p_tax" inputmode="decimal" step="1" placeholder="自動"></div>
           </div>
@@ -1115,7 +1115,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.19.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.20.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -3652,7 +3652,7 @@ function renderOpsFeedback(){
         +`</select></td></tr>`;}).join("")
      :`<tr><td colspan="7" class="empty">${_opsFbFilter==="open"?"沒有待處理的回報 🎉":"此狀態沒有回報"}</td></tr>`)
    +'</tbody></table></div></div>');}
-function fbView(src){var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();}}
+function fbView(src){ try{ showImageViewer(src,"回報照片"); }catch(e){ var w=window.open("");if(w){w.document.write('<body style="margin:0;background:#111"><img src="'+src+'" style="max-width:100%">');w.document.close();} } }
 function opsFilter(){var q=(document.getElementById("opsSearch")||{}).value||"";q=q.trim().toLowerCase();
   document.querySelectorAll("#opsList tbody tr").forEach(function(tr){tr.style.display=(!q||(tr.textContent||"").toLowerCase().indexOf(q)>=0)?"":"none";});}
 async function opsExtendTrial(id){
@@ -4477,6 +4477,88 @@ function saleNetTax(){const raw=Math.round(+$("#s_net").value||0);const mode=$("
   if(mode==="含稅"){const total=raw;const net=Math.round(total/1.05);return {net,tax:total-net,total};}
   const net=raw,tax=Math.round(net*0.05);return {net,tax,total:net+tax};}
 function updateSaleAmt(){const r=saleNetTax();const t=$("#s_tax");if(t)t.value=r.tax?fmt(r.tax):"";const h=$("#s_amtHint");if(h)h.textContent=(+$("#s_net").value)?("未稅 "+fmt(r.net)+"・含稅 "+fmt(r.total)):"";}
+
+/* ===== 用途說明 → 建議科目與可否扣抵 =====
+   使用者用白話寫「請客人喝飲料」「公司車加油」，系統就判科目與扣抵。
+   這裡刻意用本地規則而不是呼叫 AI：立刻有結果、不用登入、不耗辨識額度，
+   而且判斷依據是明確的法條，查得到出處。拍照時的 AI 辨識仍照原本走。 */
+const PURPOSE_RULES=[
+  // 營業稅法 §19 I③ 交際應酬
+  [/(請客|招待|請.*(喝|吃)|送禮|禮品|禮盒|伴手禮|交際|應酬|客戶.*(餐|飲料|咖啡)|飲料.*客戶|廠商.*(餐|禮))/,
+   {acct:"交際費",flag:"p_ent",ded:false,why:"交際應酬性質，依營業稅法第19條第1項第3款不得扣抵進項稅額；營所稅仍可列費用（有上限）。"}],
+  // §19 I④ 酬勞員工個人
+  [/(員工|同仁|職員|員工.*福利|聚餐|尾牙|春酒|慶生|生日|下午茶|團購|員工旅遊|部門聚)/,
+   {acct:"職工福利",flag:"p_emp",ded:false,why:"酬勞員工個人之用，依營業稅法第19條第1項第4款不得扣抵；營所稅可列職工福利（有上限）。"}],
+  // §19 I② 非供本業
+  [/(私人|自用|家裡|家用|個人用|非公司|老闆自己|自己用)/,
+   {acct:"",flag:"p_nonbiz",ded:false,why:"非供本業及附屬業務使用，依營業稅法第19條第1項第2款不得扣抵，營所稅亦不得列費用。"}],
+  // §19 I⑤ 購買自用小客車
+  [/(買車|購車|自用小客車|轎車|車款)/,
+   {acct:"",flag:"p_car",ded:false,why:"購買自用小客車，依營業稅法第19條第1項第5款不得扣抵（車輛的油料與修理費若供業務使用仍可扣抵）。"}],
+  // 以下為可扣抵的一般費用
+  [/(加油|油資|汽油|柴油|中油|台塑石化|加油站|油料)/,{acct:"燃料費",ded:true,why:"車輛油料供業務使用，依財政部函釋可扣抵。"}],
+  [/(修車|保養|維修|修理|修繕)/,{acct:"修繕費",ded:true,why:"修理維護費用，供業務使用可扣抵。"}],
+  [/(便當|餐盒|伙食|午餐.*員工|誤餐)/,{acct:"伙食費",ded:true,why:"員工伙食費在定額內可列費用；取得統一發票可扣抵。"}],
+  [/(計程車|高鐵|台鐵|火車|機票|住宿|飯店|旅館|停車|出差|差旅|國道|過路)/,{acct:"旅費",ded:true,why:"出差旅費，取得合法憑證可列費用；有載明統編的發票可扣抵。"}],
+  [/(文具|辦公用品|耗材|紙張|墨水|碳粉)/,{acct:"文具用品",ded:true,why:"辦公耗材，供本業使用可扣抵。"}],
+  [/(電話|手機|월租|月租|寬頻|網路|中華電信|遠傳|台灣大)/,{acct:"電信費",ded:true,why:"通訊費用，供本業使用可扣抵。"}],
+  [/(郵資|郵票|掛號|快遞|宅配|貨運|運費|物流)/,{acct:"運費",ded:true,why:"運送費用，供本業使用可扣抵。"}],
+  [/(規費|工本費|登記費|執照|證照|年費.*政府)/,{acct:"規費",ded:false,why:"政府規費通常無統一發票（收據），不得扣抵營業稅，但可列營所稅費用。"}],
+  [/(房租|租金|承租|店租|辦公室租)/,{acct:"租金支出",ded:true,why:"租金支出，取得發票可扣抵。"}],
+  [/(水費|電費|水電|台電|自來水)/,{acct:"水電費",ded:true,why:"水電費，供本業使用可扣抵。"}],
+  [/(廣告|行銷|宣傳|臉書|facebook|google.*廣告|關鍵字)/i,{acct:"廣告費",ded:true,why:"廣告行銷費用，供本業使用可扣抵。"}],
+  [/(軟體|訂閱|雲端|網域|主機|saas|授權)/i,{acct:"網路費",ded:true,why:"軟體與雲端服務，供本業使用可扣抵（國外供應商未在台登記者不得扣抵，屬§36）。"}],
+  [/(保險|投保|產險|責任險)/,{acct:"保險費",ded:true,why:"保險費用，供本業使用可扣抵。"}],
+  [/(勞保|健保|勞退|勞健保)/,{acct:"勞健保費",ded:false,why:"勞健保費為政府收據，無進項稅額可扣抵，但可列營所稅費用。"}],
+  [/(手續費|匯費|轉帳費|金融)/,{acct:"手續費支出",ded:false,why:"金融機構手續費多開立免稅憑證，通常不得扣抵。"}],
+  [/(進貨|買貨|商品|原料|材料)/,{acct:"",cat:"進貨",ded:true,why:"進貨性質，科目別建議改成「進貨」，賣出時才轉銷貨成本。"}],
+  [/(電腦|筆電|印表機|設備|機器|冷氣|傢俱)/,{acct:"",cat:"資產(設備)",ded:true,why:"單價較高且可用多年，建議改記「資產(設備)」按月折舊，不要當期全額列費用。"}]
+];
+function suggestFromPurpose(txt){
+  const t=String(txt||"").trim();
+  if(!t)return null;
+  for(const [re,r] of PURPOSE_RULES) if(re.test(t)) return Object.assign({matched:t},r);
+  return null;
+}
+// 任何時候都能按：掃完 QR、拍完照、或純手動輸入
+function askPurpose(){
+  const cur=(($("#p_note")||{}).value||"").split(";")[0].replace(/^發票\S+/,"").trim();
+  const t=prompt("這筆是什麼用途？用白話寫就好。\n\n例：請客人喝飲料　／　公司車加油　／　員工聚餐\n例：買印表機　／　寄快遞給客戶　／　辦公室房租",cur||"");
+  if(t===null)return;
+  const note=t.trim().slice(0,60);
+  const hint=$("#p_dedHint");
+  if(!note){ if(hint){hint.style.display="block";hint.innerHTML="沒有輸入用途，維持原本的科目判斷。";} return; }
+  // 寫進備註（放最前面，不會被 100 字上限切掉）
+  const nn=$("#p_note");
+  if(nn){ const rest=String(nn.value||"").replace(/📎\S+/g,"").trim();
+    const att=(String(nn.value||"").match(/📎\S+/)||[""])[0];
+    nn.value=(note+(rest&&rest!==note?";"+rest:"")+(att?";"+att:"")).slice(0,100); }
+  const r=suggestFromPurpose(note);
+  if(!r){
+    if(hint){hint.style.display="block";
+      hint.innerHTML='🤖 「'+esc(note)+'」這個用途我對不到明確的規則，請自己確認費用科目與可否扣抵。用途已記在備註裡。';}
+    return;
+  }
+  let did=[];
+  // 科目別（進貨／設備）
+  if(r.cat){ const c=$("#p_cat"); if(c&&c.value!==r.cat){ c.value=r.cat; if(typeof updatePCatHint==="function")updatePCatHint(); did.push("科目別改成「"+r.cat+"」"); } }
+  // 費用科目
+  if(r.acct){ const sel=$("#p_acct");
+    if(sel){ if(typeof fillPAcctSel==="function")fillPAcctSel();
+      const hit=[...sel.options].find(o=>o.value===r.acct||o.text===r.acct);
+      if(hit){ sel.value=hit.value; did.push("費用科目改成「"+r.acct+"」"); } } }
+  // §19 勾選（勾了才會真的鎖住不可扣抵，並存進憑證）
+  if(r.flag){ const f=$("#"+r.flag); if(f&&!f.checked){ f.checked=true; f.dispatchEvent(new Event("change")); did.push("勾選了「"+({p_ent:"交際應酬",p_emp:"員工福利",p_car:"購買自用小客車",p_nonbiz:"非供本業使用"}[r.flag]||"")+"」"); } }
+  // 可否扣抵
+  const d=$("#p_ded");
+  if(d&&!r.flag){ const want=r.ded?"1":"0";
+    if(d.value!==want){ d.value=want; _dedLockedByDoc=!r.ded; if(typeof syncInvField==="function")syncInvField(); did.push("可否扣抵改成「"+(r.ded?"可扣抵":"不可扣抵")+"」"); } }
+  if(typeof updateDedHint==="function")try{updateDedHint();}catch(e){}
+  if(hint){ hint.style.display="block";
+    hint.innerHTML='🤖 依用途「<b>'+esc(note)+'</b>」'+(did.length?"："+did.join("、"):"，判斷與目前設定一致")+'。<br>'
+      +'<span style="color:var(--ink-2)">'+esc(r.why)+'</span><br>'
+      +'<b>以上為系統建議，請核對後再送出。</b>'+(hint.innerHTML?"<br>"+hint.innerHTML:""); }
+}
 function fillPAcctSel(){const s=$("#p_acct");if(!s)return;const cur=s.value;const list=accountsByCat("費用");
   s.innerHTML='<option value="">— 自動：營業費用 —</option>'+list.map(a=>`<option${a===cur?" selected":""}>${esc(a)}</option>`).join("");if(cur&&list.includes(cur))s.value=cur;}
 const ACCT_SUGGEST=[[/(網域|主機|網站|domain|host|雲端|訂閱|軟體|software|saas)/i,"網路費"],[/(規費|設立登記|工商登記)/,"開辦費"],[/(薪資|薪水|工資)/,"薪資支出"],[/(租金|房租)/,"租金支出"],[/(水電|電費|水費)/,"水電費"],[/(電信|電話|手機|月租)/,"電信費"],[/(廣告|行銷|宣傳)/,"廣告費"],[/(交際|招待|送禮)/,"交際費"],[/(文具|耗材|辦公用品)/,"文具用品"],[/(郵|快遞|運費|貨運)/,"郵電費"],[/(加油|油資|汽油|柴油|中油|台塑石化|油料|燃料|加油站)/,"燃料費"],[/(運費|貨運|物流|宅配)/,"運費"],[/(修繕|維修|修理)/,"修繕費"],[/(便當|餐盒|伙食)/,"伙食費"],[/(保險)/,"保險費"],[/(勞健保|勞保|健保)/,"勞健保費"],[/(手續費|匯費)/,"手續費支出"],[/(差旅|出差|計程車|高鐵|機票|停車)/,"旅費"],[/(拜拜|祭祀|金紙|香燭|供品|牲禮|犒軍|尾牙)/,"雜項費用"]];
@@ -4636,7 +4718,8 @@ async function scanInvoiceQR(){
           if($("#p_inv"))$("#p_inv").value=r.no;
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
           await fillSellerName(r.seller);
-          alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer===((db.company&&db.company.uni)||"")?"符合":"＝"+r.buyer+"，請確認")+"。");
+          alert("✅ 已帶入發票 "+r.no+"（"+r.date+"，含稅 "+fmt(r.total)+"）。買方統編"+(r.buyer===((db.company&&db.company.uni)||"")?"符合":"＝"+r.buyer+"，請確認")+"。\n\n接下來問你這筆的用途，用白話寫就好，系統會幫你判科目。");
+          try{ askPurpose(); }catch(_){}
           return;}}
     }catch(_){ }
     requestAnimationFrame(tick);};
@@ -4761,7 +4844,37 @@ async function aiRecognizeReceipt(blob,userNote){
         +"<br><b>以上為 AI 建議，請核對後再送出</b>。"+(t.innerHTML?"<br>"+t.innerHTML:"");}
   }catch(e){console.warn("aiRecognizeReceipt",e);aiLog("receipt",false,(e&&e.message)||String(e),Date.now()-_t0,"",1);}
 }
-async function openReceiptPhoto(key){try{const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);if(error)throw error;window.open(data.signedUrl,"_blank");}catch(e){alert("開啟失敗。\n"+plainError(e));}}
+// 照片一律在 App 內的檢視器打開，並且一定有「關閉」鈕。
+// 原本用 window.open 會把人帶到另一個畫面，手機上很容易迷路找不到路回來。
+function showImageViewer(src,title){
+  const old=document.getElementById("imgViewer"); if(old)old.remove();
+  const ovl=document.createElement("div");
+  ovl.id="imgViewer";
+  ovl.style.cssText="position:fixed;inset:0;z-index:99998;background:rgba(8,12,20,.94);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px";
+  ovl.innerHTML=
+     '<div style="display:flex;align-items:center;gap:10px;width:100%;max-width:900px;margin-bottom:10px">'
+    +'<button id="ivClose" style="background:#fff;color:#0A1628;border:0;border-radius:12px;padding:10px 20px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35)">← 關閉，回明細</button>'
+    +'<span style="color:#fff;opacity:.8;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(title||"憑證照片")+'</span>'
+    +'<a id="ivOpen" href="'+src+'" target="_blank" rel="noopener" style="margin-left:auto;color:#fff;opacity:.85;font-size:13px;text-decoration:underline;white-space:nowrap">另開分頁</a>'
+    +'</div>'
+    +'<div style="flex:1;width:100%;display:flex;align-items:center;justify-content:center;overflow:auto">'
+    +'<img src="'+src+'" style="max-width:100%;max-height:100%;border-radius:10px;background:#fff" alt="憑證照片">'
+    +'</div>'
+    +'<div style="color:#fff;opacity:.6;font-size:12px;margin-top:10px">可以雙指縮放看細節，看完按左上角關閉</div>';
+  document.body.appendChild(ovl);
+  const close=()=>{ovl.remove();document.removeEventListener("keydown",esc);};
+  const esc=e=>{if(e.key==="Escape")close();};
+  ovl.querySelector("#ivClose").onclick=close;
+  ovl.addEventListener("click",e=>{ if(e.target===ovl)close(); });
+  document.addEventListener("keydown",esc);
+}
+async function openReceiptPhoto(key){
+  try{
+    const {data,error}=await sb.storage.from("receipts").createSignedUrl(key,300);
+    if(error)throw error;
+    showImageViewer(data.signedUrl,"憑證照片");
+  }catch(e){alert("開啟失敗。\n"+plainError(e));}
+}
 
 /* ===== 收據→進項物件（檔案匯入與雲端收件匣共用） ===== */
 function receiptToPurchase(oo){if(!oo)return null;const net=+oo.net||0,tax=+oo.tax||0;if(!net&&!tax&&!oo.item)return null;
