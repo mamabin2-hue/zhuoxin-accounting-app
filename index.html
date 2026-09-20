@@ -271,7 +271,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
     <div id="acctBox" style="display:none;padding:10px 14px 4px;border-top:1px solid var(--border);margin-top:6px">
       <button class="btn ghost sm" style="width:100%" onclick="doLogout()">🚪 登出</button>
     </div>
-    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.20.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
+    <div class="foot">一般記帳 · 401 試算 <span style="opacity:.55" id="appVerTag">v2.21.0</span><br><span title="全站 HTTPS 加密；登入後資料加密同步至雲端資料庫並每日備份">🔒 加密連線 · 雲端同步備份</span><br><a href="https://www.zhuohsin.com" target="_blank" style="color:inherit;text-decoration:none">MY ACC · 卓信雲端會計 ↗</a></div>
   </aside>
 
   <div class="main">
@@ -304,7 +304,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
         <form class="form" id="pForm">
           <div class="frow">
             <div class="fld"><label>日期</label><input type="date" id="p_date" required></div>
-            <div class="fld"><label>憑證類別</label><select id="p_type"><option>三聯式/電子計算機</option><option>電子發票</option><option>二聯式收銀機</option><option>載具</option><option>海關代徵</option><option>國外invoice(未在台登記)</option><option>其他</option></select></div>
+            <div class="fld"><label>憑證類別</label><select id="p_type"><option>三聯式/電子計算機</option><option>電子發票</option><option>二聯式收銀機</option><option>載具</option><option>收據/免用統一發票</option><option>海關代徵</option><option>國外invoice(未在台登記)</option><option>其他</option></select></div>
             <div class="fld"><label>從廠商帶入</label><select id="p_vendor"></select></div>
             <div class="fld"><label>賣方統編</label><input id="p_uni" inputmode="numeric" placeholder="8 碼"></div>
             <div class="fld"><label>賣方名稱</label><input id="p_name" placeholder="例：GoDaddy"></div>
@@ -314,7 +314,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
             <div class="fld"><label>科目別</label><select id="p_cat"><option>費用</option><option>進貨</option><option>資產(設備)</option><option>預付費用</option><option>代墊款</option><option>業主提取</option></select><div id="p_catHint" style="display:none;font-size:12px;margin-top:4px"></div></div>
             <div class="fld"><label>費用科目（建議·可改）<button type="button" class="btn ghost sm" style="margin-left:6px;padding:1px 7px;font-size:11px" onclick="askPurpose()" title="用白話寫這筆的用途，系統幫你判科目與可否扣抵">🤖 用途判科目</button></label><select id="p_acct"></select></div>
             <div class="fld"><label>未稅金額</label><input type="number" id="p_net" inputmode="decimal" step="1" placeholder="0" required></div>
-            <div class="fld"><label>稅額 (5%)</label><input type="number" id="p_tax" inputmode="decimal" step="1" placeholder="自動"></div>
+            <div class="fld"><label>稅額 (5%)</label><div id="p_taxLockHint" style="display:none;font-size:11.5px;color:var(--ink-3);margin-bottom:3px"></div><input type="number" id="p_tax" inputmode="decimal" step="1" placeholder="自動"></div>
           </div>
           <div class="frow" style="margin-top:12px">
             <div class="fld"><label>可否扣抵</label><select id="p_ded"><option value="1">可扣抵</option><option value="0">不可扣抵</option></select></div>
@@ -1115,7 +1115,7 @@ body.locked #loginOvl{background:var(--bg,#f6f3ec)}
 </div>
 <script>
 "use strict";
-const APP_VER="2.20.0";  // 版本號單一來源（頁尾與問題回報都用這個）
+const APP_VER="2.21.0";  // 版本號單一來源（頁尾與問題回報都用這個）
 try{var _vt=document.getElementById("appVerTag");if(_vt)_vt.textContent="v"+APP_VER;}catch(e){}
 const LS="zhuoxin_acc_115_4";
 const _isRecovery=(location.hash||"").indexOf("type=recovery")>=0;
@@ -4409,6 +4409,38 @@ function delCustomer(id){if(!confirm("刪除此客戶？（已開的發票不受
   const _c=(($("#cu_contact")||{}).value||"").trim(),_p=(($("#cu_phone")||{}).value||"").trim(),_e=(($("#cu_email")||{}).value||"").trim();if(editCid){const i=db.customers.findIndex(c=>c.id===editCid);if(i>=0)db.customers[i]={id:editCid,uni,name,addr,contact:_c,phone:_p,email:_e,note:""};editCid=null;const b=$("#cuSubmitBtn");if(b)b.textContent="＋ 新增客戶";}else{if((db.customers||[]).some(c=>c.name===name||(uni&&c.uni===uni))){alert("此客戶已存在。");return;}db.customers.push({id:uid(),uni,name,addr,contact:_c,phone:_p,email:_e,note:""});}["cu_name","cu_uni","cu_addr","cu_contact","cu_phone","cu_email"].forEach(i=>{if($("#"+i))$("#"+i).value="";});save();});})();
 
 /* ===== 進項扣抵防呆（依營業稅法§19/§33/§36）===== */
+// 收據類憑證根本沒有 5% 營業稅，不能把金額硬拆成未稅＋稅額。
+// 判定為收據時，稅額一律歸零、鎖住不讓改，全額當費用。
+function isReceiptType(t){
+  t=t||(($("#p_type")||{}).value||"");
+  return t==="收據/免用統一發票";
+}
+// 不能扣抵的進項，那 5% 本來就會併進費用，拆成「未稅＋稅額」只是徒增困惑。
+// 所以只要判定不可扣抵，就把稅額併進未稅金額、稅額歸零並鎖住。
+// 原本的拆法會記下來，改回可扣抵時自動還原，不會愈加愈多。
+function enforceNoTax(){
+  const tx=$("#p_tax"),nt=$("#p_net"),ty=$("#p_type"),dd=$("#p_ded"),h=$("#p_taxLockHint");
+  if(!tx||!nt||!ty||!dd)return;
+  const receipt=isReceiptType(ty.value);
+  const noDed=(dd.value==="0")||receipt;
+  if(noDed){
+    const t=Math.round(+tx.value||0), n=Math.round(+nt.value||0);
+    if(t>0){ tx.dataset.split=n+"/"+t; nt.value=String(n+t); tx.value="0"; }
+    tx.readOnly=true; tx.style.opacity=".55";
+    tx.title=receipt?"收據沒有營業稅可扣抵，稅額固定為 0":"不可扣抵的進項，稅額併入費用，不另外拆算";
+    if(h){h.style.display="block";
+      h.textContent=receipt
+        ? "收據沒有營業稅可扣抵，整筆金額直接列費用。"
+        : "這筆不可扣抵，5% 併入費用一起列，不另外拆算。";}
+  }else{
+    // 改回可扣抵：把先前併進去的稅額還原
+    if(tx.dataset.split){ const a=tx.dataset.split.split("/");
+      nt.value=a[0]; tx.value=a[1]; delete tx.dataset.split; }
+    tx.readOnly=false; tx.style.opacity=""; tx.title="";
+    if(h)h.style.display="none";
+  }
+  if(typeof syncPTotal==="function")try{syncPTotal();}catch(e){}
+}
 function judgeDeductible(){
   const type=$("#p_type").value, uni=$("#p_uni").value.trim();
   const ent=$("#p_ent")&&$("#p_ent").checked, emp=$("#p_emp")&&$("#p_emp").checked, car=$("#p_car")&&$("#p_car").checked, nonbiz=$("#p_nonbiz")&&$("#p_nonbiz").checked;
@@ -4419,7 +4451,8 @@ function judgeDeductible(){
   if(type.indexOf("國外invoice")>=0)return{r:"需自行報繳(§36)",c:"warn",m:"未在台登記國外勞務，依§36逆向課稅。卓信專供應稅→免實際繳納，但務必於401「第74欄」填列給付額（漏填客觀上不生短漏稅款，實務多為通知補報，但會使該項目核課期間由5年延長為7年）。"};
   if(type==="二聯式收銀機")return uni?{r:"可扣抵",c:"ok",m:"收銀機二聯式且收執聯載有統編，可彙總扣抵。"}:{r:"不可扣抵",c:"bad",m:"二聯式無統編、無扣抵聯，不得扣抵。"};
   if(type==="海關代徵")return{r:"可扣抵",c:"ok",m:"海關代徵營業稅繳納證扣抵聯可扣抵（供本業用）。"};
-  if(type==="載具")return{r:"不可扣抵",c:"bad",m:"個人載具未載公司統編不得扣抵；請改開卓信統編發票。"};
+  if(type==="載具")return{r:"不可扣抵",c:"bad",m:"個人載具未載公司統編不得扣抵；請改開貴公司統編發票。"};
+  if(type==="收據/免用統一發票")return{r:"不可扣抵",c:"bad",m:"普通收據、免用統一發票之收據並非營業稅法第33條所定之扣抵憑證，不得扣抵進項稅額（本來就沒有 5% 營業稅）；營所稅仍可列費用。"};
   if(type==="三聯式/電子計算機"||type==="電子發票")return uni?{r:"可扣抵",c:"ok",m:"合法扣抵憑證（§33）。請確認發票載明貴公司統編且含 5% 營業稅。"}:{r:"不可扣抵",c:"bad",m:"無賣方統編，非合法扣抵憑證（§19 I①）。"};
   return{r:"不可扣抵",c:"bad",m:"未取得§33合法扣抵憑證或無統編，不得扣抵。"};
 }
@@ -4430,7 +4463,14 @@ function updateDedHint(){const el=$("#p_dedHint");if(!el)return;const j=judgeDed
   const col=j.c==="ok"?"var(--good)":(j.c==="warn"?"var(--warn)":"var(--danger)");
   const ecol=je.c==="ok"?"var(--good)":(je.c==="warn"?"var(--warn)":"var(--danger)");
   el.style.display="block";el.style.borderLeftColor=col;
-  el.innerHTML=`<b style="color:${col}">① 營業稅 401：${j.r}</b>　${esc(j.m)}<br><b style="color:${ecol}">② 營所稅費用：${je.r}</b>　${esc(je.m)}`;
+  // 憑證本身已判定不可扣抵時，第①行要跟著講不可扣抵，
+  // 不能上面寫「研判不可扣抵」下面又寫「401：可扣抵」自相矛盾。
+  const ded0=$("#p_ded");
+  const forced=(typeof _dedLockedByDoc!=="undefined"&&_dedLockedByDoc&&ded0&&ded0.value==="0");
+  const r1=forced?"不可扣抵":j.r;
+  const m1=forced?"這張憑證本身不符合扣抵要件（例如收據、買方統編不是貴公司），不得扣抵進項稅額；營所稅仍可列費用。":j.m;
+  const col1=forced?"var(--danger)":col;
+  el.innerHTML=`<b style="color:${col1}">① 營業稅 401：${r1}</b>　${esc(m1)}<br><b style="color:${ecol}">② 營所稅費用：${je.r}</b>　${esc(je.m)}`;
   const ded=$("#p_ded");if(ded){
     const lock19=($("#p_ent")&&$("#p_ent").checked)||($("#p_emp")&&$("#p_emp").checked)||($("#p_car")&&$("#p_car").checked)||($("#p_nonbiz")&&$("#p_nonbiz").checked)||$("#p_type").value.indexOf("國外invoice")>=0;
     // 掃 QR 或 AI 已依「買方統編不符」判定不可扣抵時，不可以再覆寫回可扣抵 —— 那會變成虛報進項。
@@ -4447,7 +4487,7 @@ function syncInvField(){
   w.style.display=need?"":"none";
   if(!need){const i=$("#p_inv");if(i)i.value="";}
 }
-(function(){const d=$("#p_ded");if(d)d.addEventListener("change",syncInvField);})();
+(function(){const d=$("#p_ded");if(d)d.addEventListener("change",()=>{syncInvField();enforceNoTax();});})();
 // 勾「交際應酬」或「員工福利」＝使用者已經明確說了這筆的性質，
 // 費用科目就該跟著跳過去，不要讓人再自己去下拉找（AI 先前可能猜成別的）。
 function applyFlagAcct(flagId,acct){
@@ -4455,6 +4495,7 @@ function applyFlagAcct(flagId,acct){
   if(!f||!sel||!f.checked)return;
   if(typeof fillPAcctSel==="function")fillPAcctSel();
   const hit=[...sel.options].find(o=>o.value===acct||o.text===acct);
+  if(typeof enforceNoTax==="function")setTimeout(enforceNoTax,0);
   if(hit&&sel.value!==acct){
     sel.value=hit.value;
     const t=$("#p_dedHint");
@@ -4468,8 +4509,8 @@ function applyFlagAcct(flagId,acct){
 })();
 // 表單預設就是「可扣抵」，一載入就要把發票號碼欄顯示出來，
 // 不能等使用者切換下拉才出現，否則送出被擋卻找不到欄位可填。
-try{syncInvField();}catch(e){}
-(function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",()=>{updateDedHint();syncInvField();});});
+try{syncInvField();enforceNoTax();}catch(e){}
+(function(){["p_type","p_ent","p_emp","p_car","p_nonbiz","p_personal"].forEach(id=>{const e=$("#"+id);if(e)e.addEventListener("change",()=>{enforceNoTax();updateDedHint();syncInvField();});});
   const pu=$("#p_uni");if(pu)pu.addEventListener("input",()=>{updateDedHint();syncInvField();});})();
 
 /* ===== 銷項含稅/未稅四捨五入 + 建議費用科目 ===== */
@@ -4553,6 +4594,7 @@ function askPurpose(){
   const d=$("#p_ded");
   if(d&&!r.flag){ const want=r.ded?"1":"0";
     if(d.value!==want){ d.value=want; _dedLockedByDoc=!r.ded; if(typeof syncInvField==="function")syncInvField(); did.push("可否扣抵改成「"+(r.ded?"可扣抵":"不可扣抵")+"」"); } }
+  if(typeof enforceNoTax==="function")enforceNoTax();
   if(typeof updateDedHint==="function")try{updateDedHint();}catch(e){}
   if(hint){ hint.style.display="block";
     hint.innerHTML='🤖 依用途「<b>'+esc(note)+'</b>」'+(did.length?"："+did.join("、"):"，判斷與目前設定一致")+'。<br>'
@@ -4713,7 +4755,7 @@ async function scanInvoiceQR(){
       for(const c of codes){const r=parseEinvQR(c.rawValue);
         if(r){stop();
           $("#p_date").value=r.date;$("#p_type").value="電子發票";$("#p_uni").value=r.seller;
-          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;if(typeof syncInvField==="function")syncInvField();
+          let _n=r.net,_t=r.tax;if(r.buyer==="00000000"||_t===0){_n=Math.round(r.total/1.05);_t=r.total-_n;}$("#p_net").value=_n;$("#p_tax").value=_t;const myUni=(db.company&&db.company.uni)||"";const _okBuyer=!!(myUni&&r.buyer===myUni);$("#p_ded").value=_okBuyer?"1":"0";_dedLockedByDoc=!_okBuyer;if(typeof syncInvField==="function")syncInvField();if(typeof enforceNoTax==="function")enforceNoTax();
           const nn=$("#p_note");if(nn)nn.value=("發票"+r.no).slice(0,100);
           if($("#p_inv"))$("#p_inv").value=r.no;
           if(typeof syncPTotal==="function")syncPTotal();if(typeof updateDedHint==="function")updateDedHint();
@@ -4819,10 +4861,21 @@ async function aiRecognizeReceipt(blob,userNote){
     if(inv){const nn=$("#p_note");if(nn)nn.value=(("發票"+inv+";"+nn.value)).slice(0,100);
       if($("#p_inv")&&!$("#p_inv").value)$("#p_inv").value=inv.replace(/[^A-Za-z0-9]/g,"").toUpperCase();}
     const myUni=(db.company&&db.company.uni)||"";
+    // AI 說這是收據時，憑證類別也要跟著改，稅額才會歸零，不會硬拆出 5%
+    const _why=String(d["扣抵理由"]||"")+" "+String(d["憑證類別"]||"")+" "+String(d["品名摘要"]||"");
+    const ty=$("#p_type");
+    const looksReceipt=/收據|免用統一發票|無統一發票|沒有統一發票|無發票號碼/.test(_why);
+    // 沒有發票號碼、又不是海關代徵或國外勞務，實質上就是收據
+    const noInvNo=!inv && ty && ty.value!=="海關代徵" && ty.value!=="國外invoice(未在台登記)";
+    if(ty && (looksReceipt||noInvNo)){
+      ty.value="收據/免用統一發票";
+      if(typeof enforceNoTax==="function")enforceNoTax();
+    }
     const _aiOk=!!(inv&&myUni&&(d["買方統編"]||"")===myUni);
     if($("#p_ded"))$("#p_ded").value=_aiOk?"1":"0";
     _dedLockedByDoc=!_aiOk;
-    if(typeof syncInvField==="function")syncInvField();   // 買方統編不是我們公司 → 依 §33 不得扣抵，不可被提示覆寫
+    if(typeof syncInvField==="function")syncInvField();
+    if(typeof enforceNoTax==="function")enforceNoTax();   // 買方統編不是我們公司 → 依 §33 不得扣抵，不可被提示覆寫
     // AI 建議的會計科目：只在使用者還沒自己選過時填入，並標示為建議
     let acctMsg="";
     const sug=(d["建議科目"]||"").trim();
